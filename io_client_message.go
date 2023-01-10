@@ -9,6 +9,16 @@ import (
 	"strings"
 )
 
+const (
+	TagRead   = "接收"
+	TagWrite  = "发送"
+	TagClose  = "关闭"
+	TagRedial = "重连"
+	TagErr    = "错误"
+	Ping      = "ping"
+	Pong      = "pong"
+)
+
 func NewMessage(bs []byte) *Message {
 	return &Message{
 		Buffer: bytes.NewBuffer(bs),

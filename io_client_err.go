@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	ErrHandClose          = errors.New("主动关闭")
 	ErrRemoteClose        = errors.New("远程端主动关闭连接")
 	ErrRemoteCloseUnusual = errors.New("远程端意外关闭连接")
 	ErrCloseClose         = errors.New("关闭已关闭连接")

@@ -3,8 +3,10 @@ package io
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"github.com/injoyai/io/buf"
 	"io"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -16,23 +18,26 @@ func NewClientReader(reader Reader) *ClientReader {
 func NewClientReaderWithContext(ctx context.Context, reader Reader) *ClientReader {
 	ctx, cancel := context.WithCancel(ctx)
 	return &ClientReader{
-		buf:      bufio.NewReader(reader),
-		readChan: make(chan []byte),
-		readFunc: buf.ReadWithAll,
-		ctx:      ctx,
-		cancel:   cancel,
-		running:  &atomic.Value{},
+		ClientPrinter: NewClientPrint(),
+		buf:           bufio.NewReader(reader),
+		readChan:      make(chan []byte),
+		readFunc:      buf.ReadWithAll,
+		ctx:           ctx,
+		cancel:        cancel,
+		running:       &atomic.Value{},
 	}
 }
 
 type ClientReader struct {
-	*ClientPrint
-	buf      *bufio.Reader                       //buff
+	*ClientPrinter
+	buf      *bufio.Reader                       //buffer
 	readChan chan []byte                         //读取数据chan
 	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
 	dealFunc func(*Message)                      //处理数据函数
 	ctx      context.Context                     //上下文
 	cancel   context.CancelFunc                  //上下文关闭
+	closeErr error                               //错误
+	mu       sync.Mutex                          //锁
 	running  *atomic.Value                       //是否在运行
 	lastTime time.Time                           //最后读取数据时间
 }
@@ -57,6 +62,37 @@ func (this *ClientReader) ReadAll() ([]byte, error) {
 	return buf.ReadWithAll(this.Buffer())
 }
 
+// ReadChan 数据通道,需要及时处理,否则会丢弃数据
+func (this *ClientReader) ReadChan() <-chan []byte {
+	return this.readChan
+}
+
+// ReadLast 读取最新的数据
+func (this *ClientReader) ReadLast(timeout time.Duration) (response []byte, err error) {
+	if timeout <= 0 {
+		select {
+		case <-this.ctx.Done():
+			err = this.closeErr
+		case response = <-this.readChan:
+		}
+	} else {
+		t := time.NewTimer(timeout)
+		select {
+		case <-this.ctx.Done():
+			err = this.closeErr
+		case response = <-this.readChan:
+		case <-t.C:
+			err = ErrWithTimeout
+		}
+	}
+	return
+}
+
+// WriteTo 写入io.Writer
+func (this *ClientReader) WriteTo(writer Writer) (int64, error) {
+	return Copy(writer, this)
+}
+
 //================================ReadFunc================================
 
 // SetReadFunc 设置读取函数
@@ -72,6 +108,15 @@ func (this *ClientReader) SetReadWithNil() {
 // SetReadWithAll 一次性全部读取
 func (this *ClientReader) SetReadWithAll() {
 	this.SetReadFunc(buf.ReadWithAll)
+}
+
+// SetReadWithKB 读取固定字节长度
+func (this *ClientReader) SetReadWithKB(n uint) {
+	this.SetReadFunc(func(c *bufio.Reader) ([]byte, error) {
+		bytes := make([]byte, n<<10)
+		length, err := this.Read(bytes)
+		return bytes[:length], err
+	})
 }
 
 // SetReadWithStartEnd 设置根据包头包尾读取数据
@@ -118,16 +163,58 @@ func (this *ClientReader) SetDealWithWriter(writer Writer) {
 	})
 }
 
+//================================RunTime================================
+
 // Running 是否在运行,原子操作
 func (this *ClientReader) Running() bool {
 	v := this.running.Load()
 	return v != nil && v.(bool)
 }
 
-// Close 关闭
+// Ctx 上下文
+func (this *ClientReader) Ctx() context.Context {
+	return this.ctx
+}
+
+// Done 结束,关闭信号,一定有错误
+func (this *ClientReader) Done() <-chan struct{} {
+	return this.ctx.Done()
+}
+
+// Err 错误信息,如果有的话
+func (this *ClientReader) Err() error {
+	if !this.Closed() {
+		return nil
+	}
+	return this.closeErr
+}
+
+// Closed 是否断开连接
+func (this *ClientReader) Closed() bool {
+	select {
+	case <-this.ctx.Done():
+		return true
+	default:
+		return false
+	}
+}
+
+// Close 主动关闭
 func (this *ClientReader) Close() error {
-	if this.cancel != nil {
+	return this.CloseWithErr(ErrHandClose)
+}
+
+// CloseWithErr 根据错误关闭
+func (this *ClientReader) CloseWithErr(err error) error {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+	if err != nil && !this.Closed() {
+		//重置关闭原因
+		this.closeErr = dealErr(err)
+		//关闭上下文
 		this.cancel()
+		//打印日志
+		this.ClientPrinter.Print(TagClose, NewMessage([]byte(err.Error())))
 	}
 	return nil
 }
@@ -136,31 +223,41 @@ func (this *ClientReader) Run() error {
 	if this.Running() {
 		select {
 		case <-this.ctx.Done():
-			return this.ctx.Err()
+			return this.closeErr
 		}
 	}
 	for {
 		select {
 		case <-this.ctx.Done():
-			return this.ctx.Err()
+			return this.closeErr
 		default:
-			if this.readFunc == nil {
-				return ErrInvalidReadFunc
-			}
-			bytes, err := this.readFunc(this.Buffer())
-			if err != nil {
-				return err
-			}
-			//设置最后读取有效数据时间
-			this.lastTime = time.Now()
-			select {
-			case this.readChan <- bytes:
-				//尝试加入队列
-			default:
-			}
-			if this.dealFunc != nil {
-				this.dealFunc(NewMessage(bytes))
-			}
+			_ = this.CloseWithErr(func() (err error) {
+				defer func() {
+					if e := recover(); e != nil {
+						err = fmt.Errorf("%v", e)
+					}
+				}()
+				if this.readFunc == nil {
+					return ErrInvalidReadFunc
+				}
+				bytes, err := this.readFunc(this.Buffer())
+				if err != nil {
+					return err
+				}
+				//设置最后读取有效数据时间
+				this.lastTime = time.Now()
+				//打印日志
+				this.ClientPrinter.Print(TagRead, NewMessage(bytes))
+				select {
+				case this.readChan <- bytes:
+					//尝试加入队列
+				default:
+				}
+				if this.dealFunc != nil {
+					this.dealFunc(NewMessage(bytes))
+				}
+				return nil
+			}())
 		}
 	}
 }

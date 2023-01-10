@@ -1,14 +1,27 @@
 package io
 
 import (
+	"encoding/base64"
+	"encoding/hex"
+	"github.com/injoyai/conv"
 	"time"
 )
 
+// NewClientWriter 新建写
+func NewClientWriter(writer Writer) *ClientWriter {
+	return &ClientWriter{
+		ClientPrinter: NewClientPrint(),
+		writer:        writer,
+		writeFunc:     nil,
+		lastTime:      time.Time{},
+	}
+}
+
 type ClientWriter struct {
-	*ClientPrint
-	writer    Writer                //io.Writer
-	writeFunc func(p []byte) []byte //写入函数
-	lastTime  time.Time             //最后写入时间
+	*ClientPrinter                       //打印
+	writer         Writer                //io.Writer
+	writeFunc      func(p []byte) []byte //写入函数
+	lastTime       time.Time             //最后写入时间
 }
 
 // Write 写入字节,实现io.Writer
@@ -17,8 +30,9 @@ func (this *ClientWriter) Write(p []byte) (int, error) {
 		p = this.writeFunc(p)
 	}
 	if this.printFunc != nil {
-		this.printFunc("发送", NewMessage(p))
+		this.printFunc(TagWrite, NewMessage(p))
 	}
+	this.lastTime = time.Now()
 	return this.writer.Write(p)
 }
 
@@ -32,9 +46,45 @@ func (this *ClientWriter) WriteString(s string) (int, error) {
 	return this.Write([]byte(s))
 }
 
+// WriteASCII 写入ascii码数据
+func (this *ClientWriter) WriteASCII(s string) (int, error) {
+	return this.Write([]byte(s))
+}
+
+// WriteHEX 写入16进制数据
+func (this *ClientWriter) WriteHEX(s string) (int, error) {
+	bytes, err := hex.DecodeString(s)
+	if err != nil {
+		return 0, err
+	}
+	return this.Write(bytes)
+}
+
+// WriteBase64 写入base64数据
+func (this *ClientWriter) WriteBase64(s string) (int, error) {
+	bytes, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return 0, err
+	}
+	return this.Write(bytes)
+}
+
+// WriteWithTimeout 写入或者超时,todo 待实现
 func (this *ClientWriter) WriteWithTimeout(p []byte, timeout time.Duration) (int, error) {
 	return this.Write(p)
 }
+
+// WriteAny 写入任意数据,根据conv转成字节
+func (this *ClientWriter) WriteAny(any interface{}) (int, error) {
+	return this.Write(conv.Bytes(any))
+}
+
+// WriteOf io.Reader
+func (this *ClientWriter) WriteOf(reader Reader) (int64, error) {
+	return Copy(this, reader)
+}
+
+//================================WriteFunc================================
 
 // SetWriteFunc 设置写入函数
 func (this *ClientWriter) SetWriteFunc(fn func(p []byte) []byte) {
