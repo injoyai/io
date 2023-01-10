@@ -46,10 +46,11 @@ func (this *ClientCloser) SetCloseWithRedial(fn ...func(closer *ClientCloser)) {
 		this.ClientPrinter.Print(TagRedial, msg)
 		<-time.After(time.Second)
 		//todo
+		for _, v := range fn {
+			v(this)
+		}
 	})
-	for _, v := range fn {
-		v(this)
-	}
+
 }
 
 // SetRedialFunc 设置重连函数

@@ -236,13 +236,17 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 
 // Redial 重新链接,重试
 func (this *Client) Redial(fn ...func(c *Client)) *Client {
-	this.SetCloseWithRedial(func(closer *ClientCloser) {
-		readWriteCloser := closer.MustDial()
+	this.ClientCloser.SetCloseFunc(func(msg *Message) {
+		readWriteCloser := this.ClientCloser.MustDial()
 		if readWriteCloser == nil {
-			this.ClientPrinter.Print(TagErr, NewMessage([]byte(fmt.Sprintf("[%s] 连接断开(%v),未设置重连函数", this.GetKey(), closer.Err()))))
+			this.ClientPrinter.Print(TagErr, NewMessage([]byte(fmt.Sprintf("[%s] 连接断开(%v),未设置重连函数", this.GetKey(), this.ClientCloser.Err()))))
 			return
 		}
+		this.ClientPrinter.Print(TagErr, NewMessage([]byte(fmt.Sprintf("[%s] 连接断开(%v),重连成功", this.GetKey(), this.ClientCloser.Err()))))
+		redialFunc := this.ClientCloser.redialFunc
 		*this = *NewClient(readWriteCloser).SetKey(this.GetKey())
+		this.SetRedialFunc(redialFunc)
+		this.Redial(fn...)
 	})
 	for _, v := range fn {
 		v(this)
@@ -251,4 +255,8 @@ func (this *Client) Redial(fn ...func(c *Client)) *Client {
 		go this.Run()
 	}
 	return this
+}
+
+func (this *Client) Run() error {
+	return this.ClientCloser.CloseWithErr(this.ClientReader.Run())
 }

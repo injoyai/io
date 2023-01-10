@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/injoyai/io/buf"
 	"io"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -220,12 +221,14 @@ func (this *ClientReader) CloseWithErr(err error) error {
 }
 
 func (this *ClientReader) Run() error {
+	log.Printf("111%p", this)
 	if this.Running() {
 		select {
 		case <-this.ctx.Done():
 			return this.closeErr
 		}
 	}
+	log.Printf("222%p", this)
 	for {
 		select {
 		case <-this.ctx.Done():
