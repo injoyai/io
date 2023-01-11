@@ -29,6 +29,12 @@ func Serial(cfg *serial.Config) (io.ReadWriteCloser, error) {
 	return serial.Open(cfg)
 }
 
+// MQTT
+
+// HTTP
+
+// MQ
+
 // Websocket 连接
 func Websocket(url string, header http.Header) (io.MessageReadWriteCloser, error) {
 	c, _, err := websocket.DefaultDialer.Dial(url, header)
