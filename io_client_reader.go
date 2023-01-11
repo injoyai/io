@@ -94,6 +94,11 @@ func (this *ClientReader) WriteTo(writer Writer) (int64, error) {
 	return Copy(writer, this)
 }
 
+// CopyTo 写入io.Writer
+func (this *ClientReader) CopyTo(writer Writer) (int64, error) {
+	return Copy(writer, this)
+}
+
 //================================ReadFunc================================
 
 // SetReadFunc 设置读取函数
