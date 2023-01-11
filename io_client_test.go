@@ -7,16 +7,19 @@ import (
 )
 
 func TestNewDial(t *testing.T) {
-	c, err := NewDial(func() (ReadWriteCloser, error) {
+	c := MustDial(func() (ReadWriteCloser, error) {
 		return net.Dial("tcp", ":10086")
 	})
-	if err != nil {
-		t.Error(err)
-	}
-	c.Debug()
+	//if err != nil {
+	//	t.Error(err)
+	//	return
+	//}
 
 	c.Redial(func(c *Client) {
-		t.Log("重连")
+		t.Log("初始化")
+		c.Debug()
+		c.SetPrintWithHEX()
+		c.SetKey("test")
 		go func() {
 			for {
 				time.Sleep(time.Second)
@@ -28,6 +31,7 @@ func TestNewDial(t *testing.T) {
 		}()
 	})
 
+	go c.Run()
 	go c.Run()
 
 	select {}

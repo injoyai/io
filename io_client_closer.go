@@ -36,23 +36,6 @@ func (this *ClientCloser) SetCloseWithNil() {
 	this.SetCloseFunc(nil)
 }
 
-// SetCloseWithRedial 设置关闭后重连
-func (this *ClientCloser) SetCloseWithRedial(fn ...func(closer *ClientCloser)) {
-	this.SetCloseFunc(func(msg *Message) {
-		if this.redialFunc == nil {
-			this.ClientPrinter.Print(TagClose, msg)
-			return
-		}
-		this.ClientPrinter.Print(TagRedial, msg)
-		<-time.After(time.Second)
-		//todo
-		for _, v := range fn {
-			v(this)
-		}
-	})
-
-}
-
 // SetRedialFunc 设置重连函数
 func (this *ClientCloser) SetRedialFunc(fn func() (ReadWriteCloser, error)) {
 	this.redialFunc = fn
@@ -74,11 +57,11 @@ func (this *ClientCloser) MustDial() ReadWriteCloser {
 		if err == nil {
 			return readWriteCloser
 		}
+		this.ClientPrinter.Print(TagErr, NewMessage([]byte(fmt.Sprintf("%v,等待%d秒重试", dealErr(err), t/time.Second))))
+		<-time.After(t)
 		if t < time.Second*32 {
 			t = 2 * t
 		}
-		this.ClientPrinter.Print(TagErr, NewMessage([]byte(fmt.Sprintf("%v,等待%d秒重试", dealErr(err), t))))
-		<-time.After(t)
 	}
 }
 

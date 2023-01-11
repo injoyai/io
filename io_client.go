@@ -7,6 +7,7 @@ import (
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/conv"
 	"io"
+	"log"
 	"sync"
 	"time"
 )
@@ -30,6 +31,15 @@ import (
 //		time.Sleep(t)
 //	}
 //}
+
+func MustDial(dial func() (ReadWriteCloser, error)) *Client {
+	x := &ClientCloser{ClientPrinter: NewClientPrint()}
+	x.SetRedialFunc(dial)
+	x.Debug()
+	c := NewClient(x.MustDial())
+	c.SetRedialFunc(dial)
+	return c
+}
 
 func NewDial(dial func() (ReadWriteCloser, error)) (*Client, error) {
 	return NewDialWithContext(context.Background(), dial)
@@ -161,6 +171,7 @@ func (this *Client) Debug(b ...bool) *Client {
 	this.ClientPrinter.Debug(b...)
 	this.ClientReader.Debug(b...)
 	this.ClientWriter.Debug(b...)
+	this.ClientCloser.Debug(b...)
 	return this
 }
 
@@ -186,6 +197,29 @@ func (this *Client) CloseWithErr(err error) error {
 //	}
 //	return this
 //}
+
+// SetPrintFunc 设置打印函数
+func (this *Client) SetPrintFunc(fn func(tag string, msg *Message)) *Client {
+	this.ClientPrinter.SetPrintFunc(fn)
+	this.ClientReader.SetPrintFunc(fn)
+	this.ClientWriter.SetPrintFunc(fn)
+	//错误信息按ASCII编码
+	return this
+}
+
+// SetPrintWithHEX 设置打印HEX
+func (this *Client) SetPrintWithHEX() {
+	this.SetPrintFunc(func(tag string, msg *Message) {
+		log.Printf("[IO][%s] %s", tag, msg.HEX())
+	})
+}
+
+// SetPrintWithASCII 设置打印ASCII
+func (this *Client) SetPrintWithASCII() {
+	this.SetPrintFunc(func(tag string, msg *Message) {
+		log.Printf("[IO][%s] %s", tag, msg.ASCII())
+	})
+}
 
 // WriteReadWithTimeout 同步写读,超时
 func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error) {
@@ -236,6 +270,9 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 
 // Redial 重新链接,重试
 func (this *Client) Redial(fn ...func(c *Client)) *Client {
+	for _, v := range fn {
+		v(this)
+	}
 	this.ClientCloser.SetCloseFunc(func(msg *Message) {
 		readWriteCloser := this.ClientCloser.MustDial()
 		if readWriteCloser == nil {
@@ -244,16 +281,14 @@ func (this *Client) Redial(fn ...func(c *Client)) *Client {
 		}
 		this.ClientPrinter.Print(TagErr, NewMessage([]byte(fmt.Sprintf("[%s] 连接断开(%v),重连成功", this.GetKey(), this.ClientCloser.Err()))))
 		redialFunc := this.ClientCloser.redialFunc
-		*this = *NewClient(readWriteCloser).SetKey(this.GetKey())
+		key := this.GetKey()
+		*this = *NewClient(readWriteCloser)
+		this.SetKey(key)
 		this.SetRedialFunc(redialFunc)
 		this.Redial(fn...)
-	})
-	for _, v := range fn {
-		v(this)
-	}
-	if !this.Running() {
 		go this.Run()
-	}
+	})
+
 	return this
 }
 

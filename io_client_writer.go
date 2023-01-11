@@ -29,11 +29,15 @@ func (this *ClientWriter) Write(p []byte) (int, error) {
 	if this.writeFunc != nil {
 		p = this.writeFunc(p)
 	}
+	num, err := this.writer.Write(p)
+	if err != nil {
+		return 0, err
+	}
+	this.lastTime = time.Now()
 	if this.printFunc != nil {
 		this.printFunc(TagWrite, NewMessage(p))
 	}
-	this.lastTime = time.Now()
-	return this.writer.Write(p)
+	return num, nil
 }
 
 // WriteBytes 写入字节,实现bytesWriter

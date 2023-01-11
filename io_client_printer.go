@@ -3,11 +3,9 @@ package io
 import "log"
 
 func NewClientPrint() *ClientPrinter {
-	return &ClientPrinter{
-		printFunc: func(tag string, msg *Message) {
-			log.Printf("[%s] %s", tag, msg.String())
-		},
-	}
+	cp := &ClientPrinter{}
+	cp.SetPrintWithASCII()
+	return cp
 }
 
 type ClientPrinter struct {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/injoyai/io/buf"
 	"io"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,7 +24,7 @@ func NewClientReaderWithContext(ctx context.Context, reader Reader) *ClientReade
 		readFunc:      buf.ReadWithAll,
 		ctx:           ctx,
 		cancel:        cancel,
-		running:       &atomic.Value{},
+		running:       0,
 	}
 }
 
@@ -39,7 +38,7 @@ type ClientReader struct {
 	cancel   context.CancelFunc                  //上下文关闭
 	closeErr error                               //错误
 	mu       sync.Mutex                          //锁
-	running  *atomic.Value                       //是否在运行
+	running  uint32                              //是否在运行
 	lastTime time.Time                           //最后读取数据时间
 }
 
@@ -61,6 +60,11 @@ func (this *ClientReader) ReadByte() (byte, error) {
 // ReadAll 读取全部数据
 func (this *ClientReader) ReadAll() ([]byte, error) {
 	return buf.ReadWithAll(this.Buffer())
+}
+
+// ReadMessage 读取数据 todo 处理不及时数据会丢失
+func (this *ClientReader) ReadMessage() ([]byte, error) {
+	return this.ReadLast(0)
 }
 
 // ReadChan 数据通道,需要及时处理,否则会丢弃数据
@@ -97,7 +101,7 @@ func (this *ClientReader) WriteTo(writer Writer) (int64, error) {
 //================================ReadFunc================================
 
 // SetReadFunc 设置读取函数
-func (this *ClientReader) SetReadFunc(fn func(c *bufio.Reader) ([]byte, error)) {
+func (this *ClientReader) SetReadFunc(fn func(buf *bufio.Reader) ([]byte, error)) {
 	this.readFunc = fn
 }
 
@@ -113,9 +117,9 @@ func (this *ClientReader) SetReadWithAll() {
 
 // SetReadWithKB 读取固定字节长度
 func (this *ClientReader) SetReadWithKB(n uint) {
-	this.SetReadFunc(func(c *bufio.Reader) ([]byte, error) {
+	this.SetReadFunc(func(buf *bufio.Reader) ([]byte, error) {
 		bytes := make([]byte, n<<10)
-		length, err := this.Read(bytes)
+		length, err := buf.Read(bytes)
 		return bytes[:length], err
 	})
 }
@@ -168,8 +172,7 @@ func (this *ClientReader) SetDealWithWriter(writer Writer) {
 
 // Running 是否在运行,原子操作
 func (this *ClientReader) Running() bool {
-	v := this.running.Load()
-	return v != nil && v.(bool)
+	return this.running == 1
 }
 
 // Ctx 上下文
@@ -215,20 +218,15 @@ func (this *ClientReader) CloseWithErr(err error) error {
 		//关闭上下文
 		this.cancel()
 		//打印日志
-		this.ClientPrinter.Print(TagClose, NewMessage([]byte(err.Error())))
+		this.ClientPrinter.Print(TagClose, NewMessage([]byte(this.closeErr.Error())))
 	}
 	return nil
 }
 
 func (this *ClientReader) Run() error {
-	log.Printf("111%p", this)
-	if this.Running() {
-		select {
-		case <-this.ctx.Done():
-			return this.closeErr
-		}
+	if atomic.SwapUint32(&this.running, 1) == 1 {
+		return nil
 	}
-	log.Printf("222%p", this)
 	for {
 		select {
 		case <-this.ctx.Done():
@@ -265,83 +263,24 @@ func (this *ClientReader) Run() error {
 	}
 }
 
-//type ClientReader interface {
-//	Reader
-//	Buffer() *bufio.Reader
-//	ReadByte() (byte, error)
-//	ReadAll() (bytes []byte, err error)
-//	SetReadWithStartEnd(packageStart, packageEnd []byte)
-//	SetReadWithWriter(writer io.Writer)
-//	SetReadWithFrame(f *buf.Frame)
-//	SetReadWithNil()
-//	SetReadFunc(fn func(c *bufio.Reader) ([]byte, error))
-//	SetReadWithAll()
-//}
-//
-//type ClientWriter interface {
-//	Writer
-//	StringWriter
-//	BytesWriter
-//	TimeoutWriter
-//	SetWriteFunc(fn func([]byte) []byte)
-//	SetWriteWithNil()
-//}
-//
-//type ClientCloser interface {
-//	Closer
-//	Closed
-//	SetCloseFunc(fn func(msg *bytes.Buffer))
-//	SetCloseWithNil()
-//}
-//
-//type ClientPrint interface {
-//	SetPrintFunc(fn func(s string, msg *bytes.Buffer))
-//	SetPrintWithHEX()
-//	SetPrintWithASCII()
-//}
-//
-//type ClientDeal interface {
-//	SetDealFunc(fn func(msg *bytes.Buffer))
-//	SetDealWithNil()
-//	SetDealWithPrintASCII()
-//	SetDealWithPrintHEX()
-//}
-//
-//type Client interface {
-//	ClientReader
-//	ClientWriter
-//	ClientCloser
-//	ClientPrint
-//
-//	Debugger
-//
-//	Tag() *maps.Safe
-//	GetTag(key interface{}) interface{}
-//	SetTag(key, value interface{})
-//	SetKey(key string)
-//	GetKey() string
-//	Err() error
-//	// Run 运行,会阻塞
-//	Run() error
-//
-//	Ctx() context.Context
-//	Running() bool
-//
-//	// SetTimeout 设置超时时间
-//	SetTimeout(timeout time.Duration)
-//
-//	ReadChan() <-chan []byte
-//
-//	ReadLast(timeout time.Duration) (response []byte, err error)
-//
-//	WriteRead(request []byte) (response []byte, err error)
-//
-//	WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error)
-//
-//	SetKeepAlive(t time.Duration, keeps ...[]byte)
-//
-//	SetRedialFunc(fn func() (ReadWriteCloser, error))
-//
-//	Redial(fn ...func(c *Client))
-//	SetRunType(runType string)
-//}
+/*
+
+
+ */
+
+type _messageReader struct {
+	*ClientReader
+	readFunc func(buf *bufio.Reader) ([]byte, error)
+}
+
+// ReadMessage 实现 MessageReader 接口 省略分包过程
+func (this *_messageReader) ReadMessage() ([]byte, error) {
+	return this.readFunc(this.Buffer())
+}
+
+// NewMessageReader 新建 MessageReader
+func NewMessageReader(reader Reader, readFunc func(buf *bufio.Reader) ([]byte, error)) MessageReader {
+	r := NewClientReader(reader)
+	c := &_messageReader{ClientReader: r, readFunc: readFunc}
+	return c
+}
