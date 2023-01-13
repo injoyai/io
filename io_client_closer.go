@@ -1,33 +1,46 @@
 package io
 
 import (
-	"fmt"
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
 func NewClientCloser(closer Closer) *ClientCloser {
+	return NewClientCloserWithContext(context.Background(), closer)
+}
+
+func NewClientCloserWithContext(ctx context.Context, closer Closer) *ClientCloser {
+	ctx, cancel := context.WithCancel(ctx)
 	return &ClientCloser{
 		ClientPrinter: NewClientPrint(),
+		ClientKey:     NewClientKey(""),
 		closer:        closer,
 		redialFunc:    nil,
 		closeFunc:     nil,
-		closed:        &atomic.Value{},
+		closeErr:      nil,
+		closed:        0,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 }
 
 type ClientCloser struct {
 	*ClientPrinter
+	*ClientKey
 	closer     Closer
 	redialFunc func() (ReadWriteCloser, error)
-	closeFunc  func(msg *Message)
+	closeFunc  func(msg Message)
 	mu         sync.Mutex
-	closed     *atomic.Value
+	closeErr   error  //错误信息
+	closed     uint32 //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
 // SetCloseFunc 设置关闭函数
-func (this *ClientCloser) SetCloseFunc(fn func(msg *Message)) {
+func (this *ClientCloser) SetCloseFunc(fn func(msg Message)) {
 	this.closeFunc = fn
 }
 
@@ -57,7 +70,7 @@ func (this *ClientCloser) MustDial() ReadWriteCloser {
 		if err == nil {
 			return readWriteCloser
 		}
-		this.ClientPrinter.Print(TagErr, NewMessage([]byte(fmt.Sprintf("%v,等待%d秒重试", dealErr(err), t/time.Second))))
+		this.ClientPrinter.Print(TagErr, this.GetKey(), NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second))
 		<-time.After(t)
 		if t < time.Second*32 {
 			t = 2 * t
@@ -65,18 +78,31 @@ func (this *ClientCloser) MustDial() ReadWriteCloser {
 	}
 }
 
+// Ctx 上下文
+func (this *ClientCloser) Ctx() context.Context {
+	return this.ctx
+}
+
+// Done 结束,关闭信号,一定有错误
+func (this *ClientCloser) Done() <-chan struct{} {
+	return this.ctx.Done()
+}
+
 // Err 错误信息
 func (this *ClientCloser) Err() error {
-	v := this.closed.Load()
-	if v != nil {
-		return v.(error)
-	}
-	return nil
+	return this.closeErr
 }
 
 // Closed 是否已关闭
 func (this *ClientCloser) Closed() bool {
-	return this.Err() != nil
+	select {
+	case <-this.ctx.Done():
+		return true
+	default:
+		return false
+	}
+	//当这个为true时,错误有可能还没赋值,所以使用ctx.Done
+	//return this.closed == 1
 }
 
 // Close 关闭
@@ -88,14 +114,19 @@ func (this *ClientCloser) Close() error {
 func (this *ClientCloser) CloseWithErr(closeErr error) (err error) {
 	this.mu.Lock()
 	if closeErr != nil {
-		this.closed.Store(closeErr)
+		if atomic.SwapUint32(&this.closed, 1) == 1 {
+			return
+		}
+		//先赋值错误,再赋值关闭,确保关闭后一定有错误信息
+		this.closeErr = closeErr
+		this.cancel()
 		err = this.closer.Close()
 		msg := NewMessage([]byte(closeErr.Error()))
 		if this.closeFunc != nil {
 			//需要最后执行,防止死锁
 			defer this.closeFunc(msg)
 		}
-		this.ClientPrinter.Print(TagClose, msg)
+		this.ClientPrinter.Print(TagClose, this.GetKey(), msg)
 	}
 	this.mu.Unlock()
 	return

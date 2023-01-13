@@ -9,8 +9,12 @@ import (
 
 // NewClientWriter 新建写
 func NewClientWriter(writer Writer) *ClientWriter {
+	if c, ok := writer.(*ClientWriter); ok && c != nil {
+		return c
+	}
 	return &ClientWriter{
 		ClientPrinter: NewClientPrint(),
+		ClientKey:     NewClientKey(""),
 		writer:        writer,
 		writeFunc:     nil,
 		lastTime:      time.Time{},
@@ -19,6 +23,7 @@ func NewClientWriter(writer Writer) *ClientWriter {
 
 type ClientWriter struct {
 	*ClientPrinter                       //打印
+	*ClientKey                           //标识
 	writer         Writer                //io.Writer
 	writeFunc      func(p []byte) []byte //写入函数
 	lastTime       time.Time             //最后写入时间
@@ -31,11 +36,11 @@ func (this *ClientWriter) Write(p []byte) (int, error) {
 	}
 	num, err := this.writer.Write(p)
 	if err != nil {
-		return 0, err
+		return 0, dealErr(err)
 	}
 	this.lastTime = time.Now()
 	if this.printFunc != nil {
-		this.printFunc(TagWrite, NewMessage(p))
+		this.printFunc(TagWrite, this.GetKey(), NewMessage(p))
 	}
 	return num, nil
 }
@@ -83,8 +88,13 @@ func (this *ClientWriter) WriteAny(any interface{}) (int, error) {
 	return this.Write(conv.Bytes(any))
 }
 
-// WriteOf io.Reader
-func (this *ClientWriter) WriteOf(reader Reader) (int64, error) {
+// WriteReader io.Reader
+func (this *ClientWriter) WriteReader(reader Reader) (int64, error) {
+	return Copy(this, reader)
+}
+
+// Copy io.Reader
+func (this *ClientWriter) Copy(reader Reader) (int64, error) {
 	return Copy(this, reader)
 }
 

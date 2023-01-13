@@ -16,9 +16,13 @@ func NewClientReader(reader Reader) *ClientReader {
 }
 
 func NewClientReaderWithContext(ctx context.Context, reader Reader) *ClientReader {
+	if c, ok := reader.(*ClientReader); ok && c != nil {
+		return c
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	return &ClientReader{
 		ClientPrinter: NewClientPrint(),
+		ClientKey:     NewClientKey(""),
 		buf:           bufio.NewReader(reader),
 		readChan:      make(chan []byte),
 		readFunc:      buf.ReadWithAll,
@@ -30,10 +34,11 @@ func NewClientReaderWithContext(ctx context.Context, reader Reader) *ClientReade
 
 type ClientReader struct {
 	*ClientPrinter
+	*ClientKey
 	buf      *bufio.Reader                       //buffer
 	readChan chan []byte                         //读取数据chan
 	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
-	dealFunc func(*Message)                      //处理数据函数
+	dealFunc func(Message)                       //处理数据函数
 	ctx      context.Context                     //上下文
 	cancel   context.CancelFunc                  //上下文关闭
 	closeErr error                               //错误
@@ -157,7 +162,7 @@ func (this *ClientReader) SetReadWithFrame(f *buf.Frame) {
 //================================DealFunc================================
 
 // SetDealFunc 设置数据处理函数
-func (this *ClientReader) SetDealFunc(fn func(msg *Message)) {
+func (this *ClientReader) SetDealFunc(fn func(msg Message)) {
 	this.dealFunc = fn
 }
 
@@ -168,7 +173,7 @@ func (this *ClientReader) SetDealWithNil() {
 
 // SetDealWithWriter 设置数据处理到io.Writer
 func (this *ClientReader) SetDealWithWriter(writer Writer) {
-	this.SetDealFunc(func(msg *Message) {
+	this.SetDealFunc(func(msg Message) {
 		writer.Write(msg.Bytes())
 	})
 }
@@ -194,6 +199,9 @@ func (this *ClientReader) Done() <-chan struct{} {
 func (this *ClientReader) Err() error {
 	if !this.Closed() {
 		return nil
+	}
+	if this.closeErr == nil {
+		return ErrWithContext
 	}
 	return this.closeErr
 }
@@ -223,7 +231,7 @@ func (this *ClientReader) CloseWithErr(err error) error {
 		//关闭上下文
 		this.cancel()
 		//打印日志
-		this.ClientPrinter.Print(TagClose, NewMessage([]byte(this.closeErr.Error())))
+		this.ClientPrinter.Print(TagClose, this.GetKey(), NewMessageErr(this.closeErr))
 	}
 	return nil
 }
@@ -253,7 +261,7 @@ func (this *ClientReader) Run() error {
 				//设置最后读取有效数据时间
 				this.lastTime = time.Now()
 				//打印日志
-				this.ClientPrinter.Print(TagRead, NewMessage(bytes))
+				this.ClientPrinter.Print(TagRead, this.GetKey(), NewMessage(bytes))
 				select {
 				case this.readChan <- bytes:
 					//尝试加入队列

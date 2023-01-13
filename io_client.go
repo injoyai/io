@@ -7,7 +7,6 @@ import (
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/conv"
 	"io"
-	"log"
 	"sync"
 	"time"
 )
@@ -27,7 +26,7 @@ import (
 //		if t < time.Second*32 {
 //			t = 2 * t
 //		}
-//		log.Println("[错误]", dealErr(err), ",等待", t, "重试")
+//		//log.Println("[错误]", dealErr(err), ",等待", t, "重试")
 //		time.Sleep(t)
 //	}
 //}
@@ -69,19 +68,19 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		i:   i,
 		tag: maps.NewSafe(),
 
-		ClientReader:  NewClientReader(i),
+		ClientReader:  NewClientReaderWithContext(ctx, i),
 		ClientWriter:  NewClientWriter(i),
-		ClientCloser:  NewClientCloser(i),
+		ClientCloser:  NewClientCloserWithContext(ctx, i),
 		ClientPrinter: NewClientPrint(),
 
-		//timer:     time.NewTimer(0),
 		timerKeep: time.NewTimer(0),
-		//timeout:   0,
+		timer:     time.NewTimer(0),
+		timeout:   0,
 	}
-	c.ctx, c.cancel = context.WithCancel(ctx)
-	//if c.timeout <= 0 {
-	//	<-c.timer.C
-	//}
+
+	if c.timeout <= 0 {
+		<-c.timer.C
+	}
 	if c.keepAlive <= 0 {
 		<-c.timerKeep.C
 	}
@@ -100,8 +99,8 @@ type Client struct {
 	*ClientCloser
 	*ClientPrinter
 
-	//timer     *time.Timer   //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
-	//timeout   time.Duration //超时时间
+	timer     *time.Timer   //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
+	timeout   time.Duration //超时时间
 	timerKeep *time.Timer   //正常通讯不发送心跳
 	keepAlive time.Duration //保持连接
 
@@ -114,9 +113,13 @@ func (this *Client) ReadWriteCloser() io.ReadWriteCloser {
 	return this.i
 }
 
+func (this *Client) Pointer() string {
+	return fmt.Sprintf("%p", this.ReadWriteCloser())
+}
+
 // Interface 读写接口
 func (this *Client) Interface() io.ReadWriteCloser {
-	return this.i
+	return this.ReadWriteCloser()
 }
 
 // Buffer 极大的增加读取速度
@@ -142,6 +145,9 @@ func (this *Client) SetTag(key, value interface{}) {
 // SetKey 设置唯一标识
 func (this *Client) SetKey(key string) *Client {
 	this.key = key
+	this.ClientWriter.SetKey(key)
+	this.ClientReader.SetKey(key)
+	this.ClientCloser.SetKey(key)
 	return this
 }
 
@@ -175,7 +181,13 @@ func (this *Client) Debug(b ...bool) *Client {
 	return this
 }
 
-// Close 主动关闭连接,无法触发重试机制
+// CloseAll 主动关闭连接,无法触发重试机制
+func (this *Client) CloseAll() error {
+	this.SetCloseWithNil()
+	return this.CloseWithErr(ErrHandClose)
+}
+
+// Close 手动关闭,会触发重试
 func (this *Client) Close() error {
 	return this.CloseWithErr(ErrHandClose)
 }
@@ -187,19 +199,33 @@ func (this *Client) CloseWithErr(err error) error {
 	return nil
 }
 
-//// SetTimeout 设置超时时间
-//func (this *Client) SetTimeout(timeout time.Duration) *Client {
-//	this.timeout = timeout
-//	if timeout <= 0 {
-//		this.timer.Stop()
-//	} else {
-//		this.timer.Reset(timeout)
-//	}
-//	return this
-//}
+// SetTimeout 设置超时时间
+func (this *Client) SetTimeout(timeout time.Duration) *Client {
+	this.timeout = timeout
+	if timeout <= 0 {
+		this.timer.Stop()
+	} else {
+		this.timer.Reset(timeout)
+	}
+	return this
+}
+
+// SetDealFunc 设置处理数据函数
+func (this *Client) SetDealFunc(fn func(msg *ClientMessage)) {
+	this.ClientReader.SetDealFunc(func(msg Message) {
+		fn(NewClientMessage(this, msg))
+	})
+}
+
+// SetCloseFunc 设置关闭函数
+func (this *Client) SetCloseFunc(fn func(msg *ClientMessage)) {
+	this.ClientCloser.SetCloseFunc(func(msg Message) {
+		fn(NewClientMessage(this, msg))
+	})
+}
 
 // SetPrintFunc 设置打印函数
-func (this *Client) SetPrintFunc(fn func(tag string, msg *Message)) *Client {
+func (this *Client) SetPrintFunc(fn func(tag, key string, msg Message)) *Client {
 	this.ClientPrinter.SetPrintFunc(fn)
 	this.ClientReader.SetPrintFunc(fn)
 	this.ClientWriter.SetPrintFunc(fn)
@@ -209,16 +235,12 @@ func (this *Client) SetPrintFunc(fn func(tag string, msg *Message)) *Client {
 
 // SetPrintWithHEX 设置打印HEX
 func (this *Client) SetPrintWithHEX() {
-	this.SetPrintFunc(func(tag string, msg *Message) {
-		log.Printf("[IO][%s] %s", tag, msg.HEX())
-	})
+	this.SetPrintFunc(PrintWithHEX)
 }
 
 // SetPrintWithASCII 设置打印ASCII
 func (this *Client) SetPrintWithASCII() {
-	this.SetPrintFunc(func(tag string, msg *Message) {
-		log.Printf("[IO][%s] %s", tag, msg.ASCII())
-	})
+	this.SetPrintFunc(PrintWithASCII)
 }
 
 // WriteReadWithTimeout 同步写读,超时
@@ -256,7 +278,7 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) *Client {
 					}
 				}
 			}
-		}(this.ctx)
+		}(this.ClientCloser.ctx)
 	}
 	return this
 }
@@ -268,18 +290,18 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 	return this
 }
 
-// Redial 重新链接,重试
-func (this *Client) Redial(fn ...func(c *Client)) *Client {
+// Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
+func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 	for _, v := range fn {
-		v(this)
+		v(this.ClientCloser.ctx, this)
 	}
-	this.ClientCloser.SetCloseFunc(func(msg *Message) {
+	this.SetCloseFunc(func(msg *ClientMessage) {
 		readWriteCloser := this.ClientCloser.MustDial()
 		if readWriteCloser == nil {
-			this.ClientPrinter.Print(TagErr, NewMessage([]byte(fmt.Sprintf("[%s] 连接断开(%v),未设置重连函数", this.GetKey(), this.ClientCloser.Err()))))
+			this.ClientPrinter.Print(TagClose, this.GetKey(), NewMessageFormat("连接断开(%v),未设置重连函数", this.ClientCloser.Err()))
 			return
 		}
-		this.ClientPrinter.Print(TagErr, NewMessage([]byte(fmt.Sprintf("[%s] 连接断开(%v),重连成功", this.GetKey(), this.ClientCloser.Err()))))
+		this.ClientPrinter.Print(TagErr, this.GetKey(), NewMessageFormat("连接断开(%v),重连成功", this.ClientCloser.Err()))
 		redialFunc := this.ClientCloser.redialFunc
 		key := this.GetKey()
 		*this = *NewClient(readWriteCloser)
