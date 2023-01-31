@@ -40,7 +40,8 @@ func TestNewDial(t *testing.T) {
 	go func() {
 		for {
 			<-time.After(time.Second * 6)
-			c.Close()
+			//c.Close()
+			c.CloseAll()
 		}
 	}()
 

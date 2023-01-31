@@ -29,11 +29,11 @@ func Serial(cfg *serial.Config) (io.ReadWriteCloser, error) {
 	return serial.Open(cfg)
 }
 
-// MQTT
+// MQTT 连接
 
-// HTTP
+// HTTP 连接
 
-// MQ
+// MQ 连接
 
 // Websocket 连接
 func Websocket(url string, header http.Header) (io.MessageReadWriteCloser, error) {

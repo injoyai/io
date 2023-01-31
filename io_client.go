@@ -11,25 +11,9 @@ import (
 	"time"
 )
 
-//func RedialClient(connect func() (ReadWriteCloser, error), fn ...func(c *Client)) *Client {
-//	return MustClient(connect).Redial(fn...)
-//}
-//
-//func MustClient(connect func() (ReadWriteCloser, error)) *Client {
-//	t := time.Second
-//	for {
-//		client, err := connect()
-//		if err == nil {
-//			log.Printf("[信息] 连接服务成功...\n")
-//			return NewClient(client).SetRedialFunc(connect)
-//		}
-//		if t < time.Second*32 {
-//			t = 2 * t
-//		}
-//		//log.Println("[错误]", dealErr(err), ",等待", t, "重试")
-//		time.Sleep(t)
-//	}
-//}
+func RedialClient(connect func() (ReadWriteCloser, error), fn ...func(ctx context.Context, c *Client)) *Client {
+	return MustDial(connect).Redial(fn...)
+}
 
 func MustDial(dial func() (ReadWriteCloser, error)) *Client {
 	x := &ClientCloser{ClientPrinter: NewClientPrint()}

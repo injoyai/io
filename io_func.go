@@ -6,14 +6,13 @@ type multiCloser struct {
 	closer []Closer
 }
 
-func (this *multiCloser) Close() error {
-	var err error
+func (this *multiCloser) Close() (err error) {
 	for _, v := range this.closer {
 		if er := v.Close(); er != nil {
 			err = er
 		}
 	}
-	return err
+	return
 }
 
 // MultiCloser 多个关闭合并

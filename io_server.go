@@ -3,7 +3,6 @@ package io
 import (
 	"bufio"
 	"context"
-	"errors"
 	"github.com/injoyai/io/buf"
 	"sync"
 	"time"
@@ -173,12 +172,12 @@ func (this *Server) GetClientMap() map[string]*Client {
 }
 
 // WriteClient 给一个客户端发送数据
-func (this *Server) WriteClient(key string, msg []byte) (bool, error) {
-	if c := this.GetClient(key); c != nil {
-		_, err := c.Write(msg)
-		return true, err
+func (this *Server) WriteClient(key string, msg []byte) (exist bool, err error) {
+	c := this.GetClient(key)
+	if exist = c != nil; exist {
+		_, err = c.Write(msg)
 	}
-	return false, errors.New("客户端不存在")
+	return
 }
 
 // WriteConnAll 广播,发送数据给所有连接
@@ -205,8 +204,8 @@ func (this *Server) CloseClientAll() {
 // SetClientKey 重命名key
 func (this *Server) SetClientKey(newClient *Client, newKey string) {
 	//判断这个标识符的客户端是否存在,存在则关闭
-	oldClient := this.GetClient(newKey)
-	if oldClient != nil {
+	if oldClient := this.GetClient(newKey); oldClient != nil {
+		//判断指针地址是否一致,不一致则关闭
 		if oldClient.Pointer() != newClient.Pointer() {
 			oldClient.Close()
 		}
