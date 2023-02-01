@@ -14,6 +14,11 @@ func TCP(addr string) (io.ReadWriteCloser, error) {
 	return net.Dial("tcp", addr)
 }
 
+// TCPFunc 连接函数
+func TCPFunc(addr string) func() (io.ReadWriteCloser, error) {
+	return func() (io.ReadWriteCloser, error) { return TCP(addr) }
+}
+
 // UDP 连接
 func UDP(addr string) (io.ReadWriteCloser, error) {
 	return net.Dial("udp", addr)

@@ -35,3 +35,5 @@ type MessageReadWriteCloser interface {
 	MessageReader
 	WriteCloser
 }
+
+type DialFunc func() (ReadWriteCloser, error)
