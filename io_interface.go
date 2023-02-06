@@ -1,6 +1,8 @@
 package io
 
-import "time"
+import (
+	"time"
+)
 
 type BytesWriter interface {
 	WriteBytes(p []byte) (int, error)
@@ -36,4 +38,11 @@ type MessageReadWriteCloser interface {
 	WriteCloser
 }
 
+// DialFunc 连接函数
 type DialFunc func() (ReadWriteCloser, error)
+
+// ListenFunc 监听函数
+type ListenFunc func() (Listener, error)
+
+// DealFunc 数据处理函数
+type DealFunc func(msg Message)

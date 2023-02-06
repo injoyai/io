@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/injoyai/io/buf"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -52,14 +53,15 @@ type Server struct {
 	closed     uint32               //是否关闭
 	closeErr   error                //错误信息
 
-	debug     bool                                    //debug,调试模式
-	dataChan  chan *ClientMessage                     //接受数据通道
-	readFunc  func(buf *bufio.Reader) ([]byte, error) //数据读取方法
-	closeFunc func(msg *ClientMessage)                //断开连接事件
-	writeFunc func(p []byte) []byte                   //数据发送函数,包装下原始数据
-	printFunc func(tag, key string, msg Message)      //打印数据方法
-	timeout   time.Duration                           //超时时间,0是永久有效
+	debug     bool                               //debug,调试模式
+	dataChan  chan *ClientMessage                //接受数据通道
+	readFunc  buf.ReadFunc                       //数据读取方法
+	closeFunc func(msg *ClientMessage)           //断开连接事件
+	writeFunc func(p []byte) []byte              //数据发送函数,包装下原始数据
+	printFunc func(tag, key string, msg Message) //打印数据方法
+	timeout   time.Duration                      //超时时间,0是永久有效
 
+	running uint32 //是否在运行
 }
 
 // Debug 调试模式
@@ -104,6 +106,14 @@ func (this *Server) SetCloseFunc(fn func(msg *ClientMessage)) *Server {
 // SetDealFunc 设置处理数据方法
 func (this *Server) SetDealFunc(fn func(msg *ClientMessage)) *Server {
 	this.dealFunc = fn
+	return this
+}
+
+// SetDealWithWriter 读取到的数据写入到writer
+func (this *Server) SetDealWithWriter(writer Writer) *Server {
+	this.SetDealFunc(func(msg *ClientMessage) {
+		writer.Write(msg.Bytes())
+	})
 	return this
 }
 
@@ -171,6 +181,10 @@ func (this *Server) GetClientMap() map[string]*Client {
 	return m
 }
 
+func (this *Server) Read(p []byte) (int, error) {
+	return 0, nil
+}
+
 // WriteClient 给一个客户端发送数据
 func (this *Server) WriteClient(key string, msg []byte) (exist bool, err error) {
 	c := this.GetClient(key)
@@ -180,8 +194,14 @@ func (this *Server) WriteClient(key string, msg []byte) (exist bool, err error) 
 	return
 }
 
-// WriteConnAll 广播,发送数据给所有连接
-func (this *Server) WriteConnAll(msg []byte) {
+// Write 给所有客户端发送数据,实现io.Writer接口
+func (this *Server) Write(p []byte) (int, error) {
+	this.WriteClientAll(p)
+	return len(p), nil
+}
+
+// WriteClientAll 广播,发送数据给所有连接
+func (this *Server) WriteClientAll(msg []byte) {
 	for _, c := range this.GetClientMap() {
 		c.Write(msg)
 	}
@@ -217,7 +237,43 @@ func (this *Server) SetClientKey(newClient *Client, newKey string) {
 	this.clientMap[newKey] = newClient.SetKey(newKey)
 }
 
+// Swap 和一个IO交换数据
+func (this *Server) Swap(i ReadWriteCloser) *Server {
+	this.SwapWithReadFunc(i, buf.ReadWithAll)
+	return this
+}
+
+// SwapWithReadFunc 根据读取规则俩进行IO数据交换
+func (this *Server) SwapWithReadFunc(i ReadWriteCloser, readFunc buf.ReadFunc) {
+	c := NewClient(i)
+	c.SetReadFunc(readFunc)
+	this.SwapClient(c)
+}
+
+// SwapClient 和一个客户端交换数据
+func (this *Server) SwapClient(c *Client) {
+	this.SetDealWithWriter(c)
+	c.SetDealWithWriter(this)
+	go c.Run()
+}
+
+// SwapServer 和另一个服务交换数据
+func (this *Server) SwapServer(s *Server) {
+	this.SetDealWithWriter(s)
+	s.SetDealWithWriter(this)
+}
+
+// Running 是否在运行
+func (this *Server) Running() bool {
+	return this.running == 1
+}
+
+// Run 运行(监听)
 func (this *Server) Run() error {
+
+	if atomic.SwapUint32(&this.running, 1) == 1 {
+		return nil
+	}
 
 	go func(ctx context.Context) {
 		for {

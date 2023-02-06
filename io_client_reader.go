@@ -111,7 +111,7 @@ func (this *ClientReader) CopyTo(writer Writer) (int64, error) {
 //================================ReadFunc================================
 
 // SetReadFunc 设置读取函数
-func (this *ClientReader) SetReadFunc(fn func(buf *bufio.Reader) ([]byte, error)) {
+func (this *ClientReader) SetReadFunc(fn buf.ReadFunc) {
 	this.readFunc = fn
 }
 
@@ -180,11 +180,6 @@ func (this *ClientReader) SetDealWithWriter(writer Writer) {
 
 //================================RunTime================================
 
-// Running 是否在运行,原子操作
-func (this *ClientReader) Running() bool {
-	return this.running == 1
-}
-
 // Ctx 上下文
 func (this *ClientReader) Ctx() context.Context {
 	return this.ctx
@@ -236,6 +231,11 @@ func (this *ClientReader) CloseWithErr(err error) error {
 	return nil
 }
 
+// Running 是否在运行
+func (this *ClientReader) Running() bool {
+	return this.running == 1
+}
+
 func (this *ClientReader) Run() error {
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
@@ -283,7 +283,7 @@ func (this *ClientReader) Run() error {
 
 type _messageReader struct {
 	*ClientReader
-	readFunc func(buf *bufio.Reader) ([]byte, error)
+	readFunc buf.ReadFunc
 }
 
 // ReadMessage 实现 MessageReader 接口 省略分包过程
@@ -292,7 +292,7 @@ func (this *_messageReader) ReadMessage() ([]byte, error) {
 }
 
 // NewMessageReader 新建 MessageReader
-func NewMessageReader(reader Reader, readFunc func(buf *bufio.Reader) ([]byte, error)) MessageReader {
+func NewMessageReader(reader Reader, readFunc buf.ReadFunc) MessageReader {
 	r := NewClientReader(reader)
 	c := &_messageReader{ClientReader: r, readFunc: readFunc}
 	return c

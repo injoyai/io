@@ -30,7 +30,7 @@ type ClientCloser struct {
 	*ClientPrinter
 	*ClientKey
 	closer     Closer
-	redialFunc func() (ReadWriteCloser, error)
+	redialFunc DialFunc
 	closeFunc  func(msg Message)
 	mu         sync.Mutex
 	closeErr   error  //错误信息

@@ -9,6 +9,8 @@ import (
 	"os"
 )
 
+type SerialConfig = serial.Config
+
 // TCP 连接
 func TCP(addr string) (io.ReadWriteCloser, error) {
 	return net.Dial("tcp", addr)

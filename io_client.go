@@ -82,6 +82,11 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 	return c
 }
 
+/*
+Client 通用IO客户端
+各种设置,当Run函数执行时生效
+可以作为普通的io.ReadWriteCloser(Run函数不执行)
+*/
 type Client struct {
 	buf *bufio.Reader   //buff
 	key string          //唯一标识
@@ -108,6 +113,7 @@ func (this *Client) ReadWriteCloser() io.ReadWriteCloser {
 	return this.i
 }
 
+// Pointer 获取指针地址
 func (this *Client) Pointer() string {
 	return fmt.Sprintf("%p", this.ReadWriteCloser())
 }
@@ -165,6 +171,11 @@ func (this *Client) Err() error {
 		return err
 	}
 	return nil
+}
+
+// Ctx 上下文
+func (this *Client) Ctx() context.Context {
+	return this.ClientCloser.Ctx()
 }
 
 // Debug 调试模式,打印日志
@@ -309,6 +320,17 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 	return this
 }
 
+// Swap IO数据交换
+func (this *Client) Swap(i ReadWriteCloser) {
+	this.SwapClient(NewClient(i))
+}
+
+// SwapClient IO数据交换
+func (this *Client) SwapClient(c *Client) {
+	SwapClient(this, c)
+}
+
+// Run 开始执行(读取数据)
 func (this *Client) Run() error {
 	return this.ClientCloser.CloseWithErr(this.ClientReader.Run())
 }

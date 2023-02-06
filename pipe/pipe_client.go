@@ -2,12 +2,8 @@ package pipe
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"github.com/injoyai/io"
-	"github.com/injoyai/io/buf"
 	"log"
-	"sync"
 )
 
 // NewClient 新建管道客户端
@@ -19,10 +15,12 @@ func NewClient(dial io.DialFunc) (*Client, error) {
 	c := &Client{
 		Client:   client,
 		writeLen: 2 << 10,
-		mapBuff:  make(map[string]io.ReadWriteCloser),
-		mu:       sync.RWMutex{},
+		dealFunc: func(msg *Message) error {
+			log.Printf("[Client]%s\n", string(msg.Data))
+			return nil
+		},
 	}
-	c.init()
+	c.Redial()
 	return c, nil
 }
 
@@ -47,174 +45,80 @@ type Client struct {
 	//数据太多可能会影响到其他数据的时效
 	writeLen uint
 
-	//数据缓存,等到数据被读取
-	//单通道支持不同连接的数据
-	mapBuff map[string]io.ReadWriteCloser
+	////数据缓存,等到数据被读取
+	////单通道支持不同连接的数据
+	//mapIO map[string]io.WriteCloser
+	//
+	//mu sync.RWMutex
 
-	mu sync.RWMutex
+	//处理读取到的数据
+	dealFunc func(msg *Message) error
 }
 
-func (this *Client) SetBuff() {
-
+// SetDealFunc 设置处理函数
+func (this *Client) SetDealFunc(fn func(msg *Message) error) *Client {
+	this.dealFunc = fn
+	return this
 }
 
-// init 初始化操作
-func (this *Client) init() {
+//func (this *Client) SetIO(key string, writeCloser io.WriteCloser) *Client {
+//	this.mu.RLock()
+//	oldIO := this.mapIO[key]
+//	this.mu.RUnlock()
+//	if oldIO != nil && oldIO != writeCloser {
+//		oldIO.Close()
+//	}
+//	this.mu.Lock()
+//	defer this.mu.Unlock()
+//	this.mapIO[key] = writeCloser
+//	return this
+//}
+
+// Redial 重连初始化
+func (this *Client) Redial(fn ...func(ctx context.Context, c *io.Client)) {
 	this.Client.Redial(func(ctx context.Context, c *io.Client) {
-
-		this.Client.Debug()
-		this.Client.SetPrintWithHEX()
+		this.Client.SetWriteFunc(encodePackage)
 		this.Client.SetReadFunc(defaultReadFunc)
-		this.Client.SetDealFunc(func(msg *io.ClientMessage) {
-			bytes, err := decodePackage(msg.Bytes())
-			if err != nil {
-				log.Println("[错误]", err)
-				return
-			}
-			result, err := decodeMessage(bytes)
-			if err != nil {
-				log.Println("[错误]", err)
-				return
-			}
+		this.Client.SetDealFunc(newDealFunc(this.dealFunc))
+		for _, v := range fn {
+			v(ctx, c)
+		}
 
-			//写入数据到缓存
-			this.mu.RLock()
-			writeCloser := this.mapBuff[result.Key]
-			this.mu.RUnlock()
-			if writeCloser != nil {
+		////写入数据到缓存
+		//this.mu.RLock()
+		//writeCloser := this.mapIO[result.Key]
+		//this.mu.RUnlock()
+		//if writeCloser != nil {
+		//
+		//	//如果远程已关闭,则断开当前连接,并删除
+		//	if string(result.Data) == io.EOF.Error() {
+		//		writeCloser.Close()
+		//		this.mu.Lock()
+		//		delete(this.mapIO, result.Key)
+		//		this.mu.Unlock()
+		//		return
+		//	}
+		//
+		//	//存在则写入数据
+		//	writeCloser.Write(result.Data)
+		//	return
+		//
+		//}
+		//
+		////不存在则说明连接已经关闭,或者远程已关闭
+		////下发关闭数据到通道另一头
+		//m := newCloseMessage(result.Key, "连接已关闭")
+		//this.Client.Write(encodePackage(m.Bytes()))
 
-				//如果远程已关闭,则断开当前连接,并删除
-				if string(result.Data) == io.EOF.Error() {
-					writeCloser.Close()
-					this.mu.Lock()
-					delete(this.mapBuff, result.Key)
-					this.mu.Unlock()
-					return
-				}
-
-				//存在则写入数据
-				writeCloser.Write(result.Data)
-				return
-
-			}
-
-			//不存在则说明连接已经关闭,或者远程已关闭
-			//下发关闭数据到通道另一头
-			m := newCloseMessage(result.Key, "连接已关闭")
-			this.Client.Write(encodePackage(m.Bytes()))
-
-		})
 	})
 }
 
 // Write 实现io.Writer
-func (this *Client) Write(p []byte) (int, error) {
-
-	key := "key"
-	addr := "addr"
-	total := len(p)
-
-	//一次性发送全部数据,数据太多可能会影响到其他数据的时效
-	if this.writeLen == 0 {
-		msg := newWriteMessage(key, addr, p)
-		return this.Client.Write(encodePackage(msg.Bytes()))
-	}
-
-	//分包发送,避免其他数据不能及时发送
-	for len(p) > 0 {
-		data := []byte(nil)
-		if len(p) > int(this.writeLen) {
-			data = p[:this.writeLen]
-			p = p[this.writeLen:]
-		} else {
-			data = p[:]
-			p = p[:0]
-		}
-		msg := newWriteMessage(key, addr, data)
-		if _, err := this.Client.Write(encodePackage(msg.Bytes())); err != nil {
-			return 0, err
-		}
-	}
-
-	return total, nil
+func (this *Client) Write(key, addr string, p []byte) (int, error) {
+	return writeFunc(this.writeLen, this.Client.Write, key, addr, p)
 }
 
-//========================Message========================
-
-var (
-	defaultStart    = []byte{0x03, 0x03}
-	defaultEnd      = []byte{0x04, 0x04}
-	defaultReadFunc = buf.NewReadWithStartEnd(defaultStart, defaultEnd)
-)
-
-func encodePackage(req []byte) []byte {
-	req = []byte(base64.StdEncoding.EncodeToString(req))
-	req = append(append(defaultStart, req...), defaultEnd...)
-	return req
-}
-
-func decodePackage(req []byte) ([]byte, error) {
-	if len(req) > len(defaultStart)+len(defaultEnd) {
-		req = req[len(defaultStart) : len(req)-len(defaultEnd)]
-	}
-	return base64.StdEncoding.DecodeString(string(req))
-}
-
-const (
-	TypeConnect Type = "connect" //代理,通讯,建立新的链接
-	TypeWrite   Type = "write"   //代理,透传,写数据
-	TypeClose   Type = "close"   //代理,通讯,关闭链接
-
-	TypeRegister Type = "register" //通讯,注册
-	TypeInfo     Type = "info"     //通讯,和服务端建立通讯
-)
-
-type Type string
-
-func decodeMessage(bytes []byte) (*Message, error) {
-	m := new(Message)
-	err := json.Unmarshal(bytes, m)
-	return m, err
-}
-
-func newConnectMessage(key, addr string) *Message {
-	return &Message{
-		Type: TypeConnect,
-		Key:  key,
-		Addr: addr,
-	}
-}
-
-func newWriteMessage(key, addr string, data []byte) *Message {
-	return &Message{
-		Type: TypeWrite,
-		Key:  key,
-		Addr: addr,
-		Data: data,
-	}
-}
-
-func newCloseMessage(key string, data string) *Message {
-	return &Message{
-		Type: TypeClose,
-		Key:  key,
-		Data: []byte(data),
-	}
-}
-
-// Message 内置消息结构
-type Message struct {
-	Type Type   //动作类型 建立连接,写入数据,关闭连接
-	Key  string //标识
-	Addr string //目标地址
-	Data []byte //写入的数据(如果有)
-}
-
-func (this *Message) String() string {
-	return string(this.Bytes())
-}
-
-func (this *Message) Bytes() []byte {
-	bs, _ := json.Marshal(this)
-	return bs
+func (this *Client) WriteMessage(msg *Message) error {
+	_, err := this.Client.Write(msg.Bytes())
+	return err
 }
