@@ -12,6 +12,7 @@ var (
 	defaultReadFunc = buf.NewReadWithStartEnd(defaultStart, defaultEnd)
 )
 
+// DefaultReadFunc 默认读函数
 func DefaultReadFunc(buf *bufio.Reader) ([]byte, error) {
 	req, err := defaultReadFunc(buf)
 	if err != nil {
@@ -23,6 +24,7 @@ func DefaultReadFunc(buf *bufio.Reader) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(string(req))
 }
 
+// DefaultWriteFunc 默认写函数
 func DefaultWriteFunc(req []byte) []byte {
 	req = []byte(base64.StdEncoding.EncodeToString(req))
 	req = append(append(defaultStart, req...), defaultEnd...)

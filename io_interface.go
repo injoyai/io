@@ -38,6 +38,12 @@ type MessageReadWriteCloser interface {
 	WriteCloser
 }
 
+type Listener interface {
+	Accept() (ReadWriteCloser, string, error)
+	Close() error
+	Addr() string
+}
+
 // DialFunc 连接函数
 type DialFunc func() (ReadWriteCloser, error)
 

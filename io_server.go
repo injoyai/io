@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-type Listener interface {
-	Accept() (ReadWriteCloser, string, error)
-	Close() error
-	Addr() string
-}
-
 func NewServer(newListen func() (Listener, error)) (*Server, error) {
 	return NewServerWithContext(context.Background(), newListen)
 }
