@@ -74,15 +74,20 @@ func (this *Client) SetDealFunc(fn func(msg *Message) error) *Client {
 //	return this
 //}
 
+func (this *Client) SetDealWithWriter(writer io.Writer) {
+	//this.d
+}
+
 // Redial 重连初始化
 func (this *Client) Redial(fn ...func(ctx context.Context, c *io.Client)) {
 	this.Client.Redial(func(ctx context.Context, c *io.Client) {
-		this.Client.SetWriteFunc(encodePackage)
-		this.Client.SetReadFunc(defaultReadFunc)
+		this.Client.SetWriteFunc(DefaultWriteFunc)
+		this.Client.SetReadFunc(DefaultReadFunc)
 		this.Client.SetDealFunc(newDealFunc(this.dealFunc))
 		for _, v := range fn {
 			v(ctx, c)
 		}
+		return
 
 		////写入数据到缓存
 		//this.mu.RLock()

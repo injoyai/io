@@ -7,12 +7,7 @@ import (
 
 func newDealFunc(dealFunc func(msg *Message) error) func(msg *io.ClientMessage) {
 	return func(msg *io.ClientMessage) {
-		bytes, err := decodePackage(msg.Bytes())
-		if err != nil {
-			log.Println("[错误]", err)
-			return
-		}
-		result, err := decodeMessage(bytes)
+		result, err := decodeMessage(msg.Bytes())
 		if err != nil {
 			log.Println("[错误]", err)
 			return

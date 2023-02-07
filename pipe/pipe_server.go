@@ -18,8 +18,8 @@ func NewServer(listen io.ListenFunc) (*Server, error) {
 			return nil
 		},
 	}
-	server.SetWriteFunc(encodePackage)
-	server.SetReadFunc(defaultReadFunc)
+	server.SetWriteFunc(DefaultWriteFunc)
+	server.SetReadFunc(DefaultReadFunc)
 	server.SetDealFunc(newDealFunc(s.dealFunc))
 	return s, nil
 }
