@@ -46,3 +46,6 @@ type ListenFunc func() (Listener, error)
 
 // DealFunc 数据处理函数
 type DealFunc func(msg Message)
+
+// PrintFunc 打印函数
+type PrintFunc func(prefix, tag, key string, msg Message)

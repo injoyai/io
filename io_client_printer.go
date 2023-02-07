@@ -1,20 +1,28 @@
 package io
 
-import "log"
+import (
+	"log"
+)
 
 func NewClientPrint() *ClientPrinter {
-	cp := &ClientPrinter{}
+	cp := &ClientPrinter{prefix: "IO"}
 	cp.SetPrintWithASCII()
 	return cp
 }
 
 type ClientPrinter struct {
+	prefix    string
 	debug     bool
-	printFunc func(tag, key string, msg Message)
+	printFunc func(prefix, tag, key string, msg Message)
+}
+
+// SetPrefix 设置前缀
+func (this *ClientPrinter) SetPrefix(prefix string) {
+	this.prefix = prefix
 }
 
 // SetPrintFunc 设置打印函数
-func (this *ClientPrinter) SetPrintFunc(fn func(tag, key string, msg Message)) {
+func (this *ClientPrinter) SetPrintFunc(fn func(prefix, tag, key string, msg Message)) {
 	this.printFunc = fn
 }
 
@@ -31,7 +39,7 @@ func (this *ClientPrinter) SetPrintWithASCII() {
 // Print 打印输出
 func (this *ClientPrinter) Print(tag, key string, msg Message) {
 	if this.debug && this.printFunc != nil {
-		this.printFunc(tag, key, msg)
+		this.printFunc(this.prefix, tag, key, msg)
 	}
 }
 
@@ -43,15 +51,15 @@ func (this *ClientPrinter) Debug(b ...bool) {
 	this.debug = !(len(b) > 0 && !b[0])
 }
 
-func PrintWithHEX(tag, key string, msg Message) {
+func PrintWithHEX(prefix, tag, key string, msg Message) {
 	switch tag {
 	case TagRead, TagWrite:
-		log.Printf("[IO][%s][%s] %s", tag, key, msg.HEX())
+		log.Printf("[%s][%s][%s] %s", prefix, tag, key, msg.HEX())
 	default:
-		log.Printf("[IO][%s][%s] %s", tag, key, msg.ASCII())
+		log.Printf("[%s][%s][%s] %s", prefix, tag, key, msg.ASCII())
 	}
 }
 
-func PrintWithASCII(tag, key string, msg Message) {
-	log.Printf("[IO][%s][%s] %s", tag, key, msg.ASCII())
+func PrintWithASCII(prefix, tag, key string, msg Message) {
+	log.Printf("[%s][%s][%s] %s", prefix, tag, key, msg.ASCII())
 }

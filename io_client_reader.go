@@ -255,7 +255,7 @@ func (this *ClientReader) Run() error {
 					return ErrInvalidReadFunc
 				}
 				bytes, err := this.readFunc(this.Buffer())
-				if err != nil {
+				if err != nil || len(bytes) == 0 {
 					return err
 				}
 				//设置最后读取有效数据时间

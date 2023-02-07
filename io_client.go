@@ -59,7 +59,6 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 	}
 	c := &Client{
 		buf: bufio.NewReader(i),
-		key: fmt.Sprintf("%p", i),
 		i:   i,
 		tag: maps.NewSafe(),
 
@@ -72,6 +71,8 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		timer:     time.NewTimer(0),
 		timeout:   0,
 	}
+
+	c.SetKey(fmt.Sprintf("%p", i))
 
 	if c.timeout <= 0 {
 		<-c.timer.C
@@ -230,8 +231,16 @@ func (this *Client) SetCloseFunc(fn func(msg *ClientMessage)) {
 	})
 }
 
+// SetPrefix 设置打印前缀
+func (this *Client) SetPrefix(prefix string) *Client {
+	this.ClientPrinter.SetPrefix(prefix)
+	this.ClientReader.SetPrefix(prefix)
+	this.ClientWriter.SetPrefix(prefix)
+	return this
+}
+
 // SetPrintFunc 设置打印函数
-func (this *Client) SetPrintFunc(fn func(tag, key string, msg Message)) *Client {
+func (this *Client) SetPrintFunc(fn func(prefix, tag, key string, msg Message)) *Client {
 	this.ClientPrinter.SetPrintFunc(fn)
 	this.ClientReader.SetPrintFunc(fn)
 	this.ClientWriter.SetPrintFunc(fn)

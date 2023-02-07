@@ -1,65 +1,103 @@
 package proxy
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/buf"
 	"github.com/injoyai/io/dial"
 	"sync"
+	"time"
 )
 
-// Manage 连接任意客户端
-type Manage struct {
-	m  map[string]*io.Client
-	mu sync.RWMutex
-}
-
-func NewProxy() *Proxy {
-	return &Proxy{
-		conn: maps.NewSafe(),
-		//redirect: newRedirect(),
+func New() *Entity {
+	return &Entity{
+		ioMap:       maps.NewSafe(),
+		ConnectFunc: DefaultConnectFunc,
+		buff:        make(chan byte, 2<<10),
 	}
 }
 
-type Proxy struct {
-	key  string     //唯已标识
-	conn *maps.Safe //存储连接
-	//connectFunc func(key, addr string) (io.ReadWriteCloser, error) //代理连接建立函数
-	//redirect    IRedirect                                          //重定向接口
+type Entity struct {
+	key         string                                               //唯已标识
+	ioMap       *maps.Safe                                           //存储连接
+	ConnectFunc func(msg *Message) (i io.ReadWriteCloser, err error) //连接函数
+	buff        chan byte                                            //
+	mu          sync.Mutex                                           //
 }
 
 // SetKey 设置唯一标识
-func (this *Proxy) SetKey(key string) *Proxy {
+func (this *Entity) SetKey(key string) *Entity {
 	this.key = key
 	return this
 }
 
 // GetKey 获取唯一标识
-func (this *Proxy) GetKey() string {
+func (this *Entity) GetKey() string {
 	return this.key
 }
 
-// SetConn 添加记录,存在则关闭并覆盖
-func (this *Proxy) SetConn(key string, i io.ReadWriteCloser) {
-	old := this.conn.GetAndSet(key, i)
+func (this *Entity) Proxy(msg *Message) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+	for _, v := range msg.Bytes() {
+		this.buff <- v
+	}
+}
+
+// Read 实现io.Reader
+func (this *Entity) Read(p []byte) (n int, err error) {
+	for n = 0; ; n++ {
+		if len(p) <= n {
+			return
+		}
+		select {
+		case b := <-this.buff:
+			p[n] = b
+		case <-time.After(time.Millisecond):
+			return
+		}
+	}
+}
+
+// Write 实现io.Writer 写入数据,解析数据,处理数据
+func (this *Entity) Write(p []byte) (int, error) {
+	msg, err := DecodeMessage(p)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), this.Switch(msg)
+}
+
+// Close 实现io.Closer
+func (this *Entity) Close() error {
+	this.CloseConnAll()
+	return nil
+}
+
+// SetIO 添加记录,存在则关闭并覆盖
+func (this *Entity) SetIO(key string, i io.ReadWriteCloser) {
+	old := this.ioMap.GetAndSet(key, i)
 	if val, ok := old.(io.Closer); ok {
 		val.Close()
 	}
 }
 
 // GetOrSet 获取或者设置,尝试获取数据,不存在则设置
-func (this *Proxy) GetOrSet(key string, i io.ReadWriteCloser) io.ReadWriteCloser {
-	old := this.GetConn(key)
+func (this *Entity) GetOrSet(key string, i io.ReadWriteCloser) io.ReadWriteCloser {
+	old := this.GetIO(key)
 	if old != nil {
 		return old
 	}
-	this.conn.Set(key, i)
+	this.ioMap.Set(key, i)
 	return nil
 }
 
-// GetConn 获取io,不存在或者类型错误则返回nil
-func (this *Proxy) GetConn(key string) io.ReadWriteCloser {
-	i, _ := this.conn.Get(key)
+// GetIO 获取io,不存在或者类型错误则返回nil
+func (this *Entity) GetIO(key string) io.ReadWriteCloser {
+	i, _ := this.ioMap.Get(key)
 	if i == nil {
 		return nil
 	}
@@ -68,62 +106,61 @@ func (this *Proxy) GetConn(key string) io.ReadWriteCloser {
 		return val
 	}
 	//如果记录存在,当类型错误,则删除记录
-	this.DelConn(key)
+	this.DelIO(key)
 	return nil
 }
 
-// DelConn 删除记录
-func (this *Proxy) DelConn(key string) {
-	this.conn.Del(key)
+// DelIO 删除记录
+func (this *Entity) DelIO(key string) {
+	this.ioMap.Del(key)
 }
 
-// CloseConn 关闭io,删除记录据
-func (this *Proxy) CloseConn(key string) {
-	i := this.GetConn(key)
+// CloseIO 关闭io,删除记录据
+func (this *Entity) CloseIO(key string) {
+	i := this.GetIO(key)
 	if i != nil {
 		i.Close()
 	}
-	this.DelConn(key)
+	this.DelIO(key)
 }
 
 // CloseConnAll 关闭全部io
-func (this *Proxy) CloseConnAll() {
-	this.conn.Range(func(key, value interface{}) bool {
+func (this *Entity) CloseConnAll() {
+	this.ioMap.Range(func(key, value interface{}) bool {
 		if val, ok := value.(io.Closer); ok {
 			val.Close()
 		}
 		return true
 	})
-	this.conn = maps.NewSafe()
+	this.ioMap = maps.NewSafe()
 }
 
 // Switch 处理获取到的消息
-func (this *Proxy) Switch(msg *Message) (err error) {
+func (this *Entity) Switch(msg *Message) (err error) {
 
-	// 获取连接
-	i := this.GetConn(msg.Key)
+	i := this.GetIO(msg.Key)
 
 	if i == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
-		//如果连接不存在,则新建连接,并存储
-		switch msg.ConnectType {
-		case TCP:
-			i, err = dial.TCP(msg.Addr)
-		case UDP:
-			i, err = dial.UDP(msg.Addr)
-		case Serial:
-			cfg := new(dial.SerialConfig)
-			err = json.Unmarshal([]byte(msg.Addr), cfg)
-			if err != nil {
-				return
-			}
-			i, err = dial.Serial(cfg)
-		case File:
-		case MQ:
-		case MQTT:
-		case HTTP:
-		case Websocket:
+		if this.ConnectFunc == nil {
+			this.ConnectFunc = DefaultConnectFunc
 		}
-		this.SetConn(msg.Key, i)
+		i, err = this.ConnectFunc(msg)
+		if err != nil {
+			return err
+		}
+
+		c := io.NewClient(i)
+		c.SetReadFunc(buf.ReadWithAll)
+		c.SetDealFunc(func(msg2 *io.ClientMessage) {
+			this.Proxy(NewWriteMessage(msg.Key, msg.Addr, msg2.Bytes()))
+		})
+		c.SetCloseFunc(func(msg2 *io.ClientMessage) {
+			this.DelIO(msg.Key)
+			this.Proxy(NewCloseMessage(msg.Key, msg2.String()))
+		})
+		go c.Run()
+
+		this.SetIO(msg.Key, c)
 	}
 
 	if i == nil {
@@ -133,14 +170,69 @@ func (this *Proxy) Switch(msg *Message) (err error) {
 	switch msg.OperateType {
 	case Connect:
 		//收到建立连接信息
-
 	case Write:
 		//收到写数据信息
-		_, err = i.Write([]byte(msg.Data))
+		_, err = i.Write(msg.Data)
 	case Close:
 		//收到关闭连接信息
 		err = i.Close()
 	}
 
 	return
+}
+
+// DefaultConnectFunc 默认连接函数
+func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
+	err = errors.New("未实现")
+	switch msg.ConnectType {
+	case TCP:
+		i, err = dial.TCP(msg.Addr)
+	case UDP:
+		i, err = dial.UDP(msg.Addr)
+	case Serial:
+		cfg := new(dial.SerialConfig)
+		err = json.Unmarshal([]byte(msg.Addr), cfg)
+		if err != nil {
+			return
+		}
+		i, err = dial.Serial(cfg)
+	case File:
+	case MQ:
+	case MQTT:
+	case HTTP:
+	case Websocket:
+	default:
+		i, err = dial.TCP(msg.Addr)
+	}
+	return
+}
+
+func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) error {
+	e := New()
+	c := io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
+		c.SetPrefix("P|C")
+		c.SetWriteFunc(DefaultWriteFunc)
+		for _, v := range fn {
+			v(ctx, c, e)
+		}
+		c.Swap(e)
+	})
+	go c.Run()
+	return nil
+}
+
+func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
+	s, err := io.NewServer(dial.TCPListenFunc(port))
+	if err != nil {
+		return err
+	}
+	s.SetPrefix("P|S")
+	s.SetReadFunc(DefaultReadFunc)
+	s.Debug()
+	for _, v := range fn {
+		v(s)
+	}
+	s.Swap(New())
+	go s.Run()
+	return nil
 }

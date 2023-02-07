@@ -39,9 +39,7 @@ func (this *ClientWriter) Write(p []byte) (int, error) {
 		return 0, dealErr(err)
 	}
 	this.lastTime = time.Now()
-	if this.printFunc != nil {
-		this.printFunc(TagWrite, this.GetKey(), NewMessage(p))
-	}
+	this.Print(TagWrite, this.GetKey(), NewMessage(p))
 	return num, nil
 }
 

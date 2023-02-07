@@ -1,21 +1,30 @@
 package testdata
 
 import (
+	"context"
 	"github.com/injoyai/io"
-	"github.com/injoyai/io/dial"
-	"net"
+	"github.com/injoyai/io/dial/proxy"
+	"time"
 )
 
-func Client(udpPort, tcpPort int) {
+func TestProxy() error {
 
-	io.NewServer(dial.TCPListenFunc(tcpPort))
-	io.NewServer(dial.TCPListenFunc(tcpPort))
+	go proxy.SwapTCPClient(":10089", func(ctx context.Context, c *io.Client, e *proxy.Entity) {
+		c.Debug()
+		go func(ctx context.Context) {
+			for {
+				select {
+				case <-ctx.Done():
+				case <-time.After(time.Second * 3):
 
-}
+					e.Proxy(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
 
-func ListenProxy(udpPort, tcpPort int) {
-	c := io.NewClient()
-	serUDP := io.NewServer(func() (io.Listener, error) {
-		return net.ListenUDP("udp", &net.UDPAddr{Port: udpPort})
+				}
+
+			}
+		}(ctx)
 	})
+
+	return proxy.SwapTCPServer(10089)
+
 }
