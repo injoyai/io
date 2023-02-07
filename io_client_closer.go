@@ -70,7 +70,7 @@ func (this *ClientCloser) MustDial() ReadWriteCloser {
 		if err == nil {
 			return readWriteCloser
 		}
-		this.ClientPrinter.Print(TagErr, this.GetKey(), NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second))
+		this.ClientPrinter.Print(NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second), TagErr, this.GetKey())
 		<-time.After(t)
 		if t < time.Second*32 {
 			t = 2 * t
@@ -126,7 +126,7 @@ func (this *ClientCloser) CloseWithErr(closeErr error) (err error) {
 			//需要最后执行,防止死锁
 			defer this.closeFunc(msg)
 		}
-		this.ClientPrinter.Print(TagClose, this.GetKey(), msg)
+		this.ClientPrinter.Print(msg, TagClose, this.GetKey())
 	}
 	this.mu.Unlock()
 	return

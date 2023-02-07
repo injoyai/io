@@ -1,28 +1,24 @@
 package io
 
 import (
+	"fmt"
 	"log"
+	"strings"
 )
 
 func NewClientPrint() *ClientPrinter {
-	cp := &ClientPrinter{prefix: "IO"}
+	cp := &ClientPrinter{}
 	cp.SetPrintWithASCII()
 	return cp
 }
 
 type ClientPrinter struct {
-	prefix    string
 	debug     bool
-	printFunc func(prefix, tag, key string, msg Message)
-}
-
-// SetPrefix 设置前缀
-func (this *ClientPrinter) SetPrefix(prefix string) {
-	this.prefix = prefix
+	printFunc PrintFunc
 }
 
 // SetPrintFunc 设置打印函数
-func (this *ClientPrinter) SetPrintFunc(fn func(prefix, tag, key string, msg Message)) {
+func (this *ClientPrinter) SetPrintFunc(fn PrintFunc) {
 	this.printFunc = fn
 }
 
@@ -37,9 +33,9 @@ func (this *ClientPrinter) SetPrintWithASCII() {
 }
 
 // Print 打印输出
-func (this *ClientPrinter) Print(tag, key string, msg Message) {
+func (this *ClientPrinter) Print(msg Message, tag ...string) {
 	if this.debug && this.printFunc != nil {
-		this.printFunc(this.prefix, tag, key, msg)
+		this.printFunc(msg, tag...)
 	}
 }
 
@@ -51,15 +47,41 @@ func (this *ClientPrinter) Debug(b ...bool) {
 	this.debug = !(len(b) > 0 && !b[0])
 }
 
-func PrintWithHEX(prefix, tag, key string, msg Message) {
-	switch tag {
-	case TagRead, TagWrite:
-		log.Printf("[%s][%s][%s] %s", prefix, tag, key, msg.HEX())
-	default:
-		log.Printf("[%s][%s][%s] %s", prefix, tag, key, msg.ASCII())
+func PrintWithHEX(msg Message, tag ...string) {
+	t := strings.Join(tag, "][")
+	if len(t) > 0 {
+		t = "[" + t + "]"
+	}
+	if strings.Contains(t, TagRead) || strings.Contains(t, TagWrite) {
+		log.Printf("%s %s", t, msg.HEX())
+	} else {
+		log.Printf("%s %s", t, msg.ASCII())
 	}
 }
 
-func PrintWithASCII(prefix, tag, key string, msg Message) {
-	log.Printf("[%s][%s][%s] %s", prefix, tag, key, msg.ASCII())
+func PrintfWithHEX(msg Message, tag ...string) string {
+	t := strings.Join(tag, "][")
+	if len(t) > 0 {
+		t = "[" + t + "]"
+	}
+	if strings.Contains(t, TagRead) || strings.Contains(t, TagWrite) {
+		return fmt.Sprintf("%s %s", t, msg.HEX())
+	}
+	return fmt.Sprintf("%s %s", t, msg.ASCII())
+}
+
+func PrintWithASCII(msg Message, tag ...string) {
+	t := strings.Join(tag, "][")
+	if len(t) > 0 {
+		t = "[" + t + "]"
+	}
+	log.Printf("%s %s", t, msg.ASCII())
+}
+
+func PrintfWithASCII(msg Message, tag ...string) string {
+	t := strings.Join(tag, "][")
+	if len(t) > 0 {
+		t = "[" + t + "]"
+	}
+	return fmt.Sprintf("%s %s", t, msg.ASCII())
 }

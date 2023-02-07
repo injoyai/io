@@ -42,6 +42,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 }
 
 type Server struct {
+	name string
 	*ClientPrinter
 	listener   Listener
 	clientMap  map[string]*Client   //链接集合,远程地址为key
@@ -53,20 +54,15 @@ type Server struct {
 	closed     uint32               //是否关闭
 	closeErr   error                //错误信息
 
-	debug     bool                                       //debug,调试模式
-	dataChan  chan *ClientMessage                        //接受数据通道
-	readFunc  buf.ReadFunc                               //数据读取方法
-	closeFunc func(msg *ClientMessage)                   //断开连接事件
-	writeFunc func(p []byte) []byte                      //数据发送函数,包装下原始数据
-	printFunc func(prefix, tag, key string, msg Message) //打印数据方法
-	timeout   time.Duration                              //超时时间,0是永久有效
+	debug     bool                     //debug,调试模式
+	dataChan  chan *ClientMessage      //接受数据通道
+	readFunc  buf.ReadFunc             //数据读取方法
+	closeFunc func(msg *ClientMessage) //断开连接事件
+	writeFunc func(p []byte) []byte    //数据发送函数,包装下原始数据
+	printFunc PrintFunc                //打印数据方法
+	timeout   time.Duration            //超时时间,0是永久有效
 
 	running uint32 //是否在运行
-}
-
-func (this *Server) SetPrefix(prefix string) {
-	this.ClientPrinter.SetPrefix(prefix)
-	this.printFunc = this.ClientPrinter.printFunc
 }
 
 // Debug 调试模式
@@ -135,7 +131,7 @@ func (this *Server) SetWriteFunc(fn func([]byte) []byte) *Server {
 }
 
 // SetPrintFunc 设置打印方式
-func (this *Server) SetPrintFunc(fn func(prefix, tag, key string, msg Message)) *Server {
+func (this *Server) SetPrintFunc(fn PrintFunc) *Server {
 	this.printFunc = fn
 	return this
 }
@@ -309,15 +305,14 @@ func (this *Server) Run() error {
 
 		//新建客户端,并配置
 		x := NewClientWithContext(this.ctx, c)
-		x.SetKey(key)                          //设置唯一标识符
-		x.Debug(this.debug)                    //调试模式
-		x.SetReadFunc(this.readFunc)           //读取数据方法
-		x.SetDealFunc(this._dealFunc)          //数据处理方法
-		x.SetCloseFunc(this._closeFunc)        //连接关闭方法
-		x.SetTimeout(this.timeout)             //设置超时时间
-		x.SetPrintFunc(this.printFunc)         //设置打印函数
-		x.SetPrefix(this.ClientPrinter.prefix) //设置打印前缀
-		x.SetWriteFunc(this.writeFunc)         //设置发送函数
+		x.SetKey(key)                   //设置唯一标识符
+		x.Debug(this.debug)             //调试模式
+		x.SetReadFunc(this.readFunc)    //读取数据方法
+		x.SetDealFunc(this._dealFunc)   //数据处理方法
+		x.SetCloseFunc(this._closeFunc) //连接关闭方法
+		x.SetTimeout(this.timeout)      //设置超时时间
+		x.SetPrintFunc(this.printFunc)  //设置打印函数
+		x.SetWriteFunc(this.writeFunc)  //设置发送函数
 
 		// 协程执行,等待连接的后续数据,来决定后续操作
 		go func(x *Client) {
@@ -347,13 +342,13 @@ inside
 
 // beforeFunc 默认前置函数
 func beforeFunc(c *Client) error {
-	c.ClientPrinter.Print(TagDial, c.GetKey(), NewMessageString("新的客户端连接..."))
+	c.ClientPrinter.Print(NewMessageString("新的客户端连接..."), TagDial, c.GetKey())
 	return nil
 }
 
 // delConn 删除连接
 func (this *Server) _closeFunc(msg *ClientMessage) {
-	this.ClientPrinter.Print(TagClose, msg.GetKey(), msg.Message)
+	this.ClientPrinter.Print(msg.Message, TagClose, msg.GetKey())
 	if this.closeFunc != nil {
 		defer this.closeFunc(msg)
 	}

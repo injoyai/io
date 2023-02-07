@@ -39,7 +39,7 @@ func (this *ClientWriter) Write(p []byte) (int, error) {
 		return 0, dealErr(err)
 	}
 	this.lastTime = time.Now()
-	this.Print(TagWrite, this.GetKey(), NewMessage(p))
+	this.Print(NewMessage(p), TagWrite, this.GetKey())
 	return num, nil
 }
 

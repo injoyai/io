@@ -226,7 +226,7 @@ func (this *ClientReader) CloseWithErr(err error) error {
 		//关闭上下文
 		this.cancel()
 		//打印日志
-		this.ClientPrinter.Print(TagClose, this.GetKey(), NewMessageErr(this.closeErr))
+		this.ClientPrinter.Print(NewMessageErr(this.closeErr), TagClose, this.GetKey())
 	}
 	return nil
 }
@@ -261,7 +261,7 @@ func (this *ClientReader) Run() error {
 				//设置最后读取有效数据时间
 				this.lastTime = time.Now()
 				//打印日志
-				this.ClientPrinter.Print(TagRead, this.GetKey(), NewMessage(bytes))
+				this.ClientPrinter.Print(NewMessage(bytes), TagRead, this.GetKey())
 				select {
 				case this.readChan <- bytes:
 					//尝试加入队列

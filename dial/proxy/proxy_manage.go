@@ -210,7 +210,9 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) error {
 	e := New()
 	c := io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
-		c.SetPrefix("P|C")
+		c.SetPrintFunc(func(msg io.Message, tag ...string) {
+			io.PrintWithASCII(msg, append([]string{"P|C"}, tag...)...)
+		})
 		c.SetWriteFunc(DefaultWriteFunc)
 		for _, v := range fn {
 			v(ctx, c, e)
@@ -226,7 +228,9 @@ func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
 	if err != nil {
 		return err
 	}
-	s.SetPrefix("P|S")
+	s.SetPrintFunc(func(msg io.Message, tag ...string) {
+		io.PrintWithASCII(msg, append([]string{"P|S"}, tag...)...)
+	})
 	s.SetReadFunc(DefaultReadFunc)
 	s.Debug()
 	for _, v := range fn {

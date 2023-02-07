@@ -231,16 +231,8 @@ func (this *Client) SetCloseFunc(fn func(msg *ClientMessage)) {
 	})
 }
 
-// SetPrefix 设置打印前缀
-func (this *Client) SetPrefix(prefix string) *Client {
-	this.ClientPrinter.SetPrefix(prefix)
-	this.ClientReader.SetPrefix(prefix)
-	this.ClientWriter.SetPrefix(prefix)
-	return this
-}
-
 // SetPrintFunc 设置打印函数
-func (this *Client) SetPrintFunc(fn func(prefix, tag, key string, msg Message)) *Client {
+func (this *Client) SetPrintFunc(fn PrintFunc) *Client {
 	this.ClientPrinter.SetPrintFunc(fn)
 	this.ClientReader.SetPrintFunc(fn)
 	this.ClientWriter.SetPrintFunc(fn)
@@ -313,10 +305,10 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 	this.SetCloseFunc(func(msg *ClientMessage) {
 		readWriteCloser := this.ClientCloser.MustDial()
 		if readWriteCloser == nil {
-			this.ClientPrinter.Print(TagClose, this.GetKey(), NewMessageFormat("连接断开(%v),未设置重连函数", this.ClientCloser.Err()))
+			this.ClientPrinter.Print(NewMessageFormat("连接断开(%v),未设置重连函数", this.ClientCloser.Err()), TagClose, this.GetKey())
 			return
 		}
-		this.ClientPrinter.Print(TagErr, this.GetKey(), NewMessageFormat("连接断开(%v),重连成功", this.ClientCloser.Err()))
+		this.ClientPrinter.Print(NewMessageFormat("连接断开(%v),重连成功", this.ClientCloser.Err()), TagErr, this.GetKey())
 		redialFunc := this.ClientCloser.redialFunc
 		key := this.GetKey()
 		*this = *NewClient(readWriteCloser)
