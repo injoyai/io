@@ -12,17 +12,17 @@ import (
 )
 
 // Redial 一直连接,直到成功,然后设置重连,相当于MustDial(connect).Redial(fn...)
-func Redial(connect func() (ReadWriteCloser, error), fn ...func(ctx context.Context, c *Client)) *Client {
+func Redial(connect DialFunc, fn ...func(ctx context.Context, c *Client)) *Client {
 	return MustDial(connect).Redial(fn...)
 }
 
 // MustDial 一直尝试连接,直到成功
-func MustDial(dial func() (ReadWriteCloser, error)) *Client {
+func MustDial(dial DialFunc) *Client {
 	return MustDialWithContext(context.Background(), dial)
 }
 
 // MustDialWithContext 一直尝试连接,直到成功,需要输入上下文
-func MustDialWithContext(ctx context.Context, dial func() (ReadWriteCloser, error)) *Client {
+func MustDialWithContext(ctx context.Context, dial DialFunc) *Client {
 	x := NewClientCloserWithContext(ctx, nil)
 	x.SetRedialFunc(dial)
 	x.Debug()
@@ -32,12 +32,12 @@ func MustDialWithContext(ctx context.Context, dial func() (ReadWriteCloser, erro
 }
 
 // NewDial 尝试连接,返回*Client和错误
-func NewDial(dial func() (ReadWriteCloser, error)) (*Client, error) {
+func NewDial(dial DialFunc) (*Client, error) {
 	return NewDialWithContext(context.Background(), dial)
 }
 
 // NewDialWithContext 尝试连接,返回*Client和错误,需要输入上下文
-func NewDialWithContext(ctx context.Context, dial func() (ReadWriteCloser, error)) (*Client, error) {
+func NewDialWithContext(ctx context.Context, dial DialFunc) (*Client, error) {
 	c, err := dial()
 	if err != nil {
 		return nil, err
@@ -334,4 +334,22 @@ func (this *Client) SwapClient(c *Client) {
 // Run 开始执行(读取数据)
 func (this *Client) Run() error {
 	return this.ClientCloser.CloseWithErr(this.ClientReader.Run())
+}
+
+// GoForWriter 协程执行周期写入数据
+func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) error) {
+	go func(ctx context.Context, writer io.Writer) {
+		t := time.NewTimer(interval)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if err := write(writer); err != nil {
+					return
+				}
+				t.Reset(interval)
+			}
+		}
+	}(this.Ctx(), this.writer)
 }

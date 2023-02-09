@@ -8,6 +8,7 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/buf"
 	"github.com/injoyai/io/dial"
+	"github.com/injoyai/logs"
 	"sync"
 	"time"
 )
@@ -26,6 +27,12 @@ type Entity struct {
 	ConnectFunc func(msg *Message) (i io.ReadWriteCloser, err error) //连接函数
 	buff        chan byte                                            //
 	mu          sync.Mutex                                           //
+
+	//分包长度,每次写入固定字节长度,默认1k
+	//0表示一次性全部写入
+	//数据太多可能会影响到其他数据的时效
+	//writeLen uint
+
 }
 
 // SetKey 设置唯一标识
@@ -66,6 +73,8 @@ func (this *Entity) Read(p []byte) (n int, err error) {
 func (this *Entity) Write(p []byte) (int, error) {
 	msg, err := DecodeMessage(p)
 	if err != nil {
+		logs.Debug(string(p))
+		logs.Err(err)
 		return 0, err
 	}
 	return len(p), this.Switch(msg)
@@ -137,7 +146,7 @@ func (this *Entity) CloseConnAll() {
 
 // Switch 处理获取到的消息
 func (this *Entity) Switch(msg *Message) (err error) {
-
+	logs.Debug(msg.String())
 	i := this.GetIO(msg.Key)
 
 	if i == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
@@ -214,9 +223,11 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 			io.PrintWithASCII(msg, append([]string{"P|C"}, tag...)...)
 		})
 		c.SetWriteFunc(DefaultWriteFunc)
+		c.SetReadFunc(DefaultReadFunc)
 		for _, v := range fn {
 			v(ctx, c, e)
 		}
+		c.SetKeepAlive(time.Minute)
 		c.Swap(e)
 	})
 	go c.Run()
@@ -231,6 +242,7 @@ func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
 	s.SetPrintFunc(func(msg io.Message, tag ...string) {
 		io.PrintWithASCII(msg, append([]string{"P|S"}, tag...)...)
 	})
+	s.SetWriteFunc(DefaultWriteFunc)
 	s.SetReadFunc(DefaultReadFunc)
 	s.Debug()
 	for _, v := range fn {
@@ -240,3 +252,32 @@ func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
 	go s.Run()
 	return nil
 }
+
+//func writeFunc(writeLen uint, writeBytes func(p []byte) (int, error), key, addr string, p []byte) (int, error) {
+//
+//	total := len(p)
+//
+//	//一次性发送全部数据,数据太多可能会影响到其他数据的时效
+//	if writeLen == 0 {
+//		msg := newWriteMessage(key, addr, p)
+//		return writeBytes(msg.Bytes())
+//	}
+//
+//	//分包发送,避免其他数据不能及时发送
+//	for len(p) > 0 {
+//		data := []byte(nil)
+//		if len(p) > int(writeLen) {
+//			data = p[:writeLen]
+//			p = p[writeLen:]
+//		} else {
+//			data = p[:]
+//			p = p[:0]
+//		}
+//		msg := newWriteMessage(key, addr, data)
+//		if _, err := writeBytes(msg.Bytes()); err != nil {
+//			return 0, err
+//		}
+//	}
+//
+//	return total, nil
+//}

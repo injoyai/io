@@ -232,6 +232,16 @@ func (this *Server) SetClientKey(newClient *Client, newKey string) {
 	this.clientMap[newKey] = newClient.SetKey(newKey)
 }
 
+// GoFor 协程循环
+func (this *Server) GoFor(interval time.Duration, do func(s *Server)) {
+	go func() {
+		for {
+			<-time.After(interval)
+			do(this)
+		}
+	}()
+}
+
 // Swap 和一个IO交换数据
 func (this *Server) Swap(i ReadWriteCloser) *Server {
 	this.SwapWithReadFunc(i, buf.ReadWithAll)
@@ -269,6 +279,8 @@ func (this *Server) Run() error {
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
 	}
+
+	this.ClientPrinter.Print(NewMessageStringf("开启IO服务成功..."))
 
 	go func(ctx context.Context) {
 		for {

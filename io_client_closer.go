@@ -50,7 +50,7 @@ func (this *ClientCloser) SetCloseWithNil() {
 }
 
 // SetRedialFunc 设置重连函数
-func (this *ClientCloser) SetRedialFunc(fn func() (ReadWriteCloser, error)) {
+func (this *ClientCloser) SetRedialFunc(fn DialFunc) {
 	this.redialFunc = fn
 }
 
