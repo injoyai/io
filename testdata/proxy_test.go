@@ -1,6 +1,10 @@
 package testdata
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+	"time"
+)
 
 func TestTestProxy(t *testing.T) {
 	t.Log(TestProxy())
@@ -17,5 +21,11 @@ func TestProxyClient(t *testing.T) {
 }
 
 func TestVPNClient(t *testing.T) {
+	go func() {
+		for {
+			<-time.After(time.Second * 5)
+			http.Get("http://www.baidu.com/ping")
+		}
+	}()
 	t.Log(VPNClient(1082, ":12000"))
 }
