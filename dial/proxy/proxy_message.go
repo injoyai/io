@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"github.com/injoyai/conv"
 )
@@ -32,7 +33,8 @@ type Message struct {
 	OperateType OperateType `json:"ot"`   //操作类型
 	ConnectType ConnectType `json:"ct"`   //连接类型 默认tcp
 	Key         string      `json:"key"`  //标识
-	Data        []byte      `json:"data"` //内容
+	Data        string      `json:"data"` //内容
+	DataBytes   []byte      `json:"-"`    //内容字节
 	Addr        string      `json:"addr"` //目标地址
 }
 
@@ -47,7 +49,7 @@ func (this *Message) SetConnectType(_type ConnectType) *Message {
 }
 
 func (this *Message) SetData(data interface{}) *Message {
-	this.Data = conv.Bytes(data)
+	this.Data = base64.StdEncoding.EncodeToString(conv.Bytes(data))
 	return this
 }
 
@@ -60,18 +62,24 @@ func (this *Message) Bytes() []byte {
 	return bs
 }
 
+func (this *Message) GetData() []byte {
+	return this.DataBytes
+}
+
 func DecodeMessage(bytes []byte) (*Message, error) {
 	m := new(Message)
 	err := json.Unmarshal(bytes, m)
+	if err == nil {
+		m.DataBytes, err = base64.StdEncoding.DecodeString(m.Data)
+	}
 	return m, err
 }
 
 func NewCloseMessage(key, data string) *Message {
-	return &Message{
+	return (&Message{
 		Key:         key,
 		OperateType: Close,
-		Data:        []byte(data),
-	}
+	}).SetData(data)
 }
 
 func NewConnectMessage(key, addr string) *Message {
@@ -83,26 +91,24 @@ func NewConnectMessage(key, addr string) *Message {
 }
 
 func NewWriteMessage(key, addr string, data []byte) *Message {
-	return &Message{
+	return (&Message{
 		Key:         key,
 		Addr:        addr,
 		OperateType: Write,
-		Data:        data,
-	}
+	}).SetData(data)
 }
 
 func NewRegisterMessage(key, data string) *Message {
 	return &Message{
 		Key:         key,
 		OperateType: Register,
-		Data:        []byte(data),
+		Data:        data,
 	}
 }
 
 func NewInfoMessage(key string, data []byte) *Message {
-	return &Message{
+	return (&Message{
 		Key:         key,
 		OperateType: Info,
-		Data:        data,
-	}
+	}).SetData(data)
 }

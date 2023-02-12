@@ -73,8 +73,6 @@ func (this *Entity) Read(p []byte) (n int, err error) {
 func (this *Entity) Write(p []byte) (int, error) {
 	msg, err := DecodeMessage(p)
 	if err != nil {
-		logs.Debug(string(p))
-		logs.Err(err)
 		return 0, err
 	}
 	return len(p), this.Switch(msg)
@@ -82,7 +80,7 @@ func (this *Entity) Write(p []byte) (int, error) {
 
 // Close 实现io.Closer
 func (this *Entity) Close() error {
-	this.CloseConnAll()
+	this.CloseIOAll()
 	return nil
 }
 
@@ -133,8 +131,8 @@ func (this *Entity) CloseIO(key string) {
 	this.DelIO(key)
 }
 
-// CloseConnAll 关闭全部io
-func (this *Entity) CloseConnAll() {
+// CloseIOAll 关闭全部io
+func (this *Entity) CloseIOAll() {
 	this.ioMap.Range(func(key, value interface{}) bool {
 		if val, ok := value.(io.Closer); ok {
 			val.Close()
@@ -146,13 +144,14 @@ func (this *Entity) CloseConnAll() {
 
 // Switch 处理获取到的消息
 func (this *Entity) Switch(msg *Message) (err error) {
-	logs.Debug(msg.String())
+	logs.Debug(msg.Addr, string(msg.GetData()))
 	i := this.GetIO(msg.Key)
 
 	if i == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
 		if this.ConnectFunc == nil {
 			this.ConnectFunc = DefaultConnectFunc
 		}
+		logs.Debug(666, msg.OperateType)
 		i, err = this.ConnectFunc(msg)
 		if err != nil {
 			return err
@@ -181,7 +180,7 @@ func (this *Entity) Switch(msg *Message) (err error) {
 		//收到建立连接信息
 	case Write:
 		//收到写数据信息
-		_, err = i.Write(msg.Data)
+		_, err = i.Write(msg.GetData())
 	case Close:
 		//收到关闭连接信息
 		err = i.Close()
@@ -211,14 +210,16 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 	case HTTP:
 	case Websocket:
 	default:
+		logs.Debug("建立TCP连接:", msg.Addr)
 		i, err = dial.TCP(msg.Addr)
+		logs.Debug(i, err)
 	}
 	return
 }
 
-func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) error {
+func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
 	e := New()
-	c := io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
+	return io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			io.PrintWithASCII(msg, append([]string{"P|C"}, tag...)...)
 		})
@@ -227,11 +228,8 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 		for _, v := range fn {
 			v(ctx, c, e)
 		}
-		c.SetKeepAlive(time.Minute)
 		c.Swap(e)
 	})
-	go c.Run()
-	return nil
 }
 
 func SwapTCPServer(port int, fn ...func(s *io.Server)) error {

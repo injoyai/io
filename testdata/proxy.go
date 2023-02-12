@@ -20,7 +20,6 @@ func TestProxy() error {
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|C"}, tag...)...))
 		})
-		c.Debug()
 		go func(ctx context.Context) {
 			for {
 				select {
@@ -43,14 +42,12 @@ func TestProxy() error {
 
 }
 
-func ProxyClient(addr string) error {
+func ProxyClient(addr string) *io.Client {
 	return proxy.SwapTCPClient(addr, func(ctx context.Context, c *io.Client, e *proxy.Entity) {
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|C"}, tag...)...))
 		})
-		c.Debug()
 	})
-
 }
 
 func ProxyTransmit(port int) error {
@@ -61,7 +58,6 @@ func ProxyTransmit(port int) error {
 	s.SetPrintFunc(func(msg io.Message, tag ...string) {
 		logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|T"}, tag...)...))
 	})
-	s.Debug()
 	return s.Run()
 }
 
@@ -73,19 +69,35 @@ func VPNClient(serverPort int, clientAddr string) error {
 	}
 	s.SetPrintFunc(func(msg io.Message, tag ...string) {
 		logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|S"}, tag...)...))
-		logs.Debug("----------------------------")
 	})
 
-	var c *pipe.Client
+	var c *io.Client
 	go func() {
-		c = pipe.Redial(dial.TCPFunc(clientAddr), func(ctx context.Context, c *pipe.Client) {
-			c.SetDealFunc(func(msg *io.ClientMessage) {
-				s.Write(msg.Bytes())
+		c = pipe.Redial(dial.TCPFunc(clientAddr), func(ctx context.Context, c *io.Client) {
+			c.Debug()
+			c.SetPrintFunc(func(msg io.Message, tag ...string) {
+				logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|C"}, tag...)...))
 			})
+			c.SetDealFunc(func(msg *io.ClientMessage) {
+				for _, v := range strings.Split(msg.String(), "}") {
+					if len(v) > 0 {
+						m, err := proxy.DecodeMessage([]byte(v + "}"))
+						if err != nil {
+							logs.Err(err)
+							return
+						}
+						logs.Debug(string(m.GetData()))
+						s.Write(m.GetData())
+					}
+				}
+
+			})
+			//c.GoForWriter(time.Second*5, func(c io.Writer) (int, error) {
+			//	return c.Write(proxy.NewWriteMessage("test", "127.0.0.1", []byte("666")).Bytes())
+			//})
 		})
 	}()
 
-	s.Debug()
 	s.SetDealFunc(func(msg *io.ClientMessage) {
 		if c == nil {
 			return
@@ -97,6 +109,7 @@ func VPNClient(serverPort int, clientAddr string) error {
 				msg.Client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
 				return
 			} else {
+				logs.Debug(list[0])
 				// HTTP 普通请求
 				u, err := url.Parse(list[1])
 				if err == nil {
@@ -114,7 +127,6 @@ func VPNClient(serverPort int, clientAddr string) error {
 				}
 			}
 		}
-		c.WriteAny(proxy.NewWriteMessage("test", "", msg.Bytes()))
 	})
 	return s.Run()
 }

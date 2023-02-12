@@ -233,9 +233,11 @@ func (this *Client) SetCloseFunc(fn func(msg *ClientMessage)) {
 
 // SetPrintFunc 设置打印函数
 func (this *Client) SetPrintFunc(fn PrintFunc) *Client {
+	this.Debug()
 	this.ClientPrinter.SetPrintFunc(fn)
 	this.ClientReader.SetPrintFunc(fn)
 	this.ClientWriter.SetPrintFunc(fn)
+	this.ClientCloser.SetPrintFunc(fn)
 	//错误信息按ASCII编码
 	return this
 }
@@ -317,7 +319,7 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 		this.Redial(fn...)
 		go this.Run()
 	})
-
+	go this.Run()
 	return this
 }
 
@@ -337,7 +339,7 @@ func (this *Client) Run() error {
 }
 
 // GoForWriter 协程执行周期写入数据
-func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) error) {
+func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) (int, error)) {
 	go func(ctx context.Context, writer io.Writer) {
 		t := time.NewTimer(interval)
 		for {
@@ -345,11 +347,11 @@ func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) err
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				if err := write(writer); err != nil {
+				if _, err := write(writer); err != nil {
 					return
 				}
 				t.Reset(interval)
 			}
 		}
-	}(this.Ctx(), this.writer)
+	}(this.Ctx(), this.ClientWriter)
 }
