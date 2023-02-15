@@ -84,10 +84,11 @@ func (this *Server) CloseWithErr(err error) error {
 	case <-this.ctx.Done():
 	default:
 		if err != nil {
-			this.listener.Close()
+			this.closeErr = err
 			if this.cancel != nil {
 				this.cancel()
 			}
+			this.listener.Close()
 			this.CloseClientAll()
 		}
 	}
