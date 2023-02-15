@@ -162,11 +162,6 @@ func (this *Client) GetKey() string {
 	return this.key
 }
 
-// Closed 是否断开连接
-func (this *Client) Closed() bool {
-	return this.ClientReader.Closed() || this.ClientCloser.Closed()
-}
-
 // Err 错误信息,默认有个错误,如果连接正常,错误为默认,则返回nil
 func (this *Client) Err() error {
 	if err := this.ClientReader.Err(); err != nil {
@@ -190,6 +185,11 @@ func (this *Client) Debug(b ...bool) *Client {
 	this.ClientWriter.Debug(b...)
 	this.ClientCloser.Debug(b...)
 	return this
+}
+
+// Closed 是否断开连接
+func (this *Client) Closed() bool {
+	return this.ClientReader.Closed() || this.ClientCloser.Closed()
 }
 
 // CloseAll 主动关闭连接,无法触发重试机制
