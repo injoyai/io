@@ -296,6 +296,24 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) *Client {
 	return this
 }
 
+// GoForWriter 协程执行周期写入数据
+func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) (int, error)) {
+	go func(ctx context.Context, writer io.Writer) {
+		t := time.NewTimer(interval)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if _, err := write(writer); err != nil {
+					return
+				}
+				t.Reset(interval)
+			}
+		}
+	}(this.Ctx(), this.ClientWriter)
+}
+
 // SetReadWriteWithStartEnd 设置读取写入数据根据包头包尾
 func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *Client {
 	this.ClientWriter.SetWriteWithStartEnd(packageStart, packageEnd)
@@ -308,7 +326,7 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *ClientMessage) {
 		readWriteCloser := this.ClientCloser.MustDial(ctx)
 		if readWriteCloser == nil {
-			this.ClientPrinter.Print(NewMessageFormat("连接断开(%v),未设置重连函数或上下文关闭", this.ClientCloser.Err()), TagClose, this.GetKey())
+			this.ClientPrinter.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ClientCloser.Err()), TagClose, this.GetKey())
 			return
 		}
 		this.ClientPrinter.Print(NewMessageFormat("连接断开(%v),重连成功", this.ClientCloser.Err()), TagErr, this.GetKey())
@@ -340,22 +358,4 @@ func (this *Client) SwapClient(c *Client) {
 // Run 开始执行(读取数据)
 func (this *Client) Run() error {
 	return this.ClientCloser.CloseWithErr(this.ClientReader.Run())
-}
-
-// GoForWriter 协程执行周期写入数据
-func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) (int, error)) {
-	go func(ctx context.Context, writer io.Writer) {
-		t := time.NewTimer(interval)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				if _, err := write(writer); err != nil {
-					return
-				}
-				t.Reset(interval)
-			}
-		}
-	}(this.Ctx(), this.ClientWriter)
 }

@@ -52,8 +52,9 @@ func (this *ClientCloser) SetCloseWithNil() {
 }
 
 // SetRedialFunc 设置重连函数
-func (this *ClientCloser) SetRedialFunc(fn DialFunc) {
+func (this *ClientCloser) SetRedialFunc(fn DialFunc) *ClientCloser {
 	this.redialFunc = fn
+	return this
 }
 
 // SetRedialWithNil 设置重连函数为nil

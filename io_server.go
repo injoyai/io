@@ -66,6 +66,16 @@ type Server struct {
 	timeout   time.Duration            //超时时间,0是永久有效
 }
 
+// Ctx 上下文
+func (this *Server) Ctx() context.Context {
+	return this.ctx
+}
+
+// Done ctx.Done
+func (this *Server) Done() <-chan struct{} {
+	return this.Ctx().Done()
+}
+
 // Debug 调试模式
 func (this *Server) Debug(b ...bool) *Server {
 	this.ClientPrinter.Debug(b...)
@@ -81,7 +91,7 @@ func (this *Server) Close() error {
 // CloseWithErr 根据错误关闭
 func (this *Server) CloseWithErr(err error) error {
 	select {
-	case <-this.ctx.Done():
+	case <-this.Done():
 	default:
 		if err != nil {
 			this.closeErr = err
@@ -258,8 +268,12 @@ func (this *Server) SetClientKey(newClient *Client, newKey string) {
 func (this *Server) GoFor(interval time.Duration, do func(s *Server)) {
 	go func() {
 		for {
-			<-time.After(interval)
-			do(this)
+			select {
+			case <-this.Done():
+				return
+			case <-time.After(interval):
+				do(this)
+			}
 		}
 	}()
 }
@@ -330,7 +344,6 @@ func (this *Server) Run() error {
 
 		// 协程执行,等待连接的后续数据,来决定后续操作
 		go func(x *Client) {
-
 			//前置操作,例如等待注册数据,不符合的返回错误则关闭连接
 			if this.beforeFunc != nil {
 				if err := this.beforeFunc(x); err != nil {
