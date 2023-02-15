@@ -5,29 +5,6 @@ import (
 	"github.com/injoyai/io"
 )
 
-func Redial(dial io.DialFunc, fn ...func(ctx context.Context, c *Client)) *Client {
-	c := io.Redial(dial, func(ctx context.Context, c *io.Client) {
-		c.SetWriteFunc(DefaultWriteFunc)
-		c.SetReadFunc(DefaultReadFunc)
-		for _, v := range fn {
-			v(ctx, &Client{c})
-		}
-	})
-	return &Client{c}
-}
-
-// NewClient 新建管道客户端
-func NewClient(dial io.DialFunc) (*Client, error) {
-	client, err := io.NewDial(dial)
-	if err != nil {
-		return nil, err
-	}
-	c := &Client{Client: client}
-	c.SetWriteFunc(DefaultWriteFunc)
-	c.SetReadFunc(DefaultReadFunc)
-	return c, nil
-}
-
 /*
 Client
 抽象管道概念
@@ -40,6 +17,25 @@ Client
 写入数据会封装一层(封装连接信息,动作,数据)
 
 */
-type Client struct {
-	*io.Client
+
+func Redial(dial io.DialFunc, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
+	return io.Redial(dial, func(ctx context.Context, c *io.Client) {
+		c.SetWriteFunc(DefaultWriteFunc)
+		c.SetReadFunc(DefaultReadFunc)
+		for _, v := range fn {
+			v(ctx, c)
+		}
+	})
+}
+
+// NewClient 新建管道客户端
+func NewClient(dial io.DialFunc) (*io.Client, error) {
+	c, err := io.NewDial(dial)
+	if err != nil {
+		return nil, err
+	}
+	c.SetWriteFunc(DefaultWriteFunc)
+	c.SetReadFunc(DefaultReadFunc)
+	c.Redial()
+	return c, nil
 }

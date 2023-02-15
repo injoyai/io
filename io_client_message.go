@@ -1,10 +1,8 @@
 package io
 
 import (
-	"encoding/base64"
-	"encoding/hex"
 	"fmt"
-	"strings"
+	"github.com/injoyai/base/bytes"
 )
 
 const (
@@ -36,31 +34,7 @@ func NewMessage(bs []byte) Message {
 	return bs
 }
 
-type Message []byte
-
-func (this Message) Error() string {
-	return this.String()
-}
-
-func (this Message) String() string {
-	return string(this.Bytes())
-}
-
-func (this Message) HEX() string {
-	return strings.ToUpper(hex.EncodeToString(this.Bytes()))
-}
-
-func (this Message) ASCII() string {
-	return string(this.Bytes())
-}
-
-func (this Message) Bytes() []byte {
-	return this
-}
-
-func (this Message) Base64() string {
-	return base64.StdEncoding.EncodeToString(this.Bytes())
-}
+type Message = bytes.Entity
 
 func NewClientMessage(c *Client, p []byte) *ClientMessage {
 	return &ClientMessage{

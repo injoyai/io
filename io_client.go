@@ -343,7 +343,7 @@ func (this *Client) Run() error {
 }
 
 // GoForWriter 协程执行周期写入数据
-func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) error) {
+func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) (int, error)) {
 	go func(ctx context.Context, writer io.Writer) {
 		t := time.NewTimer(interval)
 		for {
@@ -351,11 +351,11 @@ func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) err
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				if err := write(writer); err != nil {
+				if _, err := write(writer); err != nil {
 					return
 				}
 				t.Reset(interval)
 			}
 		}
-	}(this.Ctx(), this.writer)
+	}(this.Ctx(), this.ClientWriter)
 }
