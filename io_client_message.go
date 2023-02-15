@@ -25,10 +25,6 @@ func NewMessageString(s string) Message {
 	return NewMessage([]byte(s))
 }
 
-func NewMessageStringf(format string, v ...interface{}) Message {
-	return NewMessage([]byte(fmt.Sprintf(format, v...)))
-}
-
 func NewMessageErr(err error) Message {
 	if err != nil {
 		return NewMessageString(err.Error())

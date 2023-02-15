@@ -3,6 +3,8 @@ package io
 import (
 	"bufio"
 	"context"
+	"github.com/injoyai/base/chans"
+	"github.com/injoyai/conv"
 	"github.com/injoyai/io/buf"
 	"sync"
 	"sync/atomic"
@@ -22,16 +24,22 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		ClientPrinter: NewClientPrint(),
 		listener:      listener,
 		clientMap:     make(map[string]*Client),
-		dataChan:      make(chan *ClientMessage, 1000),
 		timeout:       time.Minute * 3,
 		readFunc:      buf.ReadWithAll,
 		dealFunc:      nil,
+		dealQueue:     chans.NewEntity(1, 1000),
 		closeFunc:     nil,
 		beforeFunc:    beforeFunc,
 		writeFunc:     nil,
 		printFunc:     PrintWithASCII,
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
+	s.dealQueue.SetHandler(func(no, num int, data interface{}) {
+		if s.dealFunc != nil {
+			s.dealFunc(data.(*ClientMessage))
+		}
+	})
+	go s.timeoutFunc()
 	return s, nil
 }
 
@@ -45,18 +53,17 @@ type Server struct {
 	cancel     context.CancelFunc   //上下文
 	beforeFunc func(*Client) error  //连接前置事件
 	dealFunc   func(*ClientMessage) //数据处理方法
+	dealQueue  *chans.Entity        //数据处理队列
 	closed     uint32               //是否关闭
 	closeErr   error                //错误信息
 
 	debug     bool                     //debug,调试模式
-	dataChan  chan *ClientMessage      //接受数据通道
 	readFunc  buf.ReadFunc             //数据读取方法
 	closeFunc func(msg *ClientMessage) //断开连接事件
 	writeFunc func(p []byte) []byte    //数据发送函数,包装下原始数据
 	printFunc PrintFunc                //打印数据方法
+	running   uint32                   //是否在运行
 	timeout   time.Duration            //超时时间,0是永久有效
-
-	running uint32 //是否在运行
 }
 
 // Debug 调试模式
@@ -77,6 +84,7 @@ func (this *Server) CloseWithErr(err error) error {
 	case <-this.ctx.Done():
 	default:
 		if err != nil {
+			this.listener.Close()
 			if this.cancel != nil {
 				this.cancel()
 			}
@@ -84,6 +92,12 @@ func (this *Server) CloseWithErr(err error) error {
 		}
 	}
 	return nil
+}
+
+// SetDealQueueNum 设置数据处理队列协程数量
+func (this *Server) SetDealQueueNum(num int) *Server {
+	this.dealQueue.SetNum(num)
+	return this
 }
 
 // SetBeforeFunc 设置连接前置方法,连接数据还未监听
@@ -176,6 +190,12 @@ func (this *Server) GetClientMap() map[string]*Client {
 	return m
 }
 
+// GetClientCount 获取客户端数量
+func (this *Server) GetClientCount() int {
+	return len(this.clientMap)
+}
+
+// Read todo
 func (this *Server) Read(p []byte) (int, error) {
 	return 0, nil
 }
@@ -280,21 +300,7 @@ func (this *Server) Run() error {
 		return nil
 	}
 
-	this.ClientPrinter.Print(NewMessageStringf("开启IO服务成功..."))
-
-	go func(ctx context.Context) {
-		for {
-			select {
-			case <-ctx.Done():
-				_ = this.listener.Close()
-				return
-			case bytes := <-this.dataChan:
-				if this.dealFunc != nil {
-					this.dealFunc(bytes)
-				}
-			}
-		}
-	}(this.ctx)
+	this.ClientPrinter.Print(NewMessageString("开启IO服务成功..."))
 
 	for {
 		select {
@@ -316,7 +322,7 @@ func (this *Server) Run() error {
 		x.SetReadFunc(this.readFunc)    //读取数据方法
 		x.SetDealFunc(this._dealFunc)   //数据处理方法
 		x.SetCloseFunc(this._closeFunc) //连接关闭方法
-		x.SetTimeout(this.timeout)      //设置超时时间
+		x.SetTimeout(0)                 //设置超时时间
 		x.SetPrintFunc(this.printFunc)  //设置打印函数
 		x.SetWriteFunc(this.writeFunc)  //设置发送函数
 
@@ -353,7 +359,7 @@ func beforeFunc(c *Client) error {
 }
 
 // delConn 删除连接
-func (this *Server) _closeFunc(msg *ClientMessage) {
+func (this *Server) _closeFunc(ctx context.Context, msg *ClientMessage) {
 	this.ClientPrinter.Print(msg.Message, TagClose, msg.GetKey())
 	if this.closeFunc != nil {
 		defer this.closeFunc(msg)
@@ -372,6 +378,21 @@ func (this *Server) _closeFunc(msg *ClientMessage) {
 func (this *Server) _dealFunc(msg *ClientMessage) {
 	select {
 	case <-this.ctx.Done():
-	case this.dataChan <- msg:
+	default:
+		this.dealQueue.Do(msg)
+	}
+}
+
+// timeoutFunc 服务端超时机制,(客户端突然断电,服务端检测不出来)
+func (this *Server) timeoutFunc() {
+	for {
+		interval := conv.SelectDuration(this.timeout/3 > time.Second, this.timeout/3, time.Minute)
+		<-time.After(interval)
+		now := time.Now()
+		for _, v := range this.GetClientMap() {
+			if this.timeout > 0 && now.Sub(v.ClientReader.lastTime) > this.timeout {
+				v.Close()
+			}
+		}
 	}
 }

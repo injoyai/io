@@ -12,7 +12,7 @@ func NewClientCloser(closer Closer) *ClientCloser {
 }
 
 func NewClientCloserWithContext(ctx context.Context, closer Closer) *ClientCloser {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx2, cancel2 := context.WithCancel(ctx)
 	return &ClientCloser{
 		ClientPrinter: NewClientPrint(),
 		ClientKey:     NewClientKey(""),
@@ -21,26 +21,28 @@ func NewClientCloserWithContext(ctx context.Context, closer Closer) *ClientClose
 		closeFunc:     nil,
 		closeErr:      nil,
 		closed:        0,
-		ctx:           ctx,
-		cancel:        cancel,
+		ctx:           ctx2,
+		cancel:        cancel2,
+		ctxParent:     ctx,
 	}
 }
 
 type ClientCloser struct {
-	*ClientPrinter
-	*ClientKey
-	closer     Closer
-	redialFunc DialFunc
-	closeFunc  func(msg Message)
-	mu         sync.Mutex
-	closeErr   error  //错误信息
-	closed     uint32 //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
-	ctx        context.Context
-	cancel     context.CancelFunc
+	*ClientPrinter                                        //打印
+	*ClientKey                                            //标识
+	closer         Closer                                 //实例
+	redialFunc     DialFunc                               //重连函数
+	closeFunc      func(ctx context.Context, msg Message) //关闭函数
+	mu             sync.Mutex                             //锁
+	closeErr       error                                  //错误信息
+	closed         uint32                                 //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
+	ctx            context.Context                        //上下文
+	cancel         context.CancelFunc                     //上下文
+	ctxParent      context.Context                        //上下文
 }
 
 // SetCloseFunc 设置关闭函数
-func (this *ClientCloser) SetCloseFunc(fn func(msg Message)) {
+func (this *ClientCloser) SetCloseFunc(fn func(ctx context.Context, msg Message)) {
 	this.closeFunc = fn
 }
 
@@ -54,6 +56,12 @@ func (this *ClientCloser) SetRedialFunc(fn DialFunc) {
 	this.redialFunc = fn
 }
 
+// SetRedialWithNil 设置重连函数为nil
+func (this *ClientCloser) SetRedialWithNil() *ClientCloser {
+	this.SetRedialFunc(nil)
+	return this
+}
+
 // Redial 重连
 func (this *ClientCloser) Redial() (ReadWriteCloser, error) {
 	if this.redialFunc != nil {
@@ -63,17 +71,26 @@ func (this *ClientCloser) Redial() (ReadWriteCloser, error) {
 }
 
 // MustDial 无限重连,返回nil,或者成功数据
-func (this *ClientCloser) MustDial() ReadWriteCloser {
+func (this *ClientCloser) MustDial(ctx context.Context) ReadWriteCloser {
 	t := time.Second
+	timer := time.NewTimer(t)
 	for {
-		readWriteCloser, err := this.Redial()
-		if err == nil {
-			return readWriteCloser
-		}
-		this.ClientPrinter.Print(NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second), TagErr, this.GetKey())
-		<-time.After(t)
-		if t < time.Second*32 {
-			t = 2 * t
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-timer.C:
+			readWriteCloser, err := this.Redial()
+			if err == nil {
+				if readWriteCloser != nil {
+					this.ClientPrinter.Print(NewMessageFormat("连接服务端成功..."), TagDial, this.GetKey())
+				}
+				return readWriteCloser
+			}
+			this.ClientPrinter.Print(NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second), TagErr, this.GetKey())
+			if t < time.Second*32 {
+				t = 2 * t
+				timer.Reset(t)
+			}
 		}
 	}
 }
@@ -105,7 +122,13 @@ func (this *ClientCloser) Closed() bool {
 	//return this.closed == 1
 }
 
-// Close 关闭
+// CloseAll 主动关闭,不会重试
+func (this *ClientCloser) CloseAll() error {
+	this.SetCloseWithNil()
+	return this.CloseWithErr(ErrHandClose)
+}
+
+// Close 主动关闭,不会重试
 func (this *ClientCloser) Close() error {
 	return this.CloseWithErr(ErrHandClose)
 }
@@ -124,7 +147,7 @@ func (this *ClientCloser) CloseWithErr(closeErr error) (err error) {
 		msg := NewMessage([]byte(closeErr.Error()))
 		if this.closeFunc != nil {
 			//需要最后执行,防止死锁
-			defer this.closeFunc(msg)
+			defer this.closeFunc(this.ctxParent, msg)
 		}
 		this.ClientPrinter.Print(msg, TagClose, this.GetKey())
 	}

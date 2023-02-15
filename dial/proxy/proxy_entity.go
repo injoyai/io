@@ -163,7 +163,7 @@ func (this *Entity) Switch(msg *Message) (err error) {
 		c.SetDealFunc(func(msg2 *io.ClientMessage) {
 			this.Proxy(NewWriteMessage(msg.Key, msg.Addr, msg2.Bytes()))
 		})
-		c.SetCloseFunc(func(msg2 *io.ClientMessage) {
+		c.SetCloseFunc(func(ctx context.Context, msg2 *io.ClientMessage) {
 			this.DelIO(msg.Key)
 			this.Proxy(NewCloseMessage(msg.Key, msg2.String()))
 		})

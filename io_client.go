@@ -26,7 +26,7 @@ func MustDialWithContext(ctx context.Context, dial DialFunc) *Client {
 	x := NewClientCloserWithContext(ctx, nil)
 	x.SetRedialFunc(dial)
 	x.Debug()
-	c := NewClient(x.MustDial())
+	c := NewClient(x.MustDial(ctx))
 	c.SetRedialFunc(dial)
 	return c
 }
@@ -57,6 +57,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 	if c, ok := i.(*Client); ok && c != nil {
 		return c
 	}
+	ctx, cancel := context.WithCancel(ctx)
 	c := &Client{
 		buf: bufio.NewReader(i),
 		i:   i,
@@ -70,6 +71,8 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		timerKeep: time.NewTimer(0),
 		timer:     time.NewTimer(0),
 		timeout:   0,
+		ctx:       ctx,
+		cancel:    cancel,
 	}
 
 	c.SetKey(fmt.Sprintf("%p", i))
@@ -100,13 +103,14 @@ type Client struct {
 	*ClientCloser
 	*ClientPrinter
 
-	timer     *time.Timer   //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
-	timeout   time.Duration //超时时间
-	timerKeep *time.Timer   //正常通讯不发送心跳
-	keepAlive time.Duration //保持连接
+	timer      *time.Timer   //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
+	timeout    time.Duration //超时时间
+	timerKeep  *time.Timer   //正常通讯不发送心跳
+	keepAlive  time.Duration //保持连接
+	createTime time.Time     //创建时间,链接成功时间
 
-	createTime time.Time //创建时间,链接成功时间
-
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // ReadWriteCloser 读写接口
@@ -190,11 +194,13 @@ func (this *Client) Debug(b ...bool) *Client {
 
 // CloseAll 主动关闭连接,无法触发重试机制
 func (this *Client) CloseAll() error {
-	this.SetCloseWithNil()
-	return this.CloseWithErr(ErrHandClose)
+	this.cancel() //这个需要放最前面,否则上下文会被重置
+	this.ClientReader.CloseWithErr(ErrHandClose)
+	this.ClientCloser.CloseAll()
+	return nil
 }
 
-// Close 手动关闭,会触发重试
+// Close 手动断开,会触发重试
 func (this *Client) Close() error {
 	return this.CloseWithErr(ErrHandClose)
 }
@@ -225,9 +231,9 @@ func (this *Client) SetDealFunc(fn func(msg *ClientMessage)) {
 }
 
 // SetCloseFunc 设置关闭函数
-func (this *Client) SetCloseFunc(fn func(msg *ClientMessage)) {
-	this.ClientCloser.SetCloseFunc(func(msg Message) {
-		fn(NewClientMessage(this, msg))
+func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *ClientMessage)) {
+	this.ClientCloser.SetCloseFunc(func(ctx context.Context, msg Message) {
+		fn(ctx, NewClientMessage(this, msg))
 	})
 }
 
@@ -299,13 +305,10 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 
 // Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
 func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
-	for _, v := range fn {
-		v(this.ClientCloser.ctx, this)
-	}
-	this.SetCloseFunc(func(msg *ClientMessage) {
-		readWriteCloser := this.ClientCloser.MustDial()
+	this.SetCloseFunc(func(ctx context.Context, msg *ClientMessage) {
+		readWriteCloser := this.ClientCloser.MustDial(ctx)
 		if readWriteCloser == nil {
-			this.ClientPrinter.Print(NewMessageFormat("连接断开(%v),未设置重连函数", this.ClientCloser.Err()), TagClose, this.GetKey())
+			this.ClientPrinter.Print(NewMessageFormat("连接断开(%v),未设置重连函数或上下文关闭", this.ClientCloser.Err()), TagClose, this.GetKey())
 			return
 		}
 		this.ClientPrinter.Print(NewMessageFormat("连接断开(%v),重连成功", this.ClientCloser.Err()), TagErr, this.GetKey())
@@ -317,7 +320,10 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 		this.Redial(fn...)
 		go this.Run()
 	})
-
+	for _, v := range fn {
+		v(this.ClientCloser.ctx, this)
+	}
+	go this.Run()
 	return this
 }
 

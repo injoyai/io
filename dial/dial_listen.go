@@ -28,7 +28,10 @@ type _tcpServer struct {
 
 func (this *_tcpServer) Accept() (io.ReadWriteCloser, string, error) {
 	c, err := this.Listener.Accept()
-	return c, c.RemoteAddr().String(), err
+	if err != nil {
+		return nil, "", err
+	}
+	return c, c.RemoteAddr().String(), nil
 }
 
 func (this *_tcpServer) Addr() string {
