@@ -291,7 +291,7 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) *Client {
 					}
 				}
 			}
-		}(this.ClientCloser.ctx)
+		}(this.Ctx())
 	}
 	return this
 }
