@@ -47,6 +47,11 @@ type ClientReader struct {
 	lastTime time.Time                           //最后读取数据时间
 }
 
+// LastTime 最后数据时间
+func (this *ClientReader) LastTime() time.Time {
+	return this.lastTime
+}
+
 // Buffer 极大的增加读取速度
 func (this *ClientReader) Buffer() *bufio.Reader {
 	return this.buf

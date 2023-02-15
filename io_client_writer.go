@@ -29,6 +29,11 @@ type ClientWriter struct {
 	lastTime       time.Time             //最后写入时间
 }
 
+// LastTime 最后数据时间
+func (this *ClientWriter) LastTime() time.Time {
+	return this.lastTime
+}
+
 // Write 写入字节,实现io.Writer
 func (this *ClientWriter) Write(p []byte) (int, error) {
 	if this.writeFunc != nil {

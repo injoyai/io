@@ -392,7 +392,7 @@ func (this *Server) timeoutFunc() {
 		<-time.After(interval)
 		now := time.Now()
 		for _, v := range this.GetClientMap() {
-			if this.timeout > 0 && now.Sub(v.ClientReader.lastTime) > this.timeout {
+			if this.timeout > 0 && now.Sub(v.ClientReader.LastTime()) > this.timeout {
 				v.Close()
 			}
 		}
