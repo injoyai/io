@@ -1,6 +1,7 @@
 package io
 
 import (
+	"context"
 	"time"
 )
 
@@ -55,3 +56,6 @@ type DealFunc func(msg Message)
 
 // PrintFunc 打印函数
 type PrintFunc func(msg Message, tag ...string)
+
+// CloseFunc 关闭函数
+type CloseFunc func(ctx context.Context, msg Message)
