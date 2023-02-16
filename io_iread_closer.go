@@ -84,16 +84,16 @@ func (this *IReadCloser) ReadChan() <-chan []byte {
 func (this *IReadCloser) ReadLast(timeout time.Duration) (response []byte, err error) {
 	if timeout <= 0 {
 		select {
-		case <-this.ICloser.Done():
-			return nil, this.ICloser.Err()
+		case <-this.Done():
+			return nil, this.Err()
 		case response = <-this.readChan:
 			return
 		}
 	}
 	t := time.NewTimer(timeout)
 	select {
-	case <-this.ICloser.Done():
-		return nil, this.ICloser.Err()
+	case <-this.Done():
+		return nil, this.Err()
 	case response = <-this.readChan:
 		return
 	case <-t.C:
@@ -194,8 +194,8 @@ func (this *IReadCloser) Run() error {
 	}
 	for {
 		select {
-		case <-this.ICloser.Done():
-			return this.ICloser.Err()
+		case <-this.Done():
+			return this.Err()
 		default:
 			_ = this.CloseWithErr(func() (err error) {
 				defer func() {
