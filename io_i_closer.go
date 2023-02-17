@@ -14,8 +14,7 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 	ctxParent, cancelParent := context.WithCancel(ctx)
 	ctxChild, cancelChild := context.WithCancel(ctxParent)
 	return &ICloser{
-		IPrinter:     NewIPrinter(),
-		IKey:         NewIKey(""),
+		IPrinter:     NewIPrinter(""),
 		closer:       closer,
 		redialFunc:   nil,
 		closeFunc:    nil,
@@ -30,7 +29,6 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 
 type ICloser struct {
 	*IPrinter                       //打印
-	*IKey                           //标识
 	closer       Closer             //实例
 	redialFunc   DialFunc           //重连函数
 	closeFunc    CloseFunc          //关闭函数

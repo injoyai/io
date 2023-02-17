@@ -21,7 +21,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		return nil, err
 	}
 	s := &Server{
-		IPrinter:   NewIPrinter(),
+		IPrinter:   NewIPrinter(""),
 		listener:   listener,
 		clientMap:  make(map[string]*Client),
 		timeout:    time.Minute * 3,

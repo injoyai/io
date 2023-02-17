@@ -61,7 +61,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 
 		IReadCloser: NewIReadCloserWithContext(ctx, i),
 		IWriter:     NewWriter(i),
-		IPrinter:    NewIPrinter(),
+		IPrinter:    NewIPrinter(""),
 
 		timerKeep: time.NewTimer(0),
 		timer:     time.NewTimer(0),

@@ -19,8 +19,7 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 		return c
 	}
 	entity := &IReadCloser{
-		IPrinter: NewIPrinter(),
-		IKey:     NewIKey(""),
+		IPrinter: NewIPrinter(""),
 		ICloser:  NewICloserWithContext(ctx, readCloser),
 		buf:      bufio.NewReader(readCloser),
 		readFunc: buf.ReadWithAll,
@@ -35,7 +34,6 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 
 type IReadCloser struct {
 	*IPrinter
-	*IKey
 	*ICloser
 	buf      *bufio.Reader                       //buffer
 	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
@@ -48,7 +46,7 @@ type IReadCloser struct {
 //================================Nature================================
 
 func (this *IReadCloser) SetKey(key string) *IReadCloser {
-	this.IKey.SetKey(key)
+	this.IPrinter.SetKey(key)
 	this.ICloser.SetKey(key)
 	return this
 }

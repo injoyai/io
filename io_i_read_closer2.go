@@ -15,8 +15,7 @@ func NewMReadCloserWithContext(ctx context.Context, readCloser MessageReadCloser
 		return c
 	}
 	entity := &IReaderCloser{
-		IPrinter: NewIPrinter(),
-		IKey:     NewIKey(""),
+		IPrinter: NewIPrinter(""),
 		ICloser:  NewICloserWithContext(ctx, readCloser),
 		running:  0,
 	}
@@ -28,7 +27,6 @@ func NewMReadCloserWithContext(ctx context.Context, readCloser MessageReadCloser
 
 type IReaderCloser struct {
 	*IPrinter
-	*IKey
 	*ICloser
 	*IReader
 	dealFunc DealFunc //处理数据函数
@@ -38,7 +36,7 @@ type IReaderCloser struct {
 //================================Nature================================
 
 func (this *IReaderCloser) SetKey(key string) *IReaderCloser {
-	this.IKey.SetKey(key)
+	this.IPrinter.SetKey(key)
 	this.ICloser.SetKey(key)
 	return this
 }

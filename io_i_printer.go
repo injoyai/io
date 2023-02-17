@@ -6,15 +6,27 @@ import (
 	"strings"
 )
 
-func NewIPrinter() *IPrinter {
+func NewIPrinter(key string) *IPrinter {
 	cp := &IPrinter{}
+	cp.SetKey(key)
 	cp.SetPrintWithASCII()
 	return cp
 }
 
 type IPrinter struct {
+	key       string
 	debug     bool
 	printFunc PrintFunc
+}
+
+// SetKey 设置唯一标识
+func (this *IPrinter) SetKey(key string) {
+	this.key = key
+}
+
+// GetKey 获取唯一标识
+func (this *IPrinter) GetKey() string {
+	return this.key
 }
 
 // SetPrintFunc 设置打印函数

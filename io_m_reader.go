@@ -8,11 +8,17 @@ import (
 )
 
 func NewIReader(r Reader) *IReader {
-	return &IReader{
+	i := &IReader{
 		buf:      bufio.NewReader(r),
 		readFunc: buf.ReadWithAll,
 		lastChan: make(chan Message),
 	}
+	if v, ok := r.(MessageReader); ok {
+		i.readFunc = func(reader *bufio.Reader) ([]byte, error) {
+			return v.ReadMessage()
+		}
+	}
+	return i
 }
 
 type IReader struct {
