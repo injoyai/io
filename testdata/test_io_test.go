@@ -11,16 +11,17 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestNewServer(t *testing.T) {
-	s, err := io.NewServer(dial.TCPListenFunc(10089))
+	_, err := dial.NewTCPServer(10089, func(s *io.Server) {
+		s.Debug()
+		s.SetDealFunc(func(msg *io.ClientMessage) {
+			msg.WriteString("777")
+		})
+		t.Log(s.Run())
+	})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	s.Debug()
-	s.SetDealFunc(func(msg *io.ClientMessage) {
-		msg.WriteString("777")
-	})
-	t.Log(s.Run())
 }
 
 func TestNewTestMustDialBug(t *testing.T) {

@@ -8,6 +8,8 @@ import (
 	"sync"
 )
 
+//================================TCPListen================================
+
 func TCPListener(port int) (io.Listener, error) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -20,6 +22,10 @@ func TCPListenFunc(port int) io.ListenFunc {
 	return func() (io.Listener, error) {
 		return TCPListener(port)
 	}
+}
+
+func NewTCPServer(port int, fn ...func(s *io.Server)) (*io.Server, error) {
+	return io.NewServer(TCPListenFunc(port), fn...)
 }
 
 type _tcpServer struct {
@@ -38,6 +44,8 @@ func (this *_tcpServer) Addr() string {
 	return this.Listener.Addr().String()
 }
 
+//================================UDPListen================================
+
 func UDPListener(port int) (io.Listener, error) {
 	listener, err := net.ListenUDP("udp", &net.UDPAddr{Port: port})
 	if err != nil {
@@ -50,6 +58,10 @@ func UDPListenFunc(port int) io.ListenFunc {
 	return func() (io.Listener, error) {
 		return UDPListener(port)
 	}
+}
+
+func NewUDPServer(port int, fn ...func(s *io.Server)) (*io.Server, error) {
+	return io.NewServer(UDPListenFunc(port), fn...)
 }
 
 type _udp struct {

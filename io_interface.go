@@ -36,7 +36,20 @@ type MessageReadCloser interface {
 
 type MessageReadWriteCloser interface {
 	MessageReader
-	WriteCloser
+	Writer
+	Closer
+}
+
+type _messageReadWriteCloser struct {
+	MessageReadWriteCloser
+}
+
+func (this *_messageReadWriteCloser) Read(p []byte) (int, error) {
+	return 0, nil
+}
+
+func NewMessageReadCloser(r MessageReadWriteCloser) ReadWriteCloser {
+	return &_messageReadWriteCloser{MessageReadWriteCloser: r}
 }
 
 type Listener interface {

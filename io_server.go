@@ -11,11 +11,11 @@ import (
 	"time"
 )
 
-func NewServer(newListen func() (Listener, error)) (*Server, error) {
-	return NewServerWithContext(context.Background(), newListen)
+func NewServer(newListen ListenFunc, fn ...func(s *Server)) (*Server, error) {
+	return NewServerWithContext(context.Background(), newListen, fn...)
 }
 
-func NewServerWithContext(ctx context.Context, newListen func() (Listener, error)) (*Server, error) {
+func NewServerWithContext(ctx context.Context, newListen func() (Listener, error), fn ...func(s *Server)) (*Server, error) {
 	listener, err := newListen()
 	if err != nil {
 		return nil, err
@@ -40,6 +40,9 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		}
 	})
 	go s.timeoutFunc()
+	for _, v := range fn {
+		v(s)
+	}
 	return s, nil
 }
 
