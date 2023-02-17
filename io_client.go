@@ -58,10 +58,10 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		i:   i,
 		tag: maps.NewSafe(),
 
-		ClientReader:  NewClientReaderWithContext(ctx, i),
-		IWriter:       NewWriter(i),
-		ICloser:       NewICloserWithContext(ctx, i),
-		ClientPrinter: NewClientPrint(),
+		IReadCloser: NewIReadCloserWithContext(ctx, i),
+		IWriter:     NewWriter(i),
+		ICloser:     NewICloserWithContext(ctx, i),
+		IPrinter:    NewIPrinter(),
 
 		timerKeep: time.NewTimer(0),
 		timer:     time.NewTimer(0),
@@ -93,10 +93,10 @@ type Client struct {
 	mu  sync.Mutex      //锁
 	tag *maps.Safe      //标签
 
-	*ClientReader
+	*IReadCloser
 	*IWriter
 	*ICloser
-	*ClientPrinter
+	*IPrinter
 
 	timer      *time.Timer   //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
 	timeout    time.Duration //超时时间
@@ -147,7 +147,7 @@ func (this *Client) SetTag(key, value interface{}) {
 func (this *Client) SetKey(key string) *Client {
 	this.key = key
 	this.IWriter.SetKey(key)
-	this.ClientReader.SetKey(key)
+	this.IReadCloser.SetKey(key)
 	this.ICloser.SetKey(key)
 	return this
 }
@@ -159,7 +159,7 @@ func (this *Client) GetKey() string {
 
 // Err 错误信息,默认有个错误,如果连接正常,错误为默认,则返回nil
 func (this *Client) Err() error {
-	if err := this.ClientReader.Err(); err != nil {
+	if err := this.IReadCloser.Err(); err != nil {
 		return err
 	}
 	if err := this.ICloser.Err(); err != nil {
@@ -175,8 +175,8 @@ func (this *Client) Ctx() context.Context {
 
 // Debug 调试模式,打印日志
 func (this *Client) Debug(b ...bool) *Client {
-	this.ClientPrinter.Debug(b...)
-	this.ClientReader.Debug(b...)
+	this.IPrinter.Debug(b...)
+	this.IReadCloser.Debug(b...)
 	this.IWriter.Debug(b...)
 	this.ICloser.Debug(b...)
 	return this
@@ -184,13 +184,13 @@ func (this *Client) Debug(b ...bool) *Client {
 
 // Closed 是否断开连接
 func (this *Client) Closed() bool {
-	return this.ClientReader.Closed() || this.ICloser.Closed()
+	return this.IReadCloser.Closed() || this.ICloser.Closed()
 }
 
 // CloseAll 主动关闭连接,无法触发重试机制
 func (this *Client) CloseAll() error {
 	this.cancel() //这个需要放最前面,否则上下文会被重置
-	this.ClientReader.CloseWithErr(ErrHandClose)
+	this.IReadCloser.CloseWithErr(ErrHandClose)
 	this.ICloser.CloseAll()
 	return nil
 }
@@ -202,7 +202,7 @@ func (this *Client) Close() error {
 
 // CloseWithErr 根据错误关闭
 func (this *Client) CloseWithErr(err error) error {
-	this.ClientReader.CloseWithErr(err)
+	this.IReadCloser.CloseWithErr(err)
 	this.ICloser.CloseWithErr(err)
 	return nil
 }
@@ -220,7 +220,7 @@ func (this *Client) SetTimeout(timeout time.Duration) *Client {
 
 // SetDealFunc 设置处理数据函数
 func (this *Client) SetDealFunc(fn func(msg *ClientMessage)) {
-	this.ClientReader.SetDealFunc(func(msg Message) {
+	this.IReadCloser.SetDealFunc(func(msg Message) {
 		fn(NewClientMessage(this, msg))
 	})
 }
@@ -234,8 +234,8 @@ func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *ClientMessage
 
 // SetPrintFunc 设置打印函数
 func (this *Client) SetPrintFunc(fn PrintFunc) *Client {
-	this.ClientPrinter.SetPrintFunc(fn)
-	this.ClientReader.SetPrintFunc(fn)
+	this.IPrinter.SetPrintFunc(fn)
+	this.IReadCloser.SetPrintFunc(fn)
 	this.IWriter.SetPrintFunc(fn)
 	//错误信息按ASCII编码
 	return this
@@ -312,7 +312,7 @@ func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) (in
 // SetReadWriteWithStartEnd 设置读取写入数据根据包头包尾
 func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *Client {
 	this.IWriter.SetWriteWithStartEnd(packageStart, packageEnd)
-	this.ClientReader.SetReadWithStartEnd(packageStart, packageEnd)
+	this.IReadCloser.SetReadWithStartEnd(packageStart, packageEnd)
 	return this
 }
 
@@ -321,10 +321,10 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *ClientMessage) {
 		readWriteCloser := this.ICloser.Redial(ctx)
 		if readWriteCloser == nil {
-			this.ClientPrinter.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ICloser.Err()), TagClose, this.GetKey())
+			this.IPrinter.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ICloser.Err()), TagClose, this.GetKey())
 			return
 		}
-		this.ClientPrinter.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagErr, this.GetKey())
+		this.IPrinter.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagErr, this.GetKey())
 		redialFunc := this.ICloser.redialFunc
 		key := this.GetKey()
 		*this = *NewClient(readWriteCloser)
@@ -352,5 +352,5 @@ func (this *Client) SwapClient(c *Client) {
 
 // Run 开始执行(读取数据)
 func (this *Client) Run() error {
-	return this.ICloser.CloseWithErr(this.ClientReader.Run())
+	return this.ICloser.CloseWithErr(this.IReadCloser.Run())
 }

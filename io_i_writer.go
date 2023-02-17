@@ -13,21 +13,23 @@ func NewWriter(writer Writer) *IWriter {
 		return c
 	}
 	return &IWriter{
-		ClientPrinter: NewClientPrint(),
-		ClientKey:     NewClientKey(""),
-		writer:        writer,
-		writeFunc:     nil,
-		lastTime:      time.Time{},
+		IPrinter:  NewIPrinter(),
+		IKey:      NewIKey(""),
+		writer:    writer,
+		writeFunc: nil,
+		lastTime:  time.Time{},
 	}
 }
 
 type IWriter struct {
-	*ClientPrinter                       //打印
-	*ClientKey                           //标识
-	writer         Writer                //io.Writer
-	writeFunc      func(p []byte) []byte //写入函数
-	lastTime       time.Time             //最后写入时间
+	*IPrinter                       //打印
+	*IKey                           //标识
+	writer    Writer                //io.Writer
+	writeFunc func(p []byte) []byte //写入函数
+	lastTime  time.Time             //最后写入时间
 }
+
+//================================Nature================================
 
 // LastTime 最后数据时间
 func (this *IWriter) LastTime() time.Time {

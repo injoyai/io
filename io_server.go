@@ -21,17 +21,17 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		return nil, err
 	}
 	s := &Server{
-		ClientPrinter: NewClientPrint(),
-		listener:      listener,
-		clientMap:     make(map[string]*Client),
-		timeout:       time.Minute * 3,
-		readFunc:      buf.ReadWithAll,
-		dealFunc:      nil,
-		dealQueue:     chans.NewEntity(1, 1000),
-		closeFunc:     nil,
-		beforeFunc:    beforeFunc,
-		writeFunc:     nil,
-		printFunc:     PrintWithASCII,
+		IPrinter:   NewIPrinter(),
+		listener:   listener,
+		clientMap:  make(map[string]*Client),
+		timeout:    time.Minute * 3,
+		readFunc:   buf.ReadWithAll,
+		dealFunc:   nil,
+		dealQueue:  chans.NewEntity(1, 1000),
+		closeFunc:  nil,
+		beforeFunc: beforeFunc,
+		writeFunc:  nil,
+		printFunc:  PrintWithASCII,
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.dealQueue.SetHandler(func(no, num int, data interface{}) {
@@ -45,7 +45,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 
 type Server struct {
 	name string
-	*ClientPrinter
+	*IPrinter
 	listener   Listener
 	clientMap  map[string]*Client   //链接集合,远程地址为key
 	clientMu   sync.RWMutex         //锁
@@ -78,7 +78,7 @@ func (this *Server) Done() <-chan struct{} {
 
 // Debug 调试模式
 func (this *Server) Debug(b ...bool) *Server {
-	this.ClientPrinter.Debug(b...)
+	this.IPrinter.Debug(b...)
 	this.debug = !(len(b) > 0 && !b[0])
 	return this
 }
@@ -316,7 +316,7 @@ func (this *Server) Run() error {
 		return nil
 	}
 
-	this.ClientPrinter.Print(NewMessageString("开启IO服务成功..."))
+	this.IPrinter.Print(NewMessageString("开启IO服务成功..."))
 
 	for {
 		select {
@@ -369,13 +369,13 @@ inside
 
 // beforeFunc 默认前置函数
 func beforeFunc(c *Client) error {
-	c.ClientPrinter.Print(NewMessageString("新的客户端连接..."), TagDial, c.GetKey())
+	c.IPrinter.Print(NewMessageString("新的客户端连接..."), TagDial, c.GetKey())
 	return nil
 }
 
 // delConn 删除连接
 func (this *Server) _closeFunc(ctx context.Context, msg *ClientMessage) {
-	this.ClientPrinter.Print(msg.Message, TagClose, msg.GetKey())
+	this.IPrinter.Print(msg.Message, TagClose, msg.GetKey())
 	if this.closeFunc != nil {
 		defer this.closeFunc(msg)
 	}
@@ -405,7 +405,7 @@ func (this *Server) timeoutFunc() {
 		<-time.After(interval)
 		now := time.Now()
 		for _, v := range this.GetClientMap() {
-			if this.timeout > 0 && now.Sub(v.ClientReader.LastTime()) > this.timeout {
+			if this.timeout > 0 && now.Sub(v.IReadCloser.LastTime()) > this.timeout {
 				v.Close()
 			}
 		}

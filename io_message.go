@@ -23,13 +23,6 @@ func NewMessageString(s string) Message {
 	return NewMessage([]byte(s))
 }
 
-func NewMessageErr(err error) Message {
-	if err != nil {
-		return NewMessageString(err.Error())
-	}
-	return Message{}
-}
-
 func NewMessage(bs []byte) Message {
 	return bs
 }

@@ -19,12 +19,13 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 		return c
 	}
 	entity := &IReadCloser{
-		ClientPrinter: NewClientPrint(),
-		ClientKey:     NewClientKey(""),
-		ICloser:       NewICloserWithContext(ctx, readCloser),
-		buf:           bufio.NewReader(readCloser),
-		readFunc:      buf.ReadWithAll,
-		running:       0,
+		IPrinter: NewIPrinter(),
+		IKey:     NewIKey(""),
+		ICloser:  NewICloserWithContext(ctx, readCloser),
+		buf:      bufio.NewReader(readCloser),
+		readFunc: buf.ReadWithAll,
+		running:  0,
+		lastChan: make(chan Message),
 	}
 	entity.SetCloseFunc(func(ctx context.Context, msg Message) {
 		entity.cancel()
@@ -33,15 +34,18 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 }
 
 type IReadCloser struct {
-	*ClientPrinter
-	*ClientKey
+	*IPrinter
+	*IKey
 	*ICloser
 	buf      *bufio.Reader                       //buffer
 	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
 	dealFunc func(Message)                       //处理数据函数
 	running  uint32                              //是否在运行
 	lastTime time.Time                           //最后读取数据时间
+	lastChan chan Message                        //读取最新数据chan
 }
+
+//================================Nature================================
 
 // LastTime 最后数据时间
 func (this *IReadCloser) LastTime() time.Time {
@@ -66,6 +70,27 @@ func (this *IReadCloser) ReadByte() (byte, error) {
 // ReadAll 读取全部数据
 func (this *IReadCloser) ReadAll() ([]byte, error) {
 	return buf.ReadWithAll(this.Buffer())
+}
+
+// ReadLast 读取最新的数据
+func (this *IReadCloser) ReadLast(timeout time.Duration) (response []byte, err error) {
+	if timeout <= 0 {
+		select {
+		case <-this.Ctx().Done():
+			err = this.Err()
+		case response = <-this.lastChan:
+		}
+	} else {
+		t := time.NewTimer(timeout)
+		select {
+		case <-this.ctx.Done():
+			err = this.closeErr
+		case response = <-this.lastChan:
+		case <-t.C:
+			err = ErrWithTimeout
+		}
+	}
+	return
 }
 
 // WriteTo 写入io.Writer
@@ -186,11 +211,17 @@ func (this *IReadCloser) Run() error {
 				}
 				//设置最后读取有效数据时间
 				this.lastTime = time.Now()
+				msg := NewMessage(bytes)
 				//打印日志
-				this.ClientPrinter.Print(NewMessage(bytes), TagRead, this.GetKey())
+				this.IPrinter.Print(msg, TagRead, this.GetKey())
+				select {
+				case this.lastChan <- msg:
+					//尝试加入队列
+				default:
+				}
 				//处理数据
 				if this.dealFunc != nil {
-					this.dealFunc(NewMessage(bytes))
+					this.dealFunc(msg)
 				}
 				return nil
 			}())

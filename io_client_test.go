@@ -8,15 +8,9 @@ import (
 )
 
 func TestNewDial(t *testing.T) {
-	c := MustDial(func() (ReadWriteCloser, error) {
+	c := Redial(func() (ReadWriteCloser, error) {
 		return net.Dial("tcp", ":10089")
-	})
-	//if err != nil {
-	//	t.Error(err)
-	//	return
-	//}
-
-	c.Redial(func(ctx context.Context, c *Client) {
+	}, func(ctx context.Context, c *Client) {
 		c.Debug()
 		c.SetPrintWithASCII()
 		c.SetKey("test")

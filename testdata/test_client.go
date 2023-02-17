@@ -38,7 +38,7 @@ func NewTestMustDialBug(port int) error {
 	}
 	s.Debug()
 	go func() {
-		logs.Err(s.Run())
+		logs.Err("服务端:", s.Run())
 	}()
 
 	c := io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)), func(ctx context.Context, c *io.Client) {

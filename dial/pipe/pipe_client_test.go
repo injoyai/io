@@ -16,9 +16,8 @@ func TestNewClient(t *testing.T) {
 	}
 	c.Debug()
 	c.Redial(func(ctx context.Context, c *io.Client) {
-		c.GoForWriter(time.Second*3, func(c io.Writer) error {
-			_, err := c.Write([]byte("ping"))
-			return err
+		c.GoForWriter(time.Second*3, func(c io.Writer) (int, error) {
+			return c.Write([]byte("ping"))
 		})
 	})
 	t.Error(c.Run())
