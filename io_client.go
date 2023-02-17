@@ -19,7 +19,9 @@ func Redial(dial DialFunc, fn ...func(ctx context.Context, c *Client)) *Client {
 // RedialWithContext 一直尝试连接,直到成功,需要输入上下文
 func RedialWithContext(ctx context.Context, dial DialFunc, fn ...func(ctx context.Context, c *Client)) *Client {
 	x := NewICloserWithContext(ctx, nil)
+	x.Debug()
 	x.SetRedialFunc(dial)
+	x.SetKey(conv.String(dial))
 	c := NewClientWithContext(ctx, x.Redial(ctx))
 	c.SetRedialFunc(dial)
 	c.Redial(fn...)
@@ -52,7 +54,6 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 	if c, ok := i.(*Client); ok && c != nil {
 		return c
 	}
-	ctx, cancel := context.WithCancel(ctx)
 	c := &Client{
 		buf: bufio.NewReader(i),
 		i:   i,
@@ -60,14 +61,11 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 
 		IReadCloser: NewIReadCloserWithContext(ctx, i),
 		IWriter:     NewWriter(i),
-		ICloser:     NewICloserWithContext(ctx, i),
 		IPrinter:    NewIPrinter(),
 
 		timerKeep: time.NewTimer(0),
 		timer:     time.NewTimer(0),
 		timeout:   0,
-		ctx:       ctx,
-		cancel:    cancel,
 	}
 
 	c.SetKey(fmt.Sprintf("%p", i))
@@ -95,7 +93,6 @@ type Client struct {
 
 	*IReadCloser
 	*IWriter
-	*ICloser
 	*IPrinter
 
 	timer      *time.Timer   //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
@@ -103,10 +100,9 @@ type Client struct {
 	timerKeep  *time.Timer   //正常通讯不发送心跳
 	keepAlive  time.Duration //保持连接
 	createTime time.Time     //创建时间,链接成功时间
-
-	ctx    context.Context
-	cancel context.CancelFunc
 }
+
+//================================Nature================================
 
 // ReadWriteCloser 读写接口
 func (this *Client) ReadWriteCloser() io.ReadWriteCloser {
@@ -118,9 +114,9 @@ func (this *Client) Pointer() string {
 	return fmt.Sprintf("%p", this.ReadWriteCloser())
 }
 
-// Interface 读写接口
-func (this *Client) Interface() io.ReadWriteCloser {
-	return this.ReadWriteCloser()
+// CreateTime 创建时间
+func (this *Client) CreateTime() time.Time {
+	return this.createTime
 }
 
 // Buffer 极大的增加读取速度
@@ -132,6 +128,47 @@ func (this *Client) Buffer() *bufio.Reader {
 func (this *Client) Tag() *maps.Safe {
 	return this.tag
 }
+
+// Debug 调试模式,打印日志
+func (this *Client) Debug(b ...bool) *Client {
+	this.IPrinter.Debug(b...)
+	this.IWriter.Debug(b...)
+	this.IReadCloser.Debug(b...)
+	return this
+}
+
+// WriteReadWithTimeout 同步写读,超时
+func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error) {
+	if _, err = this.WriteWithTimeout(request, timeout); err != nil {
+		return
+	}
+	return this.ReadLast(timeout)
+}
+
+// WriteRead 同步写读,不超时
+func (this *Client) WriteRead(request []byte) (response []byte, err error) {
+	return this.WriteReadWithTimeout(request, 0)
+}
+
+// GoForWriter 协程执行周期写入数据
+func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (int, error)) {
+	go func(ctx context.Context, writer *IWriter) {
+		t := time.NewTimer(interval)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if _, err := write(writer); err != nil {
+					return
+				}
+				t.Reset(interval)
+			}
+		}
+	}(this.Ctx(), this.IWriter)
+}
+
+//================================SetFunc================================
 
 // GetTag 获取一个tag
 func (this *Client) GetTag(key interface{}) interface{} {
@@ -148,63 +185,12 @@ func (this *Client) SetKey(key string) *Client {
 	this.key = key
 	this.IWriter.SetKey(key)
 	this.IReadCloser.SetKey(key)
-	this.ICloser.SetKey(key)
 	return this
 }
 
 // GetKey 获取唯一标识
 func (this *Client) GetKey() string {
 	return this.key
-}
-
-// Err 错误信息,默认有个错误,如果连接正常,错误为默认,则返回nil
-func (this *Client) Err() error {
-	if err := this.IReadCloser.Err(); err != nil {
-		return err
-	}
-	if err := this.ICloser.Err(); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Ctx 上下文
-func (this *Client) Ctx() context.Context {
-	return this.ICloser.Ctx()
-}
-
-// Debug 调试模式,打印日志
-func (this *Client) Debug(b ...bool) *Client {
-	this.IPrinter.Debug(b...)
-	this.IReadCloser.Debug(b...)
-	this.IWriter.Debug(b...)
-	this.ICloser.Debug(b...)
-	return this
-}
-
-// Closed 是否断开连接
-func (this *Client) Closed() bool {
-	return this.IReadCloser.Closed() || this.ICloser.Closed()
-}
-
-// CloseAll 主动关闭连接,无法触发重试机制
-func (this *Client) CloseAll() error {
-	this.cancel() //这个需要放最前面,否则上下文会被重置
-	this.IReadCloser.CloseWithErr(ErrHandClose)
-	this.ICloser.CloseAll()
-	return nil
-}
-
-// Close 手动断开,会触发重试
-func (this *Client) Close() error {
-	return this.CloseWithErr(ErrHandClose)
-}
-
-// CloseWithErr 根据错误关闭
-func (this *Client) CloseWithErr(err error) error {
-	this.IReadCloser.CloseWithErr(err)
-	this.ICloser.CloseWithErr(err)
-	return nil
 }
 
 // SetTimeout 设置超时时间
@@ -227,7 +213,7 @@ func (this *Client) SetDealFunc(fn func(msg *ClientMessage)) {
 
 // SetCloseFunc 设置关闭函数
 func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *ClientMessage)) {
-	this.ICloser.SetCloseFunc(func(ctx context.Context, msg Message) {
+	this.IReadCloser.SetCloseFunc(func(ctx context.Context, msg Message) {
 		fn(ctx, NewClientMessage(this, msg))
 	})
 }
@@ -235,9 +221,8 @@ func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *ClientMessage
 // SetPrintFunc 设置打印函数
 func (this *Client) SetPrintFunc(fn PrintFunc) *Client {
 	this.IPrinter.SetPrintFunc(fn)
-	this.IReadCloser.SetPrintFunc(fn)
 	this.IWriter.SetPrintFunc(fn)
-	//错误信息按ASCII编码
+	this.IReadCloser.SetPrintFunc(fn)
 	return this
 }
 
@@ -249,19 +234,6 @@ func (this *Client) SetPrintWithHEX() {
 // SetPrintWithASCII 设置打印ASCII
 func (this *Client) SetPrintWithASCII() {
 	this.SetPrintFunc(PrintWithASCII)
-}
-
-// WriteReadWithTimeout 同步写读,超时
-func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error) {
-	if _, err = this.WriteWithTimeout(request, timeout); err != nil {
-		return
-	}
-	return this.ReadLast(timeout)
-}
-
-// WriteRead 同步写读,不超时
-func (this *Client) WriteRead(request []byte) (response []byte, err error) {
-	return this.WriteReadWithTimeout(request, 0)
 }
 
 // SetKeepAlive 设置连接保持,另外起了携程,服务器不需要,客户端再起一个也没啥问题
@@ -291,24 +263,6 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) *Client {
 	return this
 }
 
-// GoForWriter 协程执行周期写入数据
-func (this *Client) GoForWriter(interval time.Duration, write func(c Writer) (int, error)) {
-	go func(ctx context.Context, writer io.Writer) {
-		t := time.NewTimer(interval)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				if _, err := write(writer); err != nil {
-					return
-				}
-				t.Reset(interval)
-			}
-		}
-	}(this.Ctx(), this.IWriter)
-}
-
 // SetReadWriteWithStartEnd 设置读取写入数据根据包头包尾
 func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *Client {
 	this.IWriter.SetWriteWithStartEnd(packageStart, packageEnd)
@@ -319,13 +273,13 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 // Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
 func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *ClientMessage) {
-		readWriteCloser := this.ICloser.Redial(ctx)
+		readWriteCloser := this.IReadCloser.Redial(ctx)
 		if readWriteCloser == nil {
 			this.IPrinter.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ICloser.Err()), TagClose, this.GetKey())
 			return
 		}
 		this.IPrinter.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagErr, this.GetKey())
-		redialFunc := this.ICloser.redialFunc
+		redialFunc := this.IReadCloser.redialFunc
 		key := this.GetKey()
 		*this = *NewClient(readWriteCloser)
 		this.SetKey(key)
@@ -334,7 +288,7 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 		go this.Run()
 	})
 	for _, v := range fn {
-		v(this.ICloser.ctx, this)
+		v(this.Ctx(), this)
 	}
 	go this.Run()
 	return this
@@ -350,7 +304,35 @@ func (this *Client) SwapClient(c *Client) {
 	SwapClient(this, c)
 }
 
+//================================RunTime================================
+
+// Closed 是否断开连接
+func (this *Client) Closed() bool {
+	return this.IReadCloser.Closed()
+}
+
+// CloseAll 主动关闭连接,无法触发重试机制
+func (this *Client) CloseAll() error {
+	this.IReadCloser.CloseAll()
+	return nil
+}
+
+// Close 手动断开,会触发重试
+func (this *Client) Close() error {
+	return this.CloseWithErr(ErrHandClose)
+}
+
+// CloseWithErr 根据错误关闭
+func (this *Client) CloseWithErr(err error) error {
+	return this.IReadCloser.CloseWithErr(err)
+}
+
+// Err 错误信息,默认有个错误,如果连接正常,错误为默认,则返回nil
+func (this *Client) Err() error {
+	return this.IReadCloser.Err()
+}
+
 // Run 开始执行(读取数据)
 func (this *Client) Run() error {
-	return this.ICloser.CloseWithErr(this.IReadCloser.Run())
+	return this.IReadCloser.Run()
 }

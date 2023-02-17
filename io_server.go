@@ -47,15 +47,15 @@ type Server struct {
 	name string
 	*IPrinter
 	listener   Listener
-	clientMap  map[string]*Client   //链接集合,远程地址为key
-	clientMu   sync.RWMutex         //锁
-	ctx        context.Context      //上下文
-	cancel     context.CancelFunc   //上下文
-	beforeFunc func(*Client) error  //连接前置事件
-	dealFunc   func(*ClientMessage) //数据处理方法
-	dealQueue  *chans.Entity        //数据处理队列
-	closed     uint32               //是否关闭
-	closeErr   error                //错误信息
+	clientMap  map[string]*Client       //链接集合,远程地址为key
+	clientMu   sync.RWMutex             //锁
+	ctx        context.Context          //上下文
+	cancel     context.CancelFunc       //上下文
+	beforeFunc func(*Client) error      //连接前置事件
+	dealFunc   func(msg *ClientMessage) //数据处理方法
+	dealQueue  *chans.Entity            //数据处理队列
+	closed     uint32                   //是否关闭
+	closeErr   error                    //错误信息
 
 	debug     bool                     //debug,调试模式
 	readFunc  buf.ReadFunc             //数据读取方法
@@ -375,7 +375,6 @@ func beforeFunc(c *Client) error {
 
 // delConn 删除连接
 func (this *Server) _closeFunc(ctx context.Context, msg *ClientMessage) {
-	this.IPrinter.Print(msg.Message, TagClose, msg.GetKey())
 	if this.closeFunc != nil {
 		defer this.closeFunc(msg)
 	}

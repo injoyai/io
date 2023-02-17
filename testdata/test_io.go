@@ -6,6 +6,7 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/logs"
+	"net"
 	"time"
 )
 
@@ -59,4 +60,31 @@ func NewTestMustDialBug(port int) error {
 
 	select {}
 	return nil
+}
+
+func ClientRun(addr string) {
+	c := io.Redial(func() (io.ReadWriteCloser, error) {
+		return net.Dial("tcp", addr)
+	}, func(ctx context.Context, c *io.Client) {
+		c.Debug()
+		c.SetPrintWithASCII()
+		c.SetKey("test")
+		c.GoForWriter(time.Second, func(c *io.IWriter) (int, error) {
+			return c.WriteString("666")
+		})
+	})
+
+	go func() {
+		for {
+			<-time.After(time.Second * 6)
+			//c.Close()
+			c.Close()
+		}
+	}()
+
+	go c.Run()
+	go c.Run()
+
+	select {}
+
 }

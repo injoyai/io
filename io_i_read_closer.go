@@ -39,13 +39,31 @@ type IReadCloser struct {
 	*ICloser
 	buf      *bufio.Reader                       //buffer
 	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
-	dealFunc func(Message)                       //处理数据函数
+	dealFunc DealFunc                            //处理数据函数
 	running  uint32                              //是否在运行
 	lastTime time.Time                           //最后读取数据时间
 	lastChan chan Message                        //读取最新数据chan
 }
 
 //================================Nature================================
+
+func (this *IReadCloser) SetKey(key string) *IReadCloser {
+	this.IKey.SetKey(key)
+	this.ICloser.SetKey(key)
+	return this
+}
+
+func (this *IReadCloser) SetPrintFunc(fn PrintFunc) *IReadCloser {
+	this.IPrinter.SetPrintFunc(fn)
+	//错误信息按ASCII编码
+	return this
+}
+
+func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
+	this.IPrinter.Debug(b...)
+	this.ICloser.Debug(b...)
+	return this
+}
 
 // LastTime 最后数据时间
 func (this *IReadCloser) LastTime() time.Time {
@@ -56,6 +74,8 @@ func (this *IReadCloser) LastTime() time.Time {
 func (this *IReadCloser) Buffer() *bufio.Reader {
 	return this.buf
 }
+
+//================================ReadWrite================================
 
 // Read io.reader
 func (this *IReadCloser) Read(p []byte) (int, error) {
@@ -169,7 +189,7 @@ func (this *IReadCloser) SetDealWithNil() {
 // SetDealWithWriter 设置数据处理到io.Writer
 func (this *IReadCloser) SetDealWithWriter(writer Writer) {
 	this.SetDealFunc(func(msg Message) {
-		writer.Write(msg.Bytes())
+		writer.Write(msg)
 	})
 }
 

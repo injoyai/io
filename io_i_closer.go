@@ -120,7 +120,7 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 		this.cancel()
 		//关闭实例
 		err = this.closer.Close()
-		msg := NewMessage([]byte(closeErr.Error()))
+		msg := NewMessage([]byte(this.closeErr.Error()))
 		this.IPrinter.Print(msg, TagClose, this.GetKey())
 		if this.closeFunc != nil {
 			//需要最后执行,防止后续操作无法执行
