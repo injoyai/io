@@ -14,15 +14,11 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 	if c, ok := readCloser.(*IReadCloser); ok && c != nil {
 		return c
 	}
-	entity := &IReadCloser{
+	return &IReadCloser{
 		IReader: NewIReader(readCloser),
 		ICloser: NewICloserWithContext(ctx, readCloser),
 		running: 0,
 	}
-	entity.SetCloseFunc(func(ctx context.Context, msg Message) {
-		entity.cancel()
-	})
-	return entity
 }
 
 type IReadCloser struct {
@@ -35,7 +31,6 @@ type IReadCloser struct {
 //================================Nature================================
 
 func (this *IReadCloser) SetKey(key string) *IReadCloser {
-	defer recover()
 	this.IPrinter.SetKey(key)
 	this.ICloser.SetKey(key)
 	return this
@@ -90,6 +85,8 @@ func (this *IReadCloser) Run() error {
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
 	}
+	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
+	this.Print(NewMessage("连接服务端成功..."), TagInfo, this.GetKey())
 	for {
 		select {
 		case <-this.Done():

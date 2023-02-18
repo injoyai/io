@@ -143,13 +143,10 @@ func (this *ICloser) Redial(ctx context.Context) ReadWriteCloser {
 			}
 			readWriteCloser, err := this.redialFunc()
 			if err == nil {
-				if readWriteCloser != nil {
-					this.IPrinter.Print(NewMessageFormat("连接服务端成功..."), TagInfo, this.GetKey())
-				}
 				//上下文关闭
 				return readWriteCloser
 			}
-			this.IPrinter.Print(NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second), TagErr, this.GetKey())
+			this.Print(NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second), TagErr, this.GetKey())
 			if t < time.Second*32 {
 				t = 2 * t
 				timer.Reset(t)

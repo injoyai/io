@@ -6,7 +6,6 @@ import (
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/conv"
 	"io"
-	"sync"
 	"time"
 )
 
@@ -54,15 +53,13 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		return c
 	}
 	c := &Client{
-		i:   i,
-		tag: maps.NewSafe(),
-
 		IReadCloser: NewIReadCloserWithContext(ctx, i),
 		IWriter:     NewWriter(i),
-
-		timerKeep: time.NewTimer(0),
-		timer:     time.NewTimer(0),
-		timeout:   0,
+		i:           i,
+		tag:         maps.NewSafe(),
+		timerKeep:   time.NewTimer(0),
+		timer:       time.NewTimer(0),
+		timeout:     0,
 	}
 
 	c.SetKey(fmt.Sprintf("%p", i))
@@ -79,18 +76,16 @@ Client 通用IO客户端
 可以作为普通的io.ReadWriteCloser(Run函数不执行)
 */
 type Client struct {
-	i   ReadWriteCloser //接口
-	mu  sync.Mutex      //锁
-	tag *maps.Safe      //标签
-
 	*IReadCloser
 	*IWriter
 
-	timer      *time.Timer   //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
-	timeout    time.Duration //超时时间
-	timerKeep  *time.Timer   //正常通讯不发送心跳
-	keepAlive  time.Duration //保持连接
-	createTime time.Time     //创建时间,链接成功时间
+	i          ReadWriteCloser //接口
+	tag        *maps.Safe      //标签
+	timer      *time.Timer     //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
+	timeout    time.Duration   //超时时间
+	timerKeep  *time.Timer     //正常通讯不发送心跳
+	keepAlive  time.Duration   //保持连接
+	createTime time.Time       //创建时间,链接成功时间
 }
 
 //================================Nature================================
@@ -261,7 +256,7 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 			this.ICloser.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ICloser.Err()), TagErr, this.GetKey())
 			return
 		}
-		this.ICloser.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagErr, this.GetKey())
+		this.ICloser.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagInfo, this.GetKey())
 		redialFunc := this.IReadCloser.redialFunc
 		key := this.GetKey()
 		*this = *NewClient(readWriteCloser)
