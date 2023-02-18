@@ -75,6 +75,7 @@ func ClientRun(addr string) {
 	})
 
 	c.GoFor(time.Second*6, func(c *io.Client) error {
+		logs.Debug(666)
 		return c.Close()
 	})
 

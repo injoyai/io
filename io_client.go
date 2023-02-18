@@ -110,64 +110,6 @@ func (this *Client) Tag() *maps.Safe {
 	return this.tag
 }
 
-// Debug 调试模式,打印日志
-func (this *Client) Debug(b ...bool) *Client {
-	this.IWriter.Debug(b...)
-	this.IReadCloser.Debug(b...)
-	return this
-}
-
-// WriteReadWithTimeout 同步写读,超时
-func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error) {
-	if _, err = this.WriteWithTimeout(request, timeout); err != nil {
-		return
-	}
-	return this.ReadLast(timeout)
-}
-
-// WriteRead 同步写读,不超时
-func (this *Client) WriteRead(request []byte) (response []byte, err error) {
-	return this.WriteReadWithTimeout(request, 0)
-}
-
-// GoForWriter 协程执行周期写入数据
-func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (int, error)) {
-	go func(ctx context.Context, writer *IWriter) {
-		t := time.NewTimer(interval)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				if _, err := write(writer); err != nil {
-					return
-				}
-				t.Reset(interval)
-			}
-		}
-	}(this.Ctx(), this.IWriter)
-}
-
-// GoFor 协程执行周期,待测试
-func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
-	go func(ctx context.Context, c *Client) {
-		t := time.NewTimer(interval)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				if err := fn(c); err != nil {
-					return
-				}
-				t.Reset(interval)
-			}
-		}
-	}(this.Ctx(), this)
-}
-
-//================================SetFunc================================
-
 // GetTag 获取一个tag
 func (this *Client) GetTag(key interface{}) interface{} {
 	return this.tag.MustGet(key)
@@ -189,6 +131,64 @@ func (this *Client) SetKey(key string) *Client {
 func (this *Client) GetKey() string {
 	return this.IReadCloser.key
 }
+
+// Debug 调试模式,打印日志
+func (this *Client) Debug(b ...bool) *Client {
+	this.IWriter.Debug(b...)
+	this.IReadCloser.Debug(b...)
+	return this
+}
+
+// WriteReadWithTimeout 同步写读,超时
+func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error) {
+	if _, err = this.WriteWithTimeout(request, timeout); err != nil {
+		return
+	}
+	return this.ReadLast(timeout)
+}
+
+// WriteRead 同步写读,不超时
+func (this *Client) WriteRead(request []byte) (response []byte, err error) {
+	return this.WriteReadWithTimeout(request, 0)
+}
+
+// GoForWriter 协程执行周期写入数据,生命周期(一次链接)
+func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (int, error)) {
+	go func(ctx context.Context, writer *IWriter) {
+		t := time.NewTimer(interval)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if _, err := write(writer); err != nil {
+					return
+				}
+				t.Reset(interval)
+			}
+		}
+	}(this.ParentCtx(), this.IWriter)
+}
+
+// GoFor 协程执行周期,生命周期(客户端关闭),待测试
+func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
+	go func(ctx context.Context, c *Client) {
+		t := time.NewTimer(interval)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if err := fn(c); err != nil {
+					return
+				}
+				t.Reset(interval)
+			}
+		}
+	}(this.ParentCtx(), this)
+}
+
+//================================SetFunc================================
 
 // SetTimeout 设置超时时间
 func (this *Client) SetTimeout(timeout time.Duration) *Client {
@@ -300,37 +300,4 @@ func (this *Client) Swap(i ReadWriteCloser) {
 // SwapClient IO数据交换
 func (this *Client) SwapClient(c *Client) {
 	SwapClient(this, c)
-}
-
-//================================RunTime================================
-
-// Closed 是否断开连接
-func (this *Client) Closed() bool {
-	return this.IReadCloser.Closed()
-}
-
-// CloseAll 主动关闭连接,无法触发重试机制
-func (this *Client) CloseAll() error {
-	this.IReadCloser.CloseAll()
-	return nil
-}
-
-// Close 手动断开,会触发重试
-func (this *Client) Close() error {
-	return this.CloseWithErr(ErrHandClose)
-}
-
-// CloseWithErr 根据错误关闭
-func (this *Client) CloseWithErr(err error) error {
-	return this.IReadCloser.CloseWithErr(err)
-}
-
-// Err 错误信息,默认有个错误,如果连接正常,错误为默认,则返回nil
-func (this *Client) Err() error {
-	return this.IReadCloser.Err()
-}
-
-// Run 开始执行(读取数据)
-func (this *Client) Run() error {
-	return this.IReadCloser.Run()
 }

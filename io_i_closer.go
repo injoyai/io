@@ -68,6 +68,11 @@ func (this *ICloser) SetRedialWithNil() *ICloser {
 
 //================================RunTime================================
 
+// ParentCtx 父级上下文
+func (this *ICloser) ParentCtx() context.Context {
+	return this.ctxParent
+}
+
 // Ctx 上下文
 func (this *ICloser) Ctx() context.Context {
 	return this.ctx
@@ -122,7 +127,7 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 		this.IPrinter.Print(msg, TagErr, this.GetKey())
 		if this.closeFunc != nil {
 			//需要最后执行,防止后续操作无法执行
-			defer this.closeFunc(this.ctxParent, msg)
+			defer this.closeFunc(this.ParentCtx(), msg)
 		}
 	}
 	return
