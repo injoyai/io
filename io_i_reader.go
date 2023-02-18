@@ -8,20 +8,18 @@ import (
 )
 
 func NewIReader(r Reader) *IReader {
-	i := &IReader{
-		buf:      bufio.NewReader(r),
-		readFunc: buf.ReadWithAll,
-		lastChan: make(chan Message),
-	}
+	i := &IReader{lastChan: make(chan Message)}
 	if v, ok := r.(MessageReader); ok {
-		i.readFunc = func(reader *bufio.Reader) ([]byte, error) {
-			return v.ReadMessage()
-		}
+		i.MessageReader = v
+	} else {
+		i.buf = bufio.NewReader(r)
 	}
+	i.SetReadFunc(buf.ReadWithAll)
 	return i
 }
 
 type IReader struct {
+	MessageReader
 	buf      *bufio.Reader                       //buffer
 	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
 	lastChan chan Message                        //读取最新数据chan
@@ -69,15 +67,11 @@ func (this *IReader) ReadMessage() ([]byte, error) {
 func (this *IReader) ReadLast(timeout time.Duration) (response []byte, err error) {
 	if timeout <= 0 {
 		select {
-		//case <-this.Ctx().Done():
-		//	err = this.Err()
 		case response = <-this.lastChan:
 		}
 	} else {
 		t := time.NewTimer(timeout)
 		select {
-		//case <-this.ctx.Done():
-		//	err = this.closeErr
 		case response = <-this.lastChan:
 		case <-t.C:
 			err = ErrWithTimeout
@@ -100,8 +94,18 @@ func (this *IReader) CopyTo(writer Writer) (int64, error) {
 
 // SetReadFunc 设置读取函数
 func (this *IReader) SetReadFunc(fn buf.ReadFunc) {
-	this.readFunc = func(reader *bufio.Reader) ([]byte, error) {
-		bs, err := fn(reader)
+	this.readFunc = func(reader *bufio.Reader) (bs []byte, err error) {
+		switch true {
+		case this.MessageReader != nil:
+			//特殊处理MessageReader
+			bs, err = this.MessageReader.ReadMessage()
+		case fn == nil:
+			//默认读取全部
+			bs, err = buf.ReadWithAll(reader)
+		default:
+			//按用户设置函数
+			bs, err = fn(reader)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -118,10 +122,10 @@ func (this *IReader) SetReadFunc(fn buf.ReadFunc) {
 	}
 }
 
-// SetReadWithNil 设置读取函数为nil
-func (this *IReader) SetReadWithNil() {
-	this.SetReadFunc(nil)
-}
+//// SetReadWithNil 设置读取函数为nil
+//func (this *IReader) SetReadWithNil() {
+//	this.SetReadFunc(nil)
+//}
 
 // SetReadWithAll 一次性全部读取
 func (this *IReader) SetReadWithAll() {
