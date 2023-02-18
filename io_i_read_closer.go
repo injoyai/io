@@ -85,8 +85,6 @@ func (this *IReadCloser) Run() error {
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
 	}
-	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
-	this.Print(NewMessage("连接服务端成功..."), TagInfo, this.GetKey())
 	for {
 		select {
 		case <-this.Done():

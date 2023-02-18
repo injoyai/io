@@ -148,6 +148,24 @@ func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (
 	}(this.Ctx(), this.IWriter)
 }
 
+// GoFor 协程执行周期,待测试
+func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
+	go func(ctx context.Context, c *Client) {
+		t := time.NewTimer(interval)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if err := fn(c); err != nil {
+					return
+				}
+				t.Reset(interval)
+			}
+		}
+	}(this.Ctx(), this)
+}
+
 //================================SetFunc================================
 
 // GetTag 获取一个tag
@@ -268,6 +286,8 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 	for _, v := range fn {
 		v(this.Ctx(), this)
 	}
+	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
+	this.Print(NewMessage("连接服务端成功..."), TagInfo, this.GetKey())
 	go this.Run()
 	return this
 }

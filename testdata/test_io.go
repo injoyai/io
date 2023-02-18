@@ -74,13 +74,9 @@ func ClientRun(addr string) {
 		})
 	})
 
-	go func() {
-		for {
-			<-time.After(time.Second * 6)
-			//c.Close()
-			c.Close()
-		}
-	}()
+	c.GoFor(time.Second*6, func(c *io.Client) error {
+		return c.Close()
+	})
 
 	go c.Run()
 	go c.Run()
