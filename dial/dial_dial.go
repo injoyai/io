@@ -129,8 +129,6 @@ func RedialSerial(cfg *SerialConfig, fn ...func(ctx context.Context, c *io.Clien
 	return io.Redial(SerialFunc(cfg), fn...)
 }
 
-//================================HTTPDial================================
-
 //================================MQTTDial================================
 
 type MQTTConfig = mqtt.ClientOptions
@@ -224,8 +222,8 @@ func (this *_websocket) Write(p []byte) (int, error) {
 }
 
 func (this *_websocket) ReadMessage() ([]byte, error) {
-	_, bytes, err := this.Conn.ReadMessage()
-	return bytes, err
+	_, bs, err := this.Conn.ReadMessage()
+	return bs, err
 }
 
 func (this *_websocket) Close() error {

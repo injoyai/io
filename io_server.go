@@ -3,6 +3,7 @@ package io
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"github.com/injoyai/base/chans"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io/buf"
@@ -21,7 +22,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		return nil, err
 	}
 	s := &Server{
-		IPrinter:   NewIPrinter(""),
+		IPrinter:   NewIPrinter(fmt.Sprintf("%p", listener)),
 		listener:   listener,
 		clientMap:  make(map[string]*Client),
 		timeout:    time.Minute * 3,
@@ -29,10 +30,11 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		dealFunc:   nil,
 		dealQueue:  chans.NewEntity(1, 1000),
 		closeFunc:  nil,
-		beforeFunc: beforeFunc,
+		beforeFunc: nil,
 		writeFunc:  nil,
 		printFunc:  PrintWithASCII,
 	}
+	s.SetBeforeFunc(s._beforeFunc)
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.dealQueue.SetHandler(func(no, num int, data interface{}) {
 		if s.dealFunc != nil {
@@ -47,7 +49,6 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 }
 
 type Server struct {
-	name string
 	*IPrinter
 	listener   Listener
 	clientMap  map[string]*Client       //链接集合,远程地址为key
@@ -60,7 +61,6 @@ type Server struct {
 	closed     uint32                   //是否关闭
 	closeErr   error                    //错误信息
 
-	debug     bool                     //debug,调试模式
 	readFunc  buf.ReadFunc             //数据读取方法
 	closeFunc func(msg *ClientMessage) //断开连接事件
 	writeFunc func(p []byte) []byte    //数据发送函数,包装下原始数据
@@ -77,13 +77,6 @@ func (this *Server) Ctx() context.Context {
 // Done ctx.Done
 func (this *Server) Done() <-chan struct{} {
 	return this.Ctx().Done()
-}
-
-// Debug 调试模式
-func (this *Server) Debug(b ...bool) *Server {
-	this.IPrinter.Debug(b...)
-	this.debug = !(len(b) > 0 && !b[0])
-	return this
 }
 
 // Close 关闭
@@ -319,7 +312,7 @@ func (this *Server) Run() error {
 		return nil
 	}
 
-	this.IPrinter.Print(NewMessageString("开启IO服务成功..."))
+	this.Print(NewMessage("开启服务成功..."), TagInfo, this.GetKey())
 
 	for {
 		select {
@@ -337,7 +330,7 @@ func (this *Server) Run() error {
 		//新建客户端,并配置
 		x := NewClientWithContext(this.ctx, c)
 		x.SetKey(key)                   //设置唯一标识符
-		x.Debug(this.debug)             //调试模式
+		x.Debug(this.GetDebug())        //调试模式
 		x.SetReadFunc(this.readFunc)    //读取数据方法
 		x.SetDealFunc(this._dealFunc)   //数据处理方法
 		x.SetCloseFunc(this._closeFunc) //连接关闭方法
@@ -371,8 +364,8 @@ inside
 */
 
 // beforeFunc 默认前置函数
-func beforeFunc(c *Client) error {
-	c.IPrinter.Print(NewMessageString("新的客户端连接..."), TagDial, c.GetKey())
+func (this *Server) _beforeFunc(c *Client) error {
+	this.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
 	return nil
 }
 

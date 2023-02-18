@@ -8,23 +8,18 @@ import (
 const (
 	TagRead  = "接收"
 	TagWrite = "发送"
-	TagClose = "关闭"
-	TagDial  = "连接"
 	TagErr   = "错误"
+	TagInfo  = "信息"
 	Ping     = "ping"
 	Pong     = "pong"
 )
 
 func NewMessageFormat(format string, v ...interface{}) Message {
-	return NewMessageString(fmt.Sprintf(format, v...))
+	return NewMessage(fmt.Sprintf(format, v...))
 }
 
-func NewMessageString(s string) Message {
-	return NewMessage([]byte(s))
-}
-
-func NewMessage(bs []byte) Message {
-	return bs
+func NewMessage(s string) Message {
+	return []byte(s)
 }
 
 type Message = bytes.Entity

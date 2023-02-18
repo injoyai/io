@@ -229,17 +229,16 @@ func (this *IReadCloser) Run() error {
 				}
 				//设置最后读取有效数据时间
 				this.lastTime = time.Now()
-				msg := NewMessage(bytes)
 				//打印日志
-				this.IPrinter.Print(msg, TagRead, this.GetKey())
+				this.IPrinter.Print(bytes, TagRead, this.GetKey())
 				select {
-				case this.lastChan <- msg:
+				case this.lastChan <- bytes:
 					//尝试加入队列
 				default:
 				}
 				//处理数据
 				if this.dealFunc != nil {
-					this.dealFunc(msg)
+					this.dealFunc(bytes)
 				}
 				return nil
 			}())

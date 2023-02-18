@@ -44,7 +44,7 @@ func (this *IWriter) Write(p []byte) (int, error) {
 		return 0, dealErr(err)
 	}
 	this.lastTime = time.Now()
-	this.Print(NewMessage(p), TagWrite, this.GetKey())
+	this.Print(p, TagWrite, this.GetKey())
 	return num, nil
 }
 

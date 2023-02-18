@@ -56,6 +56,11 @@ func (this *IPrinter) Debug(b ...bool) {
 	this.debug = !(len(b) > 0 && !b[0])
 }
 
+// GetDebug 获取调试
+func (this *IPrinter) GetDebug() bool {
+	return this.debug
+}
+
 //================================Common================================
 
 func PrintWithHEX(msg Message, tag ...string) {

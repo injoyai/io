@@ -1,7 +1,6 @@
 package io
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"github.com/injoyai/base/maps"
@@ -55,13 +54,11 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		return c
 	}
 	c := &Client{
-		buf: bufio.NewReader(i),
 		i:   i,
 		tag: maps.NewSafe(),
 
 		IReadCloser: NewIReadCloserWithContext(ctx, i),
 		IWriter:     NewWriter(i),
-		IPrinter:    NewIPrinter(""),
 
 		timerKeep: time.NewTimer(0),
 		timer:     time.NewTimer(0),
@@ -70,12 +67,9 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 
 	c.SetKey(fmt.Sprintf("%p", i))
 
-	if c.timeout <= 0 {
-		<-c.timer.C
-	}
-	if c.keepAlive <= 0 {
-		<-c.timerKeep.C
-	}
+	<-c.timer.C
+	<-c.timerKeep.C
+
 	return c
 }
 
@@ -85,15 +79,12 @@ Client 通用IO客户端
 可以作为普通的io.ReadWriteCloser(Run函数不执行)
 */
 type Client struct {
-	buf *bufio.Reader   //buff
-	key string          //唯一标识
 	i   ReadWriteCloser //接口
 	mu  sync.Mutex      //锁
 	tag *maps.Safe      //标签
 
 	*IReadCloser
 	*IWriter
-	*IPrinter
 
 	timer      *time.Timer   //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
 	timeout    time.Duration //超时时间
@@ -119,11 +110,6 @@ func (this *Client) CreateTime() time.Time {
 	return this.createTime
 }
 
-// Buffer 极大的增加读取速度
-func (this *Client) Buffer() *bufio.Reader {
-	return this.buf
-}
-
 // Tag 自定义信息
 func (this *Client) Tag() *maps.Safe {
 	return this.tag
@@ -131,7 +117,6 @@ func (this *Client) Tag() *maps.Safe {
 
 // Debug 调试模式,打印日志
 func (this *Client) Debug(b ...bool) *Client {
-	this.IPrinter.Debug(b...)
 	this.IWriter.Debug(b...)
 	this.IReadCloser.Debug(b...)
 	return this
@@ -182,7 +167,6 @@ func (this *Client) SetTag(key, value interface{}) {
 
 // SetKey 设置唯一标识
 func (this *Client) SetKey(key string) *Client {
-	this.key = key
 	this.IWriter.SetKey(key)
 	this.IReadCloser.SetKey(key)
 	return this
@@ -190,7 +174,7 @@ func (this *Client) SetKey(key string) *Client {
 
 // GetKey 获取唯一标识
 func (this *Client) GetKey() string {
-	return this.key
+	return this.IReadCloser.key
 }
 
 // SetTimeout 设置超时时间
@@ -220,7 +204,6 @@ func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *ClientMessage
 
 // SetPrintFunc 设置打印函数
 func (this *Client) SetPrintFunc(fn PrintFunc) *Client {
-	this.IPrinter.SetPrintFunc(fn)
 	this.IWriter.SetPrintFunc(fn)
 	this.IReadCloser.SetPrintFunc(fn)
 	return this
@@ -275,10 +258,10 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *ClientMessage) {
 		readWriteCloser := this.IReadCloser.Redial(ctx)
 		if readWriteCloser == nil {
-			this.IPrinter.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ICloser.Err()), TagClose, this.GetKey())
+			this.ICloser.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ICloser.Err()), TagErr, this.GetKey())
 			return
 		}
-		this.IPrinter.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagErr, this.GetKey())
+		this.ICloser.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagErr, this.GetKey())
 		redialFunc := this.IReadCloser.redialFunc
 		key := this.GetKey()
 		*this = *NewClient(readWriteCloser)

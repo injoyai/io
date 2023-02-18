@@ -118,8 +118,8 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 		this.cancel()
 		//关闭实例
 		err = this.closer.Close()
-		msg := NewMessage([]byte(this.closeErr.Error()))
-		this.IPrinter.Print(msg, TagClose, this.GetKey())
+		msg := NewMessage(this.closeErr.Error())
+		this.IPrinter.Print(msg, TagErr, this.GetKey())
 		if this.closeFunc != nil {
 			//需要最后执行,防止后续操作无法执行
 			defer this.closeFunc(this.ctxParent, msg)
@@ -144,7 +144,7 @@ func (this *ICloser) Redial(ctx context.Context) ReadWriteCloser {
 			readWriteCloser, err := this.redialFunc()
 			if err == nil {
 				if readWriteCloser != nil {
-					this.IPrinter.Print(NewMessageFormat("连接服务端成功..."), TagDial, this.GetKey())
+					this.IPrinter.Print(NewMessageFormat("连接服务端成功..."), TagInfo, this.GetKey())
 				}
 				//上下文关闭
 				return readWriteCloser
