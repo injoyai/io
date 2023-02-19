@@ -57,6 +57,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		IWriter:     NewWriter(i),
 		i:           i,
 		tag:         maps.NewSafe(),
+		createTime:  time.Now(),
 	}
 	c.SetKey(fmt.Sprintf("%p", i))
 	return c
