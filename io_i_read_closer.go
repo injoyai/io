@@ -19,6 +19,7 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 		IReader: NewIReader(readCloser),
 		ICloser: NewICloserWithContext(ctx, readCloser),
 		running: 0,
+		timeout: 0,
 	}
 }
 

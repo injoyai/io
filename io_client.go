@@ -99,21 +99,6 @@ func (this *Client) Tag() *maps.Safe {
 	return this.tag
 }
 
-// GetTag 获取一个tag
-func (this *Client) GetTag(key interface{}) (interface{}, bool) {
-	return this.tag.Get(key)
-}
-
-// MustGetTag 获取一个tag
-func (this *Client) MustGetTag(key interface{}) interface{} {
-	return this.tag.MustGet(key)
-}
-
-// SetTag 设置一个tag
-func (this *Client) SetTag(key, value interface{}) {
-	this.tag.Set(key, value)
-}
-
 // SetKey 设置唯一标识
 func (this *Client) SetKey(key string) *Client {
 	this.IWriter.SetKey(key)

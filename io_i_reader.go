@@ -2,7 +2,6 @@ package io
 
 import (
 	"bufio"
-	"fmt"
 	"github.com/injoyai/io/buf"
 	"io"
 	"time"
@@ -10,7 +9,7 @@ import (
 
 func NewIReader(r Reader) *IReader {
 	i := &IReader{
-		IPrinter: NewIPrinter(fmt.Sprint(r)),
+		IPrinter: NewIPrinter(""),
 		lastChan: make(chan Message)}
 	if v, ok := r.(MessageReader); ok {
 		i.MessageReader = v
