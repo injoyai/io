@@ -6,7 +6,6 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/logs"
-	"net"
 	"time"
 )
 
@@ -63,25 +62,22 @@ func NewTestMustDialBug(port int) error {
 }
 
 func ClientRun(addr string) {
-	c := io.Redial(func() (io.ReadWriteCloser, error) {
-		return net.Dial("tcp", addr)
-	}, func(ctx context.Context, c *io.Client) {
+	io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
 		c.Debug()
 		c.SetPrintWithASCII()
 		c.SetKey("test")
-		c.GoForWriter(time.Second, func(c *io.IWriter) (int, error) {
-			return c.WriteString("666")
+		c.SetDealFunc(func(msg *io.IMessage) {
+			logs.Debug(msg.String())
+			//业务逻辑
+			c.WriteString("666")
 		})
 	})
+}
 
-	c.GoFor(time.Second*6, func(c *io.Client) error {
-		logs.Debug(666)
-		return c.Close()
-	})
-
-	go c.Run()
-	go c.Run()
-
-	select {}
+func Example() {
+	io.Redial(dial.TCPFunc("xxx"))
+	io.Redial(dial.UDPFunc("xxx"))
+	io.Redial(dial.SerialFunc(nil))
+	io.Redial(dial.FileFunc("./xxx.txt"))
 
 }

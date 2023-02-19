@@ -14,7 +14,7 @@ func TestTCPServer(t *testing.T) {
 		return
 	}
 	s.Debug()
-	s.SetDealFunc(func(msg *io.ClientMessage) {
+	s.SetDealFunc(func(msg *io.IMessage) {
 		msg.WriteString("777")
 	})
 	t.Error(s.Run())

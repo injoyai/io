@@ -38,7 +38,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.dealQueue.SetHandler(func(no, num int, data interface{}) {
 		if s.dealFunc != nil {
-			s.dealFunc(data.(*ClientMessage))
+			s.dealFunc(data.(*IMessage))
 		}
 	})
 	go s.timeoutFunc()
@@ -51,22 +51,22 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 type Server struct {
 	*IPrinter
 	listener   Listener
-	clientMap  map[string]*Client       //链接集合,远程地址为key
-	clientMu   sync.RWMutex             //锁
-	ctx        context.Context          //上下文
-	cancel     context.CancelFunc       //上下文
-	beforeFunc func(*Client) error      //连接前置事件
-	dealFunc   func(msg *ClientMessage) //数据处理方法
-	dealQueue  *chans.Entity            //数据处理队列
-	closed     uint32                   //是否关闭
-	closeErr   error                    //错误信息
+	clientMap  map[string]*Client  //链接集合,远程地址为key
+	clientMu   sync.RWMutex        //锁
+	ctx        context.Context     //上下文
+	cancel     context.CancelFunc  //上下文
+	beforeFunc func(*Client) error //连接前置事件
+	dealFunc   func(msg *IMessage) //数据处理方法
+	dealQueue  *chans.Entity       //数据处理队列
+	closed     uint32              //是否关闭
+	closeErr   error               //错误信息
 
-	readFunc  buf.ReadFunc             //数据读取方法
-	closeFunc func(msg *ClientMessage) //断开连接事件
-	writeFunc func(p []byte) []byte    //数据发送函数,包装下原始数据
-	printFunc PrintFunc                //打印数据方法
-	running   uint32                   //是否在运行
-	timeout   time.Duration            //超时时间,0是永久有效
+	readFunc  buf.ReadFunc          //数据读取方法
+	closeFunc func(msg *IMessage)   //断开连接事件
+	writeFunc func(p []byte) []byte //数据发送函数,包装下原始数据
+	printFunc PrintFunc             //打印数据方法
+	running   uint32                //是否在运行
+	timeout   time.Duration         //超时时间,0是永久有效
 }
 
 // Ctx 上下文
@@ -114,20 +114,20 @@ func (this *Server) SetBeforeFunc(fn func(c *Client) error) *Server {
 }
 
 // SetCloseFunc 设置断开连接事件
-func (this *Server) SetCloseFunc(fn func(msg *ClientMessage)) *Server {
+func (this *Server) SetCloseFunc(fn func(msg *IMessage)) *Server {
 	this.closeFunc = fn
 	return this
 }
 
 // SetDealFunc 设置处理数据方法
-func (this *Server) SetDealFunc(fn func(msg *ClientMessage)) *Server {
+func (this *Server) SetDealFunc(fn func(msg *IMessage)) *Server {
 	this.dealFunc = fn
 	return this
 }
 
 // SetDealWithWriter 读取到的数据写入到writer
 func (this *Server) SetDealWithWriter(writer Writer) *Server {
-	this.SetDealFunc(func(msg *ClientMessage) {
+	this.SetDealFunc(func(msg *IMessage) {
 		writer.Write(msg.Bytes())
 	})
 	return this
@@ -370,7 +370,7 @@ func (this *Server) _beforeFunc(c *Client) error {
 }
 
 // delConn 删除连接
-func (this *Server) _closeFunc(ctx context.Context, msg *ClientMessage) {
+func (this *Server) _closeFunc(ctx context.Context, msg *IMessage) {
 	if this.closeFunc != nil {
 		defer this.closeFunc(msg)
 	}
@@ -385,7 +385,7 @@ func (this *Server) _closeFunc(ctx context.Context, msg *ClientMessage) {
 }
 
 // _dealFunc 处理数据
-func (this *Server) _dealFunc(msg *ClientMessage) {
+func (this *Server) _dealFunc(msg *IMessage) {
 	select {
 	case <-this.ctx.Done():
 	default:

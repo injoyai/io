@@ -78,7 +78,7 @@ func VPNClient(serverPort int, clientAddr string) error {
 			c.SetPrintFunc(func(msg io.Message, tag ...string) {
 				logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|C"}, tag...)...))
 			})
-			c.SetDealFunc(func(msg *io.ClientMessage) {
+			c.SetDealFunc(func(msg *io.IMessage) {
 				for _, v := range strings.Split(msg.String(), "}") {
 					if len(v) > 0 {
 						m, err := proxy.DecodeMessage([]byte(v + "}"))
@@ -98,7 +98,7 @@ func VPNClient(serverPort int, clientAddr string) error {
 		})
 	}()
 
-	s.SetDealFunc(func(msg *io.ClientMessage) {
+	s.SetDealFunc(func(msg *io.IMessage) {
 		if c == nil {
 			return
 		}

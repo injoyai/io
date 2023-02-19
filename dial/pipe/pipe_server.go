@@ -28,7 +28,7 @@ func NewTransmit(listen io.ListenFunc) (*Server, error) {
 	s := &Server{Server: server}
 	server.SetWriteFunc(DefaultWriteFunc)
 	server.SetReadFunc(DefaultReadFunc)
-	server.SetDealFunc(func(msg *io.ClientMessage) {
+	server.SetDealFunc(func(msg *io.IMessage) {
 		for _, v := range server.GetClientMap() {
 			if v.GetKey() != msg.GetKey() {
 				v.Write(msg.Bytes())

@@ -24,14 +24,14 @@ func NewMessage(s string) Message {
 
 type Message = bytes.Entity
 
-func NewClientMessage(c *Client, p []byte) *ClientMessage {
-	return &ClientMessage{
+func NewIMessage(c *Client, p []byte) *IMessage {
+	return &IMessage{
 		Client:  c,
 		Message: p,
 	}
 }
 
-type ClientMessage struct {
+type IMessage struct {
 	*Client
 	Message
 }

@@ -152,7 +152,7 @@ func (this *Client) WriteRead(request []byte) (response []byte, err error) {
 	return this.WriteReadWithTimeout(request, 0)
 }
 
-// GoForWriter 协程执行周期写入数据,生命周期(一次链接)
+// GoForWriter 协程执行周期写入数据,生命周期(一次链接,单次连接断开)
 func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (int, error)) {
 	go func(ctx context.Context, writer *IWriter) {
 		t := time.NewTimer(interval)
@@ -170,7 +170,7 @@ func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (
 	}(this.ParentCtx(), this.IWriter)
 }
 
-// GoFor 协程执行周期,生命周期(客户端关闭),待测试
+// GoFor 协程执行周期,生命周期(客户端关闭,除非主动或上下文关闭),待测试
 func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
 	go func(ctx context.Context, c *Client) {
 		t := time.NewTimer(interval)
@@ -202,16 +202,16 @@ func (this *Client) SetTimeout(timeout time.Duration) *Client {
 }
 
 // SetDealFunc 设置处理数据函数
-func (this *Client) SetDealFunc(fn func(msg *ClientMessage)) {
+func (this *Client) SetDealFunc(fn func(msg *IMessage)) {
 	this.IReadCloser.SetDealFunc(func(msg Message) {
-		fn(NewClientMessage(this, msg))
+		fn(NewIMessage(this, msg))
 	})
 }
 
 // SetCloseFunc 设置关闭函数
-func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *ClientMessage)) {
+func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *IMessage)) {
 	this.IReadCloser.SetCloseFunc(func(ctx context.Context, msg Message) {
-		fn(ctx, NewClientMessage(this, msg))
+		fn(ctx, NewIMessage(this, msg))
 	})
 }
 
@@ -268,7 +268,7 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 
 // Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
 func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
-	this.SetCloseFunc(func(ctx context.Context, msg *ClientMessage) {
+	this.SetCloseFunc(func(ctx context.Context, msg *IMessage) {
 		readWriteCloser := this.IReadCloser.Redial(ctx)
 		if readWriteCloser == nil {
 			this.ICloser.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ICloser.Err()), TagErr, this.GetKey())

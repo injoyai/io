@@ -159,10 +159,10 @@ func (this *Entity) Switch(msg *Message) (err error) {
 
 		c := io.NewClient(i)
 		c.SetReadFunc(buf.ReadWithAll)
-		c.SetDealFunc(func(msg2 *io.ClientMessage) {
+		c.SetDealFunc(func(msg2 *io.IMessage) {
 			this.Proxy(NewWriteMessage(msg.Key, msg.Addr, msg2.Bytes()))
 		})
-		c.SetCloseFunc(func(ctx context.Context, msg2 *io.ClientMessage) {
+		c.SetCloseFunc(func(ctx context.Context, msg2 *io.IMessage) {
 			this.DelIO(msg.Key)
 			this.Proxy(NewCloseMessage(msg.Key, msg2.String()))
 		})

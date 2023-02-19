@@ -13,7 +13,7 @@ func TestNewClient(t *testing.T) {
 func TestNewServer(t *testing.T) {
 	_, err := dial.NewTCPServer(10089, func(s *io.Server) {
 		s.Debug()
-		s.SetDealFunc(func(msg *io.ClientMessage) {
+		s.SetDealFunc(func(msg *io.IMessage) {
 			msg.WriteString("777")
 		})
 		t.Log(s.Run())
@@ -30,4 +30,5 @@ func TestNewTestMustDialBug(t *testing.T) {
 
 func TestClientRun(t *testing.T) {
 	ClientRun(":10089")
+
 }
