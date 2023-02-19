@@ -73,7 +73,7 @@ func (this *ICloser) ParentCtx() context.Context {
 	return this.ctxParent
 }
 
-// Ctx 上下文
+// Ctx 子级上下文
 func (this *ICloser) Ctx() context.Context {
 	return this.ctx
 }

@@ -57,16 +57,8 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		IWriter:     NewWriter(i),
 		i:           i,
 		tag:         maps.NewSafe(),
-		timerKeep:   time.NewTimer(0),
-		timer:       time.NewTimer(0),
-		timeout:     0,
 	}
-
 	c.SetKey(fmt.Sprintf("%p", i))
-
-	<-c.timer.C
-	<-c.timerKeep.C
-
 	return c
 }
 
@@ -79,13 +71,10 @@ type Client struct {
 	*IReadCloser
 	*IWriter
 
-	i          ReadWriteCloser //接口
-	tag        *maps.Safe      //标签
-	timer      *time.Timer     //超时定时器,时间范围内没有发送数据或者接收数据,则断开链接
-	timeout    time.Duration   //超时时间
-	timerKeep  *time.Timer     //正常通讯不发送心跳
-	keepAlive  time.Duration   //保持连接
-	createTime time.Time       //创建时间,链接成功时间
+	i               ReadWriteCloser    //接口
+	tag             *maps.Safe         //标签
+	keepAliveCancel context.CancelFunc //keep上下文
+	createTime      time.Time          //创建时间,链接成功时间
 }
 
 //================================Nature================================
@@ -111,7 +100,12 @@ func (this *Client) Tag() *maps.Safe {
 }
 
 // GetTag 获取一个tag
-func (this *Client) GetTag(key interface{}) interface{} {
+func (this *Client) GetTag(key interface{}) (interface{}, bool) {
+	return this.tag.Get(key)
+}
+
+// MustGetTag 获取一个tag
+func (this *Client) MustGetTag(key interface{}) interface{} {
 	return this.tag.MustGet(key)
 }
 
@@ -129,7 +123,7 @@ func (this *Client) SetKey(key string) *Client {
 
 // GetKey 获取唯一标识
 func (this *Client) GetKey() string {
-	return this.IReadCloser.key
+	return this.IReadCloser.GetKey()
 }
 
 // Debug 调试模式,打印日志
@@ -188,18 +182,36 @@ func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
 	}(this.ParentCtx(), this)
 }
 
-//================================SetFunc================================
-
-// SetTimeout 设置超时时间
-func (this *Client) SetTimeout(timeout time.Duration) *Client {
-	this.timeout = timeout
-	if timeout <= 0 {
-		this.timer.Stop()
-	} else {
-		this.timer.Reset(timeout)
+// SetKeepAlive 设置连接保持,另外起了携程,服务器不需要,客户端再起一个也没啥问题
+// TCP keepalive定义于RFC 1122，但并不是TCP规范中的一部分,默认必需是关闭,连接方不一定支持
+func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) *Client {
+	if t > 0 {
+		if this.keepAliveCancel != nil {
+			//关闭老的keepAlive
+			this.keepAliveCancel()
+		}
+		ctx, cancel := context.WithCancel(this.Ctx())
+		this.keepAliveCancel = cancel
+		keep := conv.GetDefaultBytes([]byte(Ping), keeps...)
+		go func(ctx context.Context) {
+			timer := time.NewTimer(t)
+			defer timer.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-timer.C:
+					if _, err := this.Write(keep); err != nil {
+						return
+					}
+				}
+			}
+		}(ctx)
 	}
 	return this
 }
+
+//================================SetFunc================================
 
 // SetDealFunc 设置处理数据函数
 func (this *Client) SetDealFunc(fn func(msg *IMessage)) {
@@ -230,33 +242,6 @@ func (this *Client) SetPrintWithHEX() {
 // SetPrintWithASCII 设置打印ASCII
 func (this *Client) SetPrintWithASCII() {
 	this.SetPrintFunc(PrintWithASCII)
-}
-
-// SetKeepAlive 设置连接保持,另外起了携程,服务器不需要,客户端再起一个也没啥问题
-// TCP keepalive定义于RFC 1122，但并不是TCP规范中的一部分,默认必需是关闭,连接方不一定支持
-func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) *Client {
-	keep := conv.GetDefaultBytes([]byte(Ping), keeps...)
-	old := this.keepAlive
-	this.keepAlive = t
-	if old == 0 && this.keepAlive > 0 {
-		this.timerKeep.Reset(this.keepAlive)
-		go func(ctx context.Context) {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-this.timerKeep.C:
-					if this.keepAlive <= 0 {
-						return
-					}
-					if _, err := this.Write(keep); err != nil {
-						return
-					}
-				}
-			}
-		}(this.Ctx())
-	}
-	return this
 }
 
 // SetReadWriteWithStartEnd 设置读取写入数据根据包头包尾

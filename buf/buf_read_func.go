@@ -2,7 +2,6 @@ package buf
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"time"
 )
@@ -25,16 +24,6 @@ func ReadWithAll(buf *bufio.Reader) (bytes []byte, err error) {
 			return bytes, err
 		}
 	}
-}
-
-// ReadWithAllSafe 安全读取, todo 好像bufio.Read出现过一次数组越界 , 待确认
-func ReadWithAllSafe(buf *bufio.Reader) (bytes []byte, err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = fmt.Errorf("%v", e)
-		}
-	}()
-	return ReadWithAll(buf)
 }
 
 // ReadWithLine 读取一行
@@ -75,6 +64,7 @@ func NewReadWithTimeout(timeout time.Duration) ReadFunc {
 	return f.ReadMessage
 }
 
+// NewReadWithFrame 根据Frame配置读取数据
 func NewReadWithFrame(f *Frame) ReadFunc {
 	return f.ReadMessage
 }

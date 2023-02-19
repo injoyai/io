@@ -34,7 +34,7 @@ func (this *messageReader) ReadMessage() ([]byte, error) {
 	return this.readFunc(this.buf)
 }
 
-func NewMessageReader(reader io.Reader, fn ReadFunc) *messageReader {
+func NewMessageReader(reader io.Reader, fn ReadFunc) MessageReader {
 	m := &messageReader{buf: bufio.NewReader(reader)}
 	m.SetReadFunc(fn)
 	return m

@@ -2,13 +2,16 @@ package io
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/injoyai/io/buf"
 	"io"
 	"time"
 )
 
 func NewIReader(r Reader) *IReader {
-	i := &IReader{lastChan: make(chan Message)}
+	i := &IReader{
+		IPrinter: NewIPrinter(fmt.Sprint(r)),
+		lastChan: make(chan Message)}
 	if v, ok := r.(MessageReader); ok {
 		i.MessageReader = v
 	} else {
@@ -19,6 +22,7 @@ func NewIReader(r Reader) *IReader {
 }
 
 type IReader struct {
+	*IPrinter
 	MessageReader
 	buf      *bufio.Reader                       //buffer
 	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
@@ -117,15 +121,12 @@ func (this *IReader) SetReadFunc(fn buf.ReadFunc) {
 			case this.lastChan <- bs:
 			default:
 			}
+			//打印日志
+			this.IPrinter.Print(bs, TagRead, this.GetKey())
 		}
 		return bs, nil
 	}
 }
-
-//// SetReadWithNil 设置读取函数为nil
-//func (this *IReader) SetReadWithNil() {
-//	this.SetReadFunc(nil)
-//}
 
 // SetReadWithAll 一次性全部读取
 func (this *IReader) SetReadWithAll() {
