@@ -72,10 +72,9 @@ type Client struct {
 	*IReadCloser
 	*IWriter
 
-	i               ReadWriteCloser    //接口
-	tag             *maps.Safe         //标签
-	keepAliveCancel context.CancelFunc //keep上下文
-	createTime      time.Time          //创建时间,链接成功时间
+	i          ReadWriteCloser //接口
+	tag        *maps.Safe      //标签
+	createTime time.Time       //创建时间,链接成功时间
 }
 
 //================================Nature================================
@@ -134,8 +133,12 @@ func (this *Client) WriteRead(request []byte) (response []byte, err error) {
 
 // GoForWriter 协程执行周期写入数据,生命周期(一次链接,单次连接断开)
 func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (int, error)) {
+	if interval <= 0 {
+		return
+	}
 	go func(ctx context.Context, writer *IWriter) {
 		t := time.NewTimer(interval)
+		defer t.Stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -147,11 +150,14 @@ func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (
 				t.Reset(interval)
 			}
 		}
-	}(this.ParentCtx(), this.IWriter)
+	}(this.Ctx(), this.IWriter)
 }
 
 // GoFor 协程执行周期,生命周期(客户端关闭,除非主动或上下文关闭),待测试
 func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
+	if interval <= 0 {
+		return
+	}
 	go func(ctx context.Context, c *Client) {
 		t := time.NewTimer(interval)
 		for {
@@ -170,31 +176,11 @@ func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
 
 // SetKeepAlive 设置连接保持,另外起了携程,服务器不需要,客户端再起一个也没啥问题
 // TCP keepalive定义于RFC 1122，但并不是TCP规范中的一部分,默认必需是关闭,连接方不一定支持
-func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) *Client {
-	if t > 0 {
-		if this.keepAliveCancel != nil {
-			//关闭老的keepAlive
-			this.keepAliveCancel()
-		}
-		ctx, cancel := context.WithCancel(this.Ctx())
-		this.keepAliveCancel = cancel
+func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
+	this.GoForWriter(t, func(c *IWriter) (int, error) {
 		keep := conv.GetDefaultBytes([]byte(Ping), keeps...)
-		go func(ctx context.Context) {
-			timer := time.NewTimer(t)
-			defer timer.Stop()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-timer.C:
-					if _, err := this.Write(keep); err != nil {
-						return
-					}
-				}
-			}
-		}(ctx)
-	}
-	return this
+		return c.Write(keep)
+	})
 }
 
 //================================SetFunc================================
