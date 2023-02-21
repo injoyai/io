@@ -6,9 +6,11 @@ import (
 
 func TestNew(t *testing.T) {
 	e := New()
-	_, err := e.Write(NewWriteMessage("", "www.baidu.com:80", []byte("GET /ping HTTP/1.1\r\n\r\n")).Bytes())
+	e.Debug()
+	_, err := e.Write(NewWriteMessage("", "192.168.10.40:10001", []byte("GET /ping HTTP/1.1\r\nHost 127.0.0.1\r\n\r\n")).Bytes())
 	if err != nil {
 		t.Error(err)
 		return
 	}
+	select {}
 }

@@ -26,7 +26,7 @@ func TestProxy() error {
 				case <-ctx.Done():
 				case <-time.After(time.Second * 3):
 
-					e.Proxy(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
+					e.Resp(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
 
 				}
 

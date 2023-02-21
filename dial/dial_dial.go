@@ -229,3 +229,19 @@ func (this *_websocket) ReadMessage() ([]byte, error) {
 func (this *_websocket) Close() error {
 	return this.Conn.Close()
 }
+
+////================================ProxyDial================================
+//
+//func Proxy() (io.ReadWriteCloser, error) {
+//	return proxy.New(), nil
+//}
+//
+//func NewProxy() (*io.Client, error) {
+//	return io.NewDial(Proxy)
+//}
+//
+//func RedialProxy(fn ...func(ctx context.Context, c *io.Client)) *io.Client {
+//	return io.Redial(Proxy, fn...)
+//}
+
+//================================OtherDial================================
