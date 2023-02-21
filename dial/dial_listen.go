@@ -19,13 +19,15 @@ func TCPListener(port int) (io.Listener, error) {
 }
 
 func TCPListenFunc(port int) io.ListenFunc {
-	return func() (io.Listener, error) {
-		return TCPListener(port)
-	}
+	return func() (io.Listener, error) { return TCPListener(port) }
 }
 
 func NewTCPServer(port int, fn ...func(s *io.Server)) (*io.Server, error) {
-	return io.NewServer(TCPListenFunc(port), fn...)
+	s, err := io.NewServer(TCPListenFunc(port), fn...)
+	if err == nil {
+		s.SetKey(fmt.Sprintf(":%d", port))
+	}
+	return s, err
 }
 
 type _tcpServer struct {

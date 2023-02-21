@@ -40,7 +40,7 @@ func RedialTCP(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.C
 		for _, v := range fn {
 			v(ctx, c)
 		}
-	}).SetKey(addr)
+	})
 }
 
 //================================UDPDial================================
