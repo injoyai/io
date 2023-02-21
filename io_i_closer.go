@@ -137,6 +137,7 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 func (this *ICloser) Redial(ctx context.Context) ReadWriteCloser {
 	t := time.Second
 	timer := time.NewTimer(t)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():

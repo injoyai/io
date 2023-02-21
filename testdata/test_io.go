@@ -81,3 +81,31 @@ func Example() {
 	io.Redial(dial.FileFunc("./xxx.txt"))
 
 }
+
+func TimeoutClient(port int, timeout time.Duration) error {
+	go io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
+		func(ctx context.Context, c *io.Client) {
+			c.Debug()
+			c.SetTimeout(timeout)
+		})
+	s, err := io.NewServer(dial.TCPListenFunc(port))
+	if err != nil {
+		return err
+	}
+	s.Debug()
+	return s.Run()
+}
+
+func TimeoutServer(port int, timeout time.Duration) error {
+	go io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
+		func(ctx context.Context, c *io.Client) {
+			c.Debug()
+		})
+	s, err := io.NewServer(dial.TCPListenFunc(port))
+	if err != nil {
+		return err
+	}
+	s.Debug()
+	s.SetTimeout(time.Second * 5)
+	return s.Run()
+}

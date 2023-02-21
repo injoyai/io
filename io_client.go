@@ -120,7 +120,7 @@ func (this *Client) Debug(b ...bool) *Client {
 
 // WriteReadWithTimeout 同步写读,超时
 func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error) {
-	if _, err = this.WriteWithTimeout(request, timeout); err != nil {
+	if _, err = this.Write(request); err != nil {
 		return
 	}
 	return this.ReadLast(timeout)
@@ -140,6 +140,7 @@ func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (
 		t := time.NewTimer(interval)
 		defer t.Stop()
 		for {
+			t.Reset(interval)
 			select {
 			case <-ctx.Done():
 				return
@@ -147,7 +148,6 @@ func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (
 				if _, err := write(writer); err != nil {
 					return
 				}
-				t.Reset(interval)
 			}
 		}
 	}(this.Ctx(), this.IWriter)
@@ -160,7 +160,9 @@ func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
 	}
 	go func(ctx context.Context, c *Client) {
 		t := time.NewTimer(interval)
+		defer t.Stop()
 		for {
+			t.Reset(interval)
 			select {
 			case <-ctx.Done():
 				return
@@ -168,7 +170,6 @@ func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
 				if err := fn(c); err != nil {
 					return
 				}
-				t.Reset(interval)
 			}
 		}
 	}(this.ParentCtx(), this)

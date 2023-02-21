@@ -10,7 +10,9 @@ import (
 func NewIReader(r Reader) *IReader {
 	i := &IReader{
 		IPrinter: NewIPrinter(""),
-		lastChan: make(chan Message)}
+		lastChan: make(chan Message),
+		lastTime: time.Now(),
+	}
 	if v, ok := r.(MessageReader); ok {
 		i.MessageReader = v
 	} else {
@@ -73,10 +75,11 @@ func (this *IReader) ReadLast(timeout time.Duration) (response []byte, err error
 		case response = <-this.lastChan:
 		}
 	} else {
-		t := time.NewTimer(timeout)
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
 		select {
 		case response = <-this.lastChan:
-		case <-t.C:
+		case <-timer.C:
 			err = ErrWithTimeout
 		}
 	}

@@ -16,10 +16,11 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 		return c
 	}
 	return &IReadCloser{
-		IReader: NewIReader(readCloser),
-		ICloser: NewICloserWithContext(ctx, readCloser),
-		running: 0,
-		timeout: 0,
+		IReader:  NewIReader(readCloser),
+		ICloser:  NewICloserWithContext(ctx, readCloser),
+		running:  0,
+		timeout:  0,
+		readChan: make(chan struct{}),
 	}
 }
 
@@ -29,6 +30,7 @@ type IReadCloser struct {
 	dealFunc DealFunc      //处理数据函数
 	running  uint32        //是否在运行
 	timeout  time.Duration //超时时间
+	readChan chan struct{} //读取到数据信号,配合超时机制使用
 }
 
 //================================Nature================================
@@ -59,7 +61,7 @@ func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
 	return this
 }
 
-// SetTimeout 设置超时时间
+// SetTimeout 设置超时时间,需要在Run之前设置
 func (this *IReadCloser) SetTimeout(timeout time.Duration) *IReadCloser {
 	this.timeout = timeout
 	return this
@@ -105,43 +107,48 @@ func (this *IReadCloser) Run() error {
 		return nil
 	}
 
-	timer := time.NewTimer(0)
-	<-timer.C
-	for {
-		if this.timeout <= 0 {
-			select {
-			case <-this.Done():
-				return this.Err()
-			default:
-				_ = this.CloseWithErr(this.run())
+	//todo is a good idea ?
+	if this.timeout > 0 {
+		go func() {
+			timer := time.NewTimer(this.timeout)
+			defer timer.Stop()
+			for {
+				timer.Reset(this.timeout)
+				select {
+				case <-timer.C:
+					_ = this.CloseWithErr(ErrWithReadTimeout)
+				case <-this.readChan:
+				}
 			}
-		} else {
-			select {
-			case <-this.Done():
-				return this.Err()
-			case <-timer.C:
-				return ErrWithReadTimeout
-			default:
-				_ = this.CloseWithErr(this.run())
-			}
-		}
+		}()
 	}
-}
 
-func (this *IReadCloser) run() (err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = fmt.Errorf("%v", e)
+	for {
+		select {
+		case <-this.Done():
+			return this.Err()
+		default:
+			_ = this.CloseWithErr(func() (err error) {
+				defer func() {
+					if e := recover(); e != nil {
+						err = fmt.Errorf("%v", e)
+					}
+				}()
+				//读取数据
+				bytes, err := this.ReadMessage()
+				if err != nil || len(bytes) == 0 {
+					return err
+				}
+				select {
+				case this.readChan <- struct{}{}:
+				default:
+				}
+				//处理数据
+				if this.dealFunc != nil {
+					this.dealFunc(bytes)
+				}
+				return
+			}())
 		}
-	}()
-	//读取数据
-	bytes, err := this.ReadMessage()
-	if err != nil || len(bytes) == 0 {
-		return err
 	}
-	//处理数据
-	if this.dealFunc != nil {
-		this.dealFunc(bytes)
-	}
-	return
 }

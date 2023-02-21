@@ -48,6 +48,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	return s, nil
 }
 
+// Server todo 整体待优化
 type Server struct {
 	*IPrinter
 	listener   Listener
@@ -164,7 +165,7 @@ func (this *Server) SetPrintWithASCII() *Server {
 	return this
 }
 
-// SetTimeout 设置超时时间
+// SetTimeout 设置超时时间,还有time/3的时间误差
 func (this *Server) SetTimeout(t time.Duration) *Server {
 	this.timeout = t
 	return this
@@ -262,16 +263,21 @@ func (this *Server) SetClientKey(newClient *Client, newKey string) {
 
 // GoFor 协程循环
 func (this *Server) GoFor(interval time.Duration, do func(s *Server)) {
-	go func() {
-		for {
-			select {
-			case <-this.Done():
-				return
-			case <-time.After(interval):
-				do(this)
+	if interval > 0 {
+		go func() {
+			timer := time.NewTimer(interval)
+			defer timer.Stop()
+			for {
+				timer.Reset(interval)
+				select {
+				case <-this.Done():
+					return
+				case <-timer.C:
+					do(this)
+				}
 			}
-		}
-	}()
+		}()
+	}
 }
 
 // Swap 和一个IO交换数据
@@ -401,7 +407,7 @@ func (this *Server) timeoutFunc() {
 		now := time.Now()
 		for _, v := range this.GetClientMap() {
 			if this.timeout > 0 && now.Sub(v.IReadCloser.LastTime()) > this.timeout {
-				v.Close()
+				_ = v.CloseWithErr(ErrWithReadTimeout)
 			}
 		}
 	}

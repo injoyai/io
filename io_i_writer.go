@@ -20,11 +20,12 @@ func NewWriter(writer Writer) *IWriter {
 	}
 }
 
+// IWriter 写
 type IWriter struct {
-	*IPrinter                       //打印
-	writer    Writer                //io.Writer
-	writeFunc func(p []byte) []byte //写入函数
-	lastTime  time.Time             //最后写入时间
+	*IPrinter           //打印
+	writer    Writer    //io.Writer
+	writeFunc WriteFunc //写入函数
+	lastTime  time.Time //最后写入时间
 }
 
 //================================Nature================================
@@ -79,11 +80,6 @@ func (this *IWriter) WriteBase64(s string) (int, error) {
 		return 0, err
 	}
 	return this.Write(bytes)
-}
-
-// WriteWithTimeout 写入或者超时,todo 待实现
-func (this *IWriter) WriteWithTimeout(p []byte, timeout time.Duration) (int, error) {
-	return this.Write(p)
 }
 
 // WriteAny 写入任意数据,根据conv转成字节

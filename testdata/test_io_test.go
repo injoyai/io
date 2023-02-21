@@ -4,6 +4,7 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"testing"
+	"time"
 )
 
 func TestNewClient(t *testing.T) {
@@ -31,4 +32,12 @@ func TestNewTestMustDialBug(t *testing.T) {
 func TestClientRun(t *testing.T) {
 	ClientRun(":10089")
 
+}
+
+func TestTimeoutClient(t *testing.T) {
+	t.Log(TimeoutClient(10089, time.Second*5))
+}
+
+func TestTimeoutServer(t *testing.T) {
+	t.Log(TimeoutServer(10089, time.Second*5))
 }
