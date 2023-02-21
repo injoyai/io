@@ -26,17 +26,21 @@ func TCPFunc(addr string) func() (io.ReadWriteCloser, error) {
 
 // NewTCP 新建TCP连接
 func NewTCP(addr string) (*io.Client, error) {
-	return io.NewDial(TCPFunc(addr))
-}
-
-// RedialTCPWithContext 一直连接TCP服务端,并重连
-func RedialTCPWithContext(ctx context.Context, addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return io.RedialWithContext(ctx, TCPFunc(addr), fn...)
+	c, err := io.NewDial(TCPFunc(addr))
+	if err == nil {
+		c.SetKey(addr)
+	}
+	return c, err
 }
 
 // RedialTCP 一直连接TCP服务端,并重连
 func RedialTCP(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return RedialTCPWithContext(context.Background(), addr, fn...)
+	return io.Redial(TCPFunc(addr), func(ctx context.Context, c *io.Client) {
+		c.SetKey(addr)
+		for _, v := range fn {
+			v(ctx, c)
+		}
+	}).SetKey(addr)
 }
 
 //================================UDPDial================================
@@ -48,23 +52,25 @@ func UDP(addr string) (io.ReadWriteCloser, error) {
 
 // UDPFunc 连接函数
 func UDPFunc(addr string) func() (io.ReadWriteCloser, error) {
-	return func() (io.ReadWriteCloser, error) {
-		return net.Dial("udp", addr)
-	}
+	return func() (io.ReadWriteCloser, error) { return UDP(addr) }
 }
 
 func NewUDP(addr string) (*io.Client, error) {
-	return io.NewDial(UDPFunc(addr))
-}
-
-// RedialUDPWithContext 一直连接UDP服务端,并重连
-func RedialUDPWithContext(ctx context.Context, addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return io.RedialWithContext(ctx, TCPFunc(addr), fn...)
+	c, err := io.NewDial(UDPFunc(addr))
+	if err == nil {
+		c.SetKey(addr)
+	}
+	return c, err
 }
 
 // RedialUDP 一直连接UDP服务端,并重连
 func RedialUDP(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return RedialTCPWithContext(context.Background(), addr, fn...)
+	return io.Redial(UDPFunc(addr), func(ctx context.Context, c *io.Client) {
+		c.SetKey(addr)
+		for _, v := range fn {
+			v(ctx, c)
+		}
+	})
 }
 
 //================================FileDial================================
@@ -122,11 +128,20 @@ func SerialFunc(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
 }
 
 func NewSerial(cfg *SerialConfig) (*io.Client, error) {
-	return io.NewDial(SerialFunc(cfg))
+	c, err := io.NewDial(SerialFunc(cfg))
+	if err == nil {
+		c.SetKey(cfg.Address)
+	}
+	return c, err
 }
 
 func RedialSerial(cfg *SerialConfig, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return io.Redial(SerialFunc(cfg), fn...)
+	return io.Redial(SerialFunc(cfg), func(ctx context.Context, c *io.Client) {
+		c.SetKey(cfg.Address)
+		for _, v := range fn {
+			v(ctx, c)
+		}
+	})
 }
 
 //================================MQTTDial================================
@@ -201,11 +216,20 @@ func WebsocketFunc(url string, header http.Header) func() (io.ReadWriteCloser, e
 }
 
 func NewWebsocket(url string, header http.Header) (*io.Client, error) {
-	return io.NewDial(WebsocketFunc(url, header))
+	c, err := io.NewDial(WebsocketFunc(url, header))
+	if err == nil {
+		c.SetKey(url)
+	}
+	return c, err
 }
 
 func RedialWebsocket(url string, header http.Header, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return io.Redial(WebsocketFunc(url, header), fn...)
+	return io.Redial(WebsocketFunc(url, header), func(ctx context.Context, c *io.Client) {
+		c.SetKey(url)
+		for _, v := range fn {
+			v(ctx, c)
+		}
+	})
 }
 
 type _websocket struct {

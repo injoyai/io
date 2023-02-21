@@ -3,6 +3,7 @@ package io
 import (
 	"fmt"
 	"github.com/injoyai/base/bytes"
+	"time"
 )
 
 const (
@@ -12,6 +13,8 @@ const (
 	TagInfo  = "信息"
 	Ping     = "ping"
 	Pong     = "pong"
+
+	Timeout = time.Minute
 )
 
 func NewMessageFormat(format string, v ...interface{}) Message {

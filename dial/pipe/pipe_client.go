@@ -25,6 +25,7 @@ func Redial(dial io.DialFunc, fn ...func(ctx context.Context, c *io.Client)) *io
 		for _, v := range fn {
 			v(ctx, c)
 		}
+		c.SetKeepAlive(io.Timeout)
 	})
 }
 
@@ -38,8 +39,4 @@ func NewClient(dial io.DialFunc) (*io.Client, error) {
 	c.SetReadFunc(DefaultReadFunc)
 	c.Redial()
 	return c, nil
-}
-
-type Client struct {
-	*io.Client
 }

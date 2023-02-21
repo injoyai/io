@@ -25,7 +25,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		IPrinter:   NewIPrinter(fmt.Sprintf("%p", listener)),
 		listener:   listener,
 		clientMap:  make(map[string]*Client),
-		timeout:    time.Minute * 3,
+		timeout:    Timeout * 3,
 		readFunc:   buf.ReadWithAll,
 		dealFunc:   nil,
 		dealQueue:  chans.NewEntity(1, 1000),
