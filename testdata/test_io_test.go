@@ -25,8 +25,8 @@ func TestNewServer(t *testing.T) {
 	}
 }
 
-func TestNewTestMustDialBug(t *testing.T) {
-	t.Log(NewTestMustDialBug(10089))
+func TestCloseAll(t *testing.T) {
+	t.Log(CloseAll(10089))
 }
 
 func TestClientRun(t *testing.T) {

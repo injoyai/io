@@ -21,12 +21,15 @@ func New() *Entity {
 	}
 }
 
+// Entity 代理实例,通过数据进行对应的操作(读取,写入,连接,关闭)
 type Entity struct {
 	key         string                                               //唯已标识
 	ioMap       *maps.Safe                                           //存储连接
 	ConnectFunc func(msg *Message) (i io.ReadWriteCloser, err error) //连接函数
 	buff        chan byte                                            //
 	mu          sync.Mutex                                           //
+	cDebug      bool                                                 //
+	cPrintFunc  io.PrintFunc                                         //
 
 	//分包长度,每次写入固定字节长度,默认1k
 	//0表示一次性全部写入
@@ -63,7 +66,7 @@ func (this *Entity) Read(p []byte) (n int, err error) {
 		select {
 		case b := <-this.buff:
 			p[n] = b
-		case <-time.After(time.Millisecond):
+		case <-time.After(time.Millisecond * 100):
 			return
 		}
 	}
@@ -144,22 +147,22 @@ func (this *Entity) CloseIOAll() {
 
 // Switch 处理获取到的消息
 func (this *Entity) Switch(msg *Message) (err error) {
-	logs.Debug(msg.Addr, string(msg.GetData()))
 	i := this.GetIO(msg.Key)
 
 	if i == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
 		if this.ConnectFunc == nil {
 			this.ConnectFunc = DefaultConnectFunc
 		}
-		logs.Debug(666, msg.OperateType)
 		i, err = this.ConnectFunc(msg)
 		if err != nil {
 			return err
 		}
 
 		c := io.NewClient(i)
+		c.SetKey("Proxy")
 		c.SetReadFunc(buf.ReadWithAll)
 		c.SetDealFunc(func(msg2 *io.IMessage) {
+			logs.Debugf("[Proxy][接收] %s", msg2.String())
 			this.Proxy(NewWriteMessage(msg.Key, msg.Addr, msg2.Bytes()))
 		})
 		c.SetCloseFunc(func(ctx context.Context, msg2 *io.IMessage) {
@@ -167,7 +170,6 @@ func (this *Entity) Switch(msg *Message) (err error) {
 			this.Proxy(NewCloseMessage(msg.Key, msg2.String()))
 		})
 		go c.Run()
-
 		this.SetIO(msg.Key, c)
 	}
 
@@ -180,6 +182,7 @@ func (this *Entity) Switch(msg *Message) (err error) {
 		//收到建立连接信息
 	case Write:
 		//收到写数据信息
+		logs.Debugf("[Proxy][发送] %s", string(msg.GetData()))
 		_, err = i.Write(msg.GetData())
 	case Close:
 		//收到关闭连接信息
@@ -210,9 +213,7 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 	case HTTP:
 	case Websocket:
 	default:
-		logs.Debug("建立TCP连接:", msg.Addr)
 		i, err = dial.TCP(msg.Addr)
-		logs.Debug(i, err)
 	}
 	return
 }

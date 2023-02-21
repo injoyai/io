@@ -148,7 +148,7 @@ func (this *Server) SetWriteFunc(fn func([]byte) []byte) *Server {
 
 // SetPrintFunc 设置打印方式
 func (this *Server) SetPrintFunc(fn PrintFunc) *Server {
-	this.Debug()
+	this.IPrinter.SetPrintFunc(fn)
 	this.printFunc = fn
 	return this
 }

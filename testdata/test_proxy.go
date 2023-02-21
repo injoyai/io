@@ -44,6 +44,7 @@ func TestProxy() error {
 
 func ProxyClient(addr string) *io.Client {
 	return proxy.SwapTCPClient(addr, func(ctx context.Context, c *io.Client, e *proxy.Entity) {
+		c.Debug()
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|C"}, tag...)...))
 		})
@@ -55,6 +56,8 @@ func ProxyTransmit(port int) error {
 	if err != nil {
 		return err
 	}
+	s.SetKey(fmt.Sprintf(":%d", port))
+	s.Debug()
 	s.SetPrintFunc(func(msg io.Message, tag ...string) {
 		logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|T"}, tag...)...))
 	})
@@ -67,6 +70,8 @@ func VPNClient(serverPort int, clientAddr string) error {
 	if err != nil {
 		return err
 	}
+	s.SetKey(fmt.Sprintf(":%d", serverPort))
+	s.Debug()
 	s.SetPrintFunc(func(msg io.Message, tag ...string) {
 		logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|S"}, tag...)...))
 	})
@@ -92,8 +97,8 @@ func VPNClient(serverPort int, clientAddr string) error {
 				}
 
 			})
-			//c.GoForWriter(time.Second*5, func(c io.Writer) (int, error) {
-			//	return c.Write(proxy.NewWriteMessage("test", "127.0.0.1", []byte("666")).Bytes())
+			//c.GoForWriter(time.Second*5, func(c *io.IWriter) (int, error) {
+			//	return c.Write(proxy.NewWriteMessage("test", "192.168.10.40:10001", []byte("GET /ping HTTP/1.1 \r\nHost 192.168.10.40:10001\r\n")).Bytes())
 			//})
 		})
 	}()
@@ -109,7 +114,6 @@ func VPNClient(serverPort int, clientAddr string) error {
 				msg.Client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
 				return
 			} else {
-				logs.Debug(list[0])
 				// HTTP 普通请求
 				u, err := url.Parse(list[1])
 				if err == nil {

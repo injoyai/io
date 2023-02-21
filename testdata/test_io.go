@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+func Example() {
+	io.Redial(dial.TCPFunc("xxx"))
+	io.Redial(dial.UDPFunc("xxx"))
+	io.Redial(dial.SerialFunc(nil))
+	io.Redial(dial.FileFunc("./xxx.txt"))
+
+}
+
 func NewClient(addr string) error {
 	c := io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
 		logs.Debug("重连...")
@@ -30,7 +38,8 @@ func NewServer(port int) error {
 	return s.Run()
 }
 
-func NewTestMustDialBug(port int) error {
+// CloseAll 测试closeAll
+func CloseAll(port int) error {
 
 	s, err := io.NewServer(dial.TCPListenFunc(port))
 	if err != nil {
@@ -74,14 +83,7 @@ func ClientRun(addr string) {
 	})
 }
 
-func Example() {
-	io.Redial(dial.TCPFunc("xxx"))
-	io.Redial(dial.UDPFunc("xxx"))
-	io.Redial(dial.SerialFunc(nil))
-	io.Redial(dial.FileFunc("./xxx.txt"))
-
-}
-
+// TimeoutClient 测试客户端超时
 func TimeoutClient(port int, timeout time.Duration) error {
 	go io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
 		func(ctx context.Context, c *io.Client) {
@@ -96,6 +98,7 @@ func TimeoutClient(port int, timeout time.Duration) error {
 	return s.Run()
 }
 
+// TimeoutServer 测试服务端超时
 func TimeoutServer(port int, timeout time.Duration) error {
 	go io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
 		func(ctx context.Context, c *io.Client) {

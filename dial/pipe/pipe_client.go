@@ -39,3 +39,7 @@ func NewClient(dial io.DialFunc) (*io.Client, error) {
 	c.Redial()
 	return c, nil
 }
+
+type Client struct {
+	*io.Client
+}

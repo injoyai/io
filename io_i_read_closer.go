@@ -7,10 +7,12 @@ import (
 	"time"
 )
 
+// NewIReadCloser 新建IReader,默认读取函数ReadAll
 func NewIReadCloser(readCloser ReadCloser) *IReadCloser {
 	return NewIReadCloserWithContext(context.Background(), readCloser)
 }
 
+// NewIReadCloserWithContext 新建IReader,默认读取函数ReadAll
 func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IReadCloser {
 	if c, ok := readCloser.(*IReadCloser); ok && c != nil {
 		return c
@@ -50,7 +52,7 @@ func (this *IReadCloser) SetKey(key string) *IReadCloser {
 // SetPrintFunc 设置打印函数
 func (this *IReadCloser) SetPrintFunc(fn PrintFunc) *IReadCloser {
 	this.IReader.SetPrintFunc(fn)
-	//错误信息按ASCII编码
+	this.ICloser.SetPrintFunc(fn) //错误信息按ASCII编码?
 	return this
 }
 

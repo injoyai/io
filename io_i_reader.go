@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// NewIReader 新建IReader,默认读取函数ReadAll
 func NewIReader(r Reader) *IReader {
 	i := &IReader{
 		IPrinter: NewIPrinter(""),

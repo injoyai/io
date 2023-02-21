@@ -34,7 +34,7 @@ type Message struct {
 	ConnectType ConnectType `json:"ct"`   //连接类型 默认tcp
 	Key         string      `json:"key"`  //标识
 	Data        string      `json:"data"` //内容
-	DataBytes   []byte      `json:"-"`    //内容字节
+	DataBytes   []byte      `json:"-"`    //内容字节,需要解析
 	Addr        string      `json:"addr"` //目标地址
 }
 

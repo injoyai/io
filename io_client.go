@@ -189,7 +189,13 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 // SetDealFunc 设置处理数据函数
 func (this *Client) SetDealFunc(fn func(msg *IMessage)) {
 	this.IReadCloser.SetDealFunc(func(msg Message) {
-		fn(NewIMessage(this, msg))
+		switch msg.String() {
+		case Ping:
+			this.WriteString(Pong)
+		case Pong:
+		default:
+			fn(NewIMessage(this, msg))
+		}
 	})
 }
 
