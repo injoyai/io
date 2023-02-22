@@ -14,7 +14,7 @@ const (
 	Ping     = "ping"
 	Pong     = "pong"
 
-	Timeout = time.Minute
+	DefaultTimeout = time.Minute * 10
 )
 
 func NewMessageFormat(format string, v ...interface{}) Message {

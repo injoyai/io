@@ -3,6 +3,7 @@ package proxy
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/injoyai/conv"
 )
 
@@ -22,9 +23,15 @@ const (
 type OperateType string
 
 const (
-	Connect  OperateType = "connect"  //代理,通讯,建立新的链接
-	Write    OperateType = "write"    //代理,透传,写数据
+
+	// Connect Write 请求
+	Connect OperateType = "connect" //代理,通讯,建立新的链接
+	Write   OperateType = "write"   //代理,透传,写数据
+
+	// Response Close 响应
+	Response OperateType = "response" //代理,响应
 	Close    OperateType = "close"    //代理,通讯,关闭链接
+
 	Register OperateType = "register" //通讯,注册
 	Info     OperateType = "info"     //通讯,和服务端建立通讯
 )
@@ -36,6 +43,12 @@ type Message struct {
 	Data        string      `json:"data"` //内容
 	DataBytes   []byte      `json:"-"`    //内容字节,需要解析
 	Addr        string      `json:"addr"` //目标地址
+}
+
+func (this *Message) Response(data []byte) *Message {
+	this.SetOperateType(Response)
+	this.SetData(data)
+	return this
 }
 
 func (this *Message) SetOperateType(_type OperateType) *Message {
@@ -54,6 +67,7 @@ func (this *Message) SetData(data interface{}) *Message {
 }
 
 func (this *Message) String() string {
+	return fmt.Sprintf("连接标识:%s   消息类型:%s   请求地址:%s\n%s", this.Key, this.OperateType, this.Addr, string(this.GetData()))
 	return string(this.Bytes())
 }
 
@@ -66,9 +80,12 @@ func (this *Message) GetData() []byte {
 	return this.DataBytes
 }
 
-func DecodeMessage(bytes []byte) (*Message, error) {
-	m := new(Message)
-	err := json.Unmarshal(bytes, m)
+func (this *Message) GetDataString() string {
+	return string(this.GetData())
+}
+
+func DecodeMessage(bytes []byte) (m *Message, err error) {
+	err = json.Unmarshal(bytes, &m)
 	if err == nil {
 		m.DataBytes, err = base64.StdEncoding.DecodeString(m.Data)
 	}

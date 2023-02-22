@@ -30,3 +30,10 @@ func DefaultWriteFunc(req []byte) []byte {
 	req = append(append(defaultStart, req...), defaultEnd...)
 	return req
 }
+
+func DefaultDecode(req []byte) ([]byte, error) {
+	if len(req) > len(defaultStart)+len(defaultEnd) {
+		req = req[len(defaultStart) : len(req)-len(defaultEnd)]
+	}
+	return base64.StdEncoding.DecodeString(string(req))
+}

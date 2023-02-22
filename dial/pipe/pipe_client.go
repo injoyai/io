@@ -3,6 +3,7 @@ package pipe
 import (
 	"context"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/dial"
 )
 
 /*
@@ -20,12 +21,24 @@ Client
 
 func Redial(dial io.DialFunc, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
 	return io.Redial(dial, func(ctx context.Context, c *io.Client) {
+		c.SetPrintFunc(func(msg io.Message, tag ...string) {
+			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
+		})
 		c.SetWriteFunc(DefaultWriteFunc)
 		c.SetReadFunc(DefaultReadFunc)
 		for _, v := range fn {
 			v(ctx, c)
 		}
-		c.SetKeepAlive(io.Timeout)
+		c.SetKeepAlive(io.DefaultTimeout)
+	})
+}
+
+func RedialTCP(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
+	return Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
+		c.SetKey(addr)
+		for _, v := range fn {
+			v(ctx, c)
+		}
 	})
 }
 

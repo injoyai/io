@@ -8,9 +8,6 @@ import (
 	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/io/dial/proxy"
 	"github.com/injoyai/logs"
-	"net/http"
-	"net/url"
-	"strings"
 	"time"
 )
 
@@ -26,7 +23,7 @@ func TestProxy() error {
 				case <-ctx.Done():
 				case <-time.After(time.Second * 3):
 
-					e.Resp(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
+					e.Proxy(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
 
 				}
 
@@ -46,7 +43,34 @@ func ProxyClient(addr string) *io.Client {
 	return proxy.SwapTCPClient(addr, func(ctx context.Context, c *io.Client, e *proxy.Entity) {
 		c.Debug()
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
-			logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|C"}, tag...)...))
+			if len(tag) > 0 && len(msg) > 4 {
+				switch tag[0] {
+				case io.TagWrite:
+					bs, err := pipe.DefaultDecode(msg)
+					if err != nil {
+						logs.Err(err)
+						return
+					}
+					m, err := proxy.DecodeMessage(bs)
+					if err != nil {
+						logs.Err(err)
+						return
+					}
+					logs.Debugf("[PI|C][发送] %s", m.String())
+				case io.TagRead:
+					logs.Debug(msg.String())
+					m, err := proxy.DecodeMessage(msg)
+					if err != nil {
+						logs.Err(err)
+						return
+					}
+					logs.Debugf("[PI|C][接收] %s", m.String())
+				default:
+					logs.Debug(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
+				}
+			}
+
+			//logs.Debug(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
 		})
 	})
 }
@@ -66,68 +90,36 @@ func ProxyTransmit(port int) error {
 
 func VPNClient(serverPort int, clientAddr string) error {
 
-	s, err := dial.NewTCPServer(serverPort)
+	// 普通的tcpServer服务,用于监听用户数据
+	s, err := proxy.NewServer(serverPort)
 	if err != nil {
 		return err
 	}
 	s.Debug()
-	s.SetPrintFunc(func(msg io.Message, tag ...string) {
-		logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|S"}, tag...)...))
-	})
 
+	// 通道客户端,用于连接数据转发服务端,进行数据的封装
+	// 所有数据都经过这个连接
 	var c *io.Client
 	go func() {
-		c = pipe.Redial(dial.TCPFunc(clientAddr), func(ctx context.Context, c *io.Client) {
-			c.SetKey(clientAddr)
-			c.Debug()
-			c.SetPrintFunc(func(msg io.Message, tag ...string) {
-				logs.Debug(io.PrintfWithASCII(msg, append([]string{"P|C"}, tag...)...))
-			})
+		c = pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
+			//c.Debug()
 			c.SetDealFunc(func(msg *io.IMessage) {
-				for _, v := range strings.Split(msg.String(), "}") {
-					if len(v) > 0 {
-						m, err := proxy.DecodeMessage([]byte(v + "}"))
-						if err != nil {
-							logs.Err(err)
-							return
-						}
-						s.Write(m.GetData())
-					}
-				}
+				s.Write(msg.Message)
 			})
 		})
 	}()
 
-	s.SetDealFunc(func(msg *io.IMessage) {
+	//设置数据处理函数
+	s.SetDealFunc(func(msg *io.IMessage) error {
 		if c == nil {
-			return
+			return msg.Close()
 		}
-		// HTTP 请求
-		if list := strings.Split(msg.String(), " "); len(list) > 2 && strings.Contains(list[2], "HTTP") {
-			if list[0] == http.MethodConnect {
-				// HTTP 代理请求
-				_, err = msg.Client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
-				logs.PrintErr(err)
-				return
-			} else {
-				// HTTP 普通请求
-				u, err := url.Parse(list[1])
-				if err == nil {
-					port := u.Port()
-					if len(port) == 0 {
-						switch strings.ToLower(u.Scheme) {
-						case "https":
-							port = "443"
-						default:
-							port = "80"
-						}
-					}
-					addr := fmt.Sprintf("%s:%s", u.Hostname(), port)
-					_, err = c.WriteAny(proxy.NewWriteMessage("test", addr, msg.Bytes()))
-					logs.PrintErr(err)
-				}
-			}
-		}
+		_, err := c.Write(msg.Bytes())
+		return err
 	})
+
+	//s.SetDealFunc(nil)
+
+	//运行服务
 	return s.Run()
 }

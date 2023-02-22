@@ -8,8 +8,10 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/buf"
 	"github.com/injoyai/io/dial"
+	"github.com/injoyai/io/dial/pipe"
 )
 
+// New 新建代理实例
 func New() *Entity {
 	return &Entity{
 		ioMap:       maps.NewSafe(),
@@ -28,18 +30,20 @@ type Entity struct {
 	printFunc   io.PrintFunc                                         //
 }
 
+// Debug 调试模式
 func (this *Entity) Debug(b ...bool) *Entity {
 	this.debug = !(len(b) > 0 && !b[0])
 	return this
 }
 
+// SetPrintFunc 设置打印函数
 func (this *Entity) SetPrintFunc(fn func(msg io.Message, tag ...string)) *Entity {
 	this.printFunc = fn
 	return this
 }
 
-// Resp 响应数据
-func (this *Entity) Resp(msg *Message) {
+// Proxy 发起代理请求或手动响应数据
+func (this *Entity) Proxy(msg *Message) {
 	this.buff <- msg.Bytes()
 }
 
@@ -48,24 +52,19 @@ func (this *Entity) Read(p []byte) (n int, err error) {
 	return 0, nil
 }
 
-// ReadMessage 实现接口
+// ReadMessage 实现接口 io.MessageReader
 func (this *Entity) ReadMessage() ([]byte, error) {
 	return <-this.buff, nil
 }
 
 // Write 实现io.Writer 写入数据,解析数据,处理数据,代理格式
+// 自动解析数据,并根据解析的内容进行效应的操作(例发起请求)
 func (this *Entity) Write(p []byte) (int, error) {
 	msg, err := DecodeMessage(p)
 	if err != nil {
 		return 0, err
 	}
 	return len(p), this.WriteMessage(msg)
-}
-
-// Close 实现io.Closer
-func (this *Entity) Close() error {
-	this.closeIOAll()
-	return nil
 }
 
 // WriteMessage 处理获取到的消息
@@ -87,11 +86,11 @@ func (this *Entity) WriteMessage(msg *Message) (err error) {
 		c.SetKey(msg.Addr)
 		c.SetReadFunc(buf.ReadWithAll)
 		c.SetDealFunc(func(m *io.IMessage) {
-			this.Resp(NewWriteMessage(msg.Key, msg.Addr, m.Bytes()))
+			this.Proxy(msg.Response(m.Bytes()))
 		})
 		c.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
 			this.delIO(msg.Key)
-			this.Resp(NewCloseMessage(msg.Key, m.String()))
+			this.Proxy(NewCloseMessage(msg.Key, m.String()))
 		})
 		go c.Run()
 		this.setIO(msg.Key, c)
@@ -114,6 +113,12 @@ func (this *Entity) WriteMessage(msg *Message) (err error) {
 	}
 
 	return
+}
+
+// Close 实现 io.Closer
+func (this *Entity) Close() error {
+	this.closeIOAll()
+	return nil
 }
 
 // SetConnectFunc 设置连接函数
@@ -148,14 +153,11 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 	return
 }
 
+// SwapTCPClient 和TCP客户端交换数据
 func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
 	e := New()
-	return io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
-		c.SetPrintFunc(func(msg io.Message, tag ...string) {
-			io.PrintWithASCII(msg, append([]string{"P|C"}, tag...)...)
-		})
-		c.SetWriteFunc(DefaultWriteFunc)
-		c.SetReadFunc(DefaultReadFunc)
+	return pipe.RedialTCP(addr, func(ctx context.Context, c *io.Client) {
+		c.SetKey(addr)
 		for _, v := range fn {
 			v(ctx, c, e)
 		}
@@ -163,17 +165,12 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 	})
 }
 
+// SwapTCPServer 和TCP服务端交换数据
 func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
-	s, err := io.NewServer(dial.TCPListenFunc(port))
+	s, err := pipe.NewServer(dial.TCPListenFunc(port))
 	if err != nil {
 		return err
 	}
-	s.SetPrintFunc(func(msg io.Message, tag ...string) {
-		io.PrintWithASCII(msg, append([]string{"P|S"}, tag...)...)
-	})
-	s.SetWriteFunc(DefaultWriteFunc)
-	s.SetReadFunc(DefaultReadFunc)
-	s.Debug()
 	for _, v := range fn {
 		v(s)
 	}
@@ -210,6 +207,12 @@ func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
 //
 //	return total, nil
 //}
+
+/*
+
+	Inside
+
+*/
 
 // setIO 添加记录,存在则关闭并覆盖
 func (this *Entity) setIO(key string, i io.ReadWriteCloser) {

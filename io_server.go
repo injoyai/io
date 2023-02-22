@@ -25,7 +25,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		IPrinter:   NewIPrinter(fmt.Sprintf("%p", listener)),
 		listener:   listener,
 		clientMap:  make(map[string]*Client),
-		timeout:    Timeout * 3,
+		timeout:    DefaultTimeout * 3,
 		readFunc:   buf.ReadWithAll,
 		dealFunc:   nil,
 		dealQueue:  chans.NewEntity(1, 1000),
@@ -138,6 +138,11 @@ func (this *Server) SetDealWithWriter(writer Writer) *Server {
 func (this *Server) SetReadFunc(fn func(buf *bufio.Reader) (bytes []byte, err error)) *Server {
 	this.readFunc = fn
 	return this
+}
+
+// SetReadWithAll 设置读取函数:读取全部
+func (this *Server) SetReadWithAll() {
+	this.SetReadFunc(buf.ReadWithAll)
 }
 
 // SetWriteFunc 设置数据发送函数
