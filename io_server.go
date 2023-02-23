@@ -30,6 +30,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		dealFunc:   nil,
 		dealQueue:  chans.NewEntity(1, 1000),
 		closeFunc:  nil,
+		clientMax:  1000,
 		beforeFunc: nil,
 		writeFunc:  nil,
 		printFunc:  PrintWithASCII,
@@ -61,6 +62,7 @@ type Server struct {
 	dealQueue  *chans.Entity       //数据处理队列
 	closed     uint32              //是否关闭
 	closeErr   error               //错误信息
+	clientMax  int                 //最大连接数
 
 	readFunc  buf.ReadFunc          //数据读取方法
 	closeFunc func(msg *IMessage)   //断开连接事件
@@ -100,6 +102,11 @@ func (this *Server) CloseWithErr(err error) error {
 		}
 	}
 	return nil
+}
+
+func (this *Server) SetMaxClient(max int) *Server {
+	this.clientMax = max
+	return this
 }
 
 // SetDealQueueNum 设置数据处理队列协程数量
@@ -338,6 +345,12 @@ func (this *Server) Run() error {
 			return this.closeErr
 		}
 
+		//判断是否到达最大连接数,禁止新连接
+		if len(this.clientMap) >= this.clientMax {
+			c.Close()
+			continue
+		}
+
 		//新建客户端,并配置
 		x := NewClientWithContext(this.ctx, c)
 		x.SetKey(key)                   //设置唯一标识符
@@ -345,12 +358,12 @@ func (this *Server) Run() error {
 		x.SetReadFunc(this.readFunc)    //读取数据方法
 		x.SetDealFunc(this._dealFunc)   //数据处理方法
 		x.SetCloseFunc(this._closeFunc) //连接关闭方法
-		x.SetTimeout(0)                 //设置超时时间
 		x.SetPrintFunc(this.printFunc)  //设置打印函数
 		x.SetWriteFunc(this.writeFunc)  //设置发送函数
 
 		// 协程执行,等待连接的后续数据,来决定后续操作
 		go func(x *Client) {
+
 			//前置操作,例如等待注册数据,不符合的返回错误则关闭连接
 			if this.beforeFunc != nil {
 				if err := this.beforeFunc(x); err != nil {
@@ -358,6 +371,7 @@ func (this *Server) Run() error {
 					return
 				}
 			}
+
 			//加入map 进行管理
 			this.clientMu.Lock()
 			this.clientMap[x.GetKey()] = x
