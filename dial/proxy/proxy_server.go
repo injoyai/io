@@ -103,7 +103,6 @@ func NewServer(port int, fn ...func(s *Server)) (*Server, error) {
 				msg.Close()
 				return
 			}
-			logs.Debug("代理包:", addr)
 			msg.Tag().Set(KeyAddr, addr)
 			msg.Client.WriteString(Connection)
 		default:
@@ -114,10 +113,9 @@ func NewServer(port int, fn ...func(s *Server)) (*Server, error) {
 				msg.Close()
 				return
 			}
-			logs.Debug("后续包:", addr)
-			bytes := NewWriteMessage(msg.GetKey(), addr, msg.Bytes()).Bytes()
+			bs := NewWriteMessage(msg.GetKey(), addr, msg.Bytes()).Bytes()
 			if ser.dealFunc != nil {
-				msg.CloseWithErr(ser.dealFunc(io.NewIMessage(msg.Client, bytes)))
+				msg.CloseWithErr(ser.dealFunc(io.NewIMessage(msg.Client, bs)))
 			}
 		}
 	})

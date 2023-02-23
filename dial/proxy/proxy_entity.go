@@ -10,6 +10,8 @@ import (
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/logs"
+	"net"
+	"time"
 )
 
 // New 新建代理实例
@@ -114,6 +116,11 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 		//收到写数据信息
 		_, err = c.Write(msg.GetData())
 	case Close:
+		switch val := c.ReadWriteCloser().(type) {
+		case net.Conn:
+			val.SetWriteDeadline(time.Time{})
+			return
+		}
 		//收到关闭连接信息
 		err = c.Close()
 	}
@@ -157,17 +164,14 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 }
 
 // SwapTCPClient 和TCP客户端交换数据
-func SwapTCPClient(addr string, fn ...func(ctx context.Context, c, c2 *io.Client)) *io.Client {
-	c2 := io.Redial(func() (io.ReadWriteCloser, error) {
-		return New(), nil
-	})
+func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
+	e := New()
 	return pipe.RedialTCP(addr, func(ctx context.Context, c *io.Client) {
 		c.SetKey(addr)
 		for _, v := range fn {
-			v(ctx, c, c2)
+			v(ctx, c, e)
 		}
-		c2.Debug()
-		c.SwapClient(c2)
+		c.Swap(e)
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			if msg.String() == io.Ping || msg.String() == io.Pong {
 				logs.Debug(io.Pong)
