@@ -31,13 +31,6 @@ func DefaultWriteFunc(req []byte) []byte {
 	return req
 }
 
-// DefaultEncode 默认数据编码
-func DefaultEncode(req []byte) []byte {
-	req = []byte(base64.StdEncoding.EncodeToString(req))
-	req = append(append(defaultStart, req...), defaultEnd...)
-	return req
-}
-
 // DefaultDecode 默认数据解码
 func DefaultDecode(req []byte) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(string(req))

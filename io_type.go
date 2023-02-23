@@ -67,3 +67,6 @@ type DealFunc func(msg Message)
 
 // CloseFunc 关闭函数
 type CloseFunc func(ctx context.Context, msg Message)
+
+// WriteDeadline 写入超时时间,例如tcp关闭
+type WriteDeadline func(t time.Time) error
