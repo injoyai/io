@@ -49,7 +49,7 @@ func (this *Server) Write(p []byte) (int, error) {
 		if c != nil {
 			switch val := c.ReadWriteCloser().(type) {
 			case net.Conn:
-				val.SetReadDeadline(time.Time{})
+				val.SetWriteDeadline(time.Time{})
 				return len(p), nil
 			}
 		}

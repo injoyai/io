@@ -68,14 +68,21 @@ func (this *Entity) Write(p []byte) (int, error) {
 	return len(p), this.WriteMessage(msg)
 }
 
-// WriteMessage 处理获取到的消息
+// WriteMessage 需要并发处理,防止1个连接阻塞,导致后续请求都超时
 func (this *Entity) WriteMessage(msg *Message) (err error) {
+	go this.writeMessage(msg)
+	return nil
+}
+
+// WriteMessage 处理获取到的消息
+func (this *Entity) writeMessage(msg *Message) (err error) {
 	c := this.getIO(msg.Key)
 
 	if c == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
 		if this.connectFunc == nil {
 			this.connectFunc = DefaultConnectFunc
 		}
+		logs.Debug(msg)
 		i, err := this.connectFunc(msg)
 		if err != nil {
 			return err
@@ -150,14 +157,17 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 }
 
 // SwapTCPClient 和TCP客户端交换数据
-func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
-	e := New()
+func SwapTCPClient(addr string, fn ...func(ctx context.Context, c, c2 *io.Client)) *io.Client {
+	c2 := io.Redial(func() (io.ReadWriteCloser, error) {
+		return New(), nil
+	})
 	return pipe.RedialTCP(addr, func(ctx context.Context, c *io.Client) {
 		c.SetKey(addr)
 		for _, v := range fn {
-			v(ctx, c, e)
+			v(ctx, c, c2)
 		}
-		c.Swap(e)
+		c2.Debug()
+		c.SwapClient(c2)
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			if msg.String() == io.Ping || msg.String() == io.Pong {
 				logs.Debug(io.Pong)

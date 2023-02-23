@@ -7,27 +7,27 @@ import (
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/io/dial/proxy"
-	"time"
 )
 
 func TestProxy() error {
 
-	go proxy.SwapTCPClient(":10089", func(ctx context.Context, c *io.Client, e *proxy.Entity) {
-		c.Debug()
-		c.GoForWriter(time.Second*3, func(c *io.IWriter) error {
-			e.Proxy(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
-			return nil
-		})
-	})
+	//go proxy.SwapTCPClient(":10089", func(ctx context.Context, c, e *io.Client) {
+	//	c.Debug()
+	//	c.GoForWriter(time.Second*3, func(c *io.IWriter) error {
+	//		e.Proxy(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
+	//		return nil
+	//	})
+	//})
+	//
+	//return proxy.SwapTCPServer(10089, func(s *io.Server) {
+	//	s.Debug()
+	//})
 
-	return proxy.SwapTCPServer(10089, func(s *io.Server) {
-		s.Debug()
-	})
-
+	return nil
 }
 
 func ProxyClient(addr string) *io.Client {
-	return proxy.SwapTCPClient(addr, func(ctx context.Context, c *io.Client, e *proxy.Entity) {
+	return proxy.SwapTCPClient(addr, func(ctx context.Context, c, e *io.Client) {
 		c.Debug()
 		//logs.Debug("重连...")
 	})
