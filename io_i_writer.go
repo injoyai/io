@@ -37,6 +37,7 @@ func (this *IWriter) LastTime() time.Time {
 
 // Write 写入字节,实现io.Writer
 func (this *IWriter) Write(p []byte) (int, error) {
+	this.Print(p, TagWrite, this.GetKey())
 	if this.writeFunc != nil {
 		p = this.writeFunc(p)
 	}
@@ -45,7 +46,6 @@ func (this *IWriter) Write(p []byte) (int, error) {
 		return 0, dealErr(err)
 	}
 	this.lastTime = time.Now()
-	this.Print(p, TagWrite, this.GetKey())
 	return num, nil
 }
 

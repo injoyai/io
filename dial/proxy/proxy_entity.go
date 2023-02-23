@@ -9,6 +9,7 @@ import (
 	"github.com/injoyai/io/buf"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/pipe"
+	"github.com/injoyai/logs"
 )
 
 // New 新建代理实例
@@ -69,18 +70,18 @@ func (this *Entity) Write(p []byte) (int, error) {
 
 // WriteMessage 处理获取到的消息
 func (this *Entity) WriteMessage(msg *Message) (err error) {
-	i := this.getIO(msg.Key)
+	c := this.getIO(msg.Key)
 
-	if i == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
+	if c == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
 		if this.connectFunc == nil {
 			this.connectFunc = DefaultConnectFunc
 		}
-		i, err = this.connectFunc(msg)
+		i, err := this.connectFunc(msg)
 		if err != nil {
 			return err
 		}
 
-		c := io.NewClient(i)
+		c = io.NewClient(i)
 		c.Debug(this.debug)
 		c.SetPrintFunc(this.printFunc)
 		c.SetKey(msg.Addr)
@@ -90,26 +91,24 @@ func (this *Entity) WriteMessage(msg *Message) (err error) {
 		})
 		c.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
 			this.delIO(msg.Key)
-			this.Proxy(NewCloseMessage(msg.Key, m.String()))
+			this.Proxy(NewCloseMessage(msg.Key, ""))
 		})
 		go c.Run()
 		this.setIO(msg.Key, c)
-		i = c
 	}
 
-	if i == nil {
+	if c == nil {
 		return
 	}
-
 	switch msg.OperateType {
 	case Connect:
 		//收到建立连接信息
 	case Write:
 		//收到写数据信息
-		_, err = i.Write(msg.GetData())
+		_, err = c.Write(msg.GetData())
 	case Close:
 		//收到关闭连接信息
-		err = i.Close()
+		err = c.Close()
 	}
 
 	return
@@ -142,11 +141,8 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 			return
 		}
 		i, err = dial.Serial(cfg)
-	case File:
-	case MQ:
-	case MQTT:
-	case HTTP:
-	case Websocket:
+	case File, MQ, MQTT, HTTP, Websocket:
+		//待实现
 	default:
 		i, err = dial.TCP(msg.Addr)
 	}
@@ -162,6 +158,25 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 			v(ctx, c, e)
 		}
 		c.Swap(e)
+		c.SetPrintFunc(func(msg io.Message, tag ...string) {
+			if msg.String() == io.Ping || msg.String() == io.Pong {
+				logs.Debug(io.Pong)
+				return
+			}
+			if len(tag) > 0 {
+				switch tag[0] {
+				case io.TagWrite, io.TagRead:
+					m, err := DecodeMessage(msg)
+					if err != nil {
+						logs.Err(err)
+						return
+					}
+					logs.Debugf("[PI|C][%s] %s", tag[0], m.String())
+				default:
+					logs.Debug(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
+				}
+			}
+		})
 	})
 }
 
@@ -175,6 +190,9 @@ func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
 		v(s)
 	}
 	s.Swap(New())
+	s.SetPrintFunc(func(msg io.Message, tag ...string) {
+		logs.Debug(io.PrintfWithASCII(msg, append([]string{"PR|S"}, tag...)...))
+	})
 	go s.Run()
 	return nil
 }
@@ -215,15 +233,15 @@ func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
 */
 
 // setIO 添加记录,存在则关闭并覆盖
-func (this *Entity) setIO(key string, i io.ReadWriteCloser) {
+func (this *Entity) setIO(key string, i *io.Client) {
 	old := this.ioMap.GetAndSet(key, i)
-	if val, ok := old.(io.Closer); ok {
+	if val, ok := old.(*io.Client); ok {
 		val.Close()
 	}
 }
 
 // getOrSet 获取或者设置,尝试获取数据,不存在则设置
-func (this *Entity) getOrSet(key string, i io.ReadWriteCloser) io.ReadWriteCloser {
+func (this *Entity) getOrSet(key string, i *io.Client) *io.Client {
 	old := this.getIO(key)
 	if old != nil {
 		return old
@@ -233,13 +251,13 @@ func (this *Entity) getOrSet(key string, i io.ReadWriteCloser) io.ReadWriteClose
 }
 
 // getIO 获取io,不存在或者类型错误则返回nil
-func (this *Entity) getIO(key string) io.ReadWriteCloser {
+func (this *Entity) getIO(key string) *io.Client {
 	i, _ := this.ioMap.Get(key)
 	if i == nil {
 		return nil
 	}
 	//类型判断是否是需要的类型,是则返回
-	if val, ok := i.(io.ReadWriteCloser); ok {
+	if val, ok := i.(*io.Client); ok {
 		return val
 	}
 	//如果记录存在,当类型错误,则删除记录
@@ -264,7 +282,7 @@ func (this *Entity) closeIO(key string) {
 // CloseIOAll 关闭全部io
 func (this *Entity) closeIOAll() {
 	this.ioMap.Range(func(key, value interface{}) bool {
-		if val, ok := value.(io.Closer); ok {
+		if val, ok := value.(*io.Client); ok {
 			val.Close()
 		}
 		return true

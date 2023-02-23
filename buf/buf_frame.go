@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"encoding/hex"
 	"errors"
+	"github.com/injoyai/base/bytes"
 	"github.com/injoyai/conv"
 	"time"
 )
 
+// Frame 通用分包配置,适用99%的协议
 type Frame struct {
 	*StartEndFrame
 	*LenFrame
@@ -152,7 +154,7 @@ func (this *LenFrame) Check(bs []byte) (bool, error) {
 	//获取数据总长度
 	lenBytes := bs[this.LenStart : this.LenEnd+1]
 	if this.LittleEndian {
-		lenBytes = reverseBytes(lenBytes)
+		lenBytes = bytes.Entity(lenBytes).Reverse()
 	}
 	length := conv.Int(lenBytes) + this.LenFixed
 
@@ -163,13 +165,4 @@ func (this *LenFrame) Check(bs []byte) (bool, error) {
 
 	//返回结果
 	return length == len(bs), nil
-}
-
-// reverseBytes 字节数组倒序
-func reverseBytes(bs []byte) []byte {
-	x := make([]byte, len(bs))
-	for i, v := range bs {
-		x[len(bs)-i-1] = v
-	}
-	return x
 }

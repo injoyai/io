@@ -10,10 +10,11 @@ import (
 
 func TestRedial(t *testing.T) {
 	addr := ":10089"
-	Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
+	RedialTCP(addr, func(ctx context.Context, c *io.Client) {
 		c.Debug()
-		c.GoForWriter(time.Second*3, func(c *io.IWriter) (int, error) {
-			return c.WriteString("666")
+		c.GoForWriter(time.Second*3, func(c *io.IWriter) error {
+			_, err := c.WriteString("666")
+			return err
 		})
 	})
 	select {}

@@ -18,12 +18,17 @@ func DefaultReadFunc(buf *bufio.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(req) > len(defaultStart)+len(defaultEnd) {
+		req = req[len(defaultStart) : len(req)-len(defaultEnd)]
+	}
 	return DefaultDecode(req)
 }
 
 // DefaultWriteFunc 默认使用base64编码
 func DefaultWriteFunc(req []byte) []byte {
-	return DefaultEncode(req)
+	req = []byte(base64.StdEncoding.EncodeToString(req))
+	req = append(append(defaultStart, req...), defaultEnd...)
+	return req
 }
 
 // DefaultEncode 默认数据编码
@@ -35,8 +40,5 @@ func DefaultEncode(req []byte) []byte {
 
 // DefaultDecode 默认数据解码
 func DefaultDecode(req []byte) ([]byte, error) {
-	if len(req) > len(defaultStart)+len(defaultEnd) {
-		req = req[len(defaultStart) : len(req)-len(defaultEnd)]
-	}
 	return base64.StdEncoding.DecodeString(string(req))
 }

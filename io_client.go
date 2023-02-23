@@ -132,7 +132,7 @@ func (this *Client) WriteRead(request []byte) (response []byte, err error) {
 }
 
 // GoForWriter 协程执行周期写入数据,生命周期(一次链接,单次连接断开)
-func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (int, error)) {
+func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) error) {
 	if interval <= 0 {
 		return
 	}
@@ -145,7 +145,7 @@ func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) (
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				if _, err := write(writer); err != nil {
+				if err := write(writer); err != nil {
 					return
 				}
 			}
@@ -178,9 +178,10 @@ func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
 // SetKeepAlive 设置连接保持,另外起了携程,服务器不需要,客户端再起一个也没啥问题
 // TCP keepalive定义于RFC 1122，但并不是TCP规范中的一部分,默认必需是关闭,连接方不一定支持
 func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
-	this.GoForWriter(t, func(c *IWriter) (int, error) {
+	this.GoForWriter(t, func(c *IWriter) error {
 		keep := conv.GetDefaultBytes([]byte(Ping), keeps...)
-		return c.Write(keep)
+		_, err := c.Write(keep)
+		return err
 	})
 }
 

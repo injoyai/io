@@ -1,12 +1,16 @@
 package proxy
 
 import (
-	"fmt"
+	"bufio"
+	"bytes"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
+	"github.com/injoyai/logs"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const (
@@ -41,7 +45,16 @@ func (this *Server) Write(p []byte) (int, error) {
 		return len(p), err
 	case Close:
 		//关闭请求连接
+		c := this.s.GetClient(m.Key)
+		if c != nil {
+			switch val := c.ReadWriteCloser().(type) {
+			case net.Conn:
+				val.SetReadDeadline(time.Time{})
+				return len(p), nil
+			}
+		}
 		this.s.CloseClient(m.Key)
+
 		//关闭代理连接
 		return len(p), this.e.WriteMessage(m)
 	default:
@@ -82,35 +95,26 @@ func NewServer(port int, fn ...func(s *Server)) (*Server, error) {
 		// HTTP 请求
 		list := strings.Split(msg.String(), " ")
 		switch true {
-		case len(list) > 2 && strings.Contains(list[2], "HTTP"):
-			//http请求,头包
-			switch list[0] {
-			case http.MethodConnect:
-				//响应连接成功给请求连接
-				msg.Client.WriteString(Connection)
-			default:
-				u, err := url.Parse(list[1])
-				if err == nil {
-					port := u.Port()
-					if len(port) == 0 {
-						switch strings.ToLower(u.Scheme) {
-						case "https":
-							port = "443"
-						default:
-							port = "80"
-						}
-					}
-					addr := fmt.Sprintf("%s:%s", u.Hostname(), port)
-					msg.Tag().Set(KeyAddr, addr)
-					bytes := NewWriteMessage(msg.GetKey(), addr, msg.Bytes()).Bytes()
-					if ser.dealFunc != nil {
-						msg.CloseWithErr(ser.dealFunc(io.NewIMessage(msg.Client, bytes)))
-					}
-				}
+		case len(list) > 2 && list[0] == http.MethodConnect:
+			//http代理请求,例如浏览器
+			addr, err := getAddr(msg)
+			if err != nil {
+				logs.Err(err)
+				msg.Close()
+				return
 			}
+			logs.Debug("代理包:", addr)
+			msg.Tag().Set(KeyAddr, addr)
+			msg.Client.WriteString(Connection)
 		default:
 			//后续的包
-			addr := msg.Tag().GetString(KeyAddr)
+			addr, err := getAddr(msg)
+			if err != nil {
+				logs.Err(err)
+				msg.Close()
+				return
+			}
+			logs.Debug("后续包:", addr)
 			bytes := NewWriteMessage(msg.GetKey(), addr, msg.Bytes()).Bytes()
 			if ser.dealFunc != nil {
 				msg.CloseWithErr(ser.dealFunc(io.NewIMessage(msg.Client, bytes)))
@@ -121,4 +125,31 @@ func NewServer(port int, fn ...func(s *Server)) (*Server, error) {
 		v(ser)
 	}
 	return ser, nil
+}
+
+// 获取请求地址
+func getAddr(msg *io.IMessage) (string, error) {
+	addr := msg.Tag().GetString(KeyAddr)
+	if len(addr) > 0 {
+		return addr, nil
+	}
+	//按http尝试解析数据
+	r, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(msg.Bytes())))
+	if err != nil {
+		return "", err
+	}
+	addr = r.Host
+	hostPortURL, err := url.Parse(r.Host)
+	if err == nil {
+		if hostPortURL.Opaque == "443" {
+			if strings.Index(r.Host, ":") == -1 {
+				addr += ":443"
+			}
+		} else {
+			if strings.Index(r.Host, ":") == -1 {
+				addr += ":80"
+			}
+		}
+	}
+	return addr, nil
 }
