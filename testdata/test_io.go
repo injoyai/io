@@ -113,3 +113,25 @@ func TimeoutServer(port int, timeout time.Duration) error {
 	s.SetTimeout(time.Second * 5)
 	return s.Run()
 }
+
+func GoFor(port int) error {
+	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+		s.Debug()
+	})
+	if err != nil {
+		return err
+	}
+	c := dial.RedialTCP(fmt.Sprintf(":%d", port), func(ctx context.Context, c *io.Client) {
+		c.Debug()
+		c.GoForWriter(time.Second*3, func(c *io.IWriter) error {
+			_, err := c.WriteString("666")
+			return err
+		})
+	})
+	c.GoFor(time.Second*5, func(c *io.Client) error {
+		logs.Debug(777)
+		c.Close()
+		return nil
+	})
+	return s.Run()
+}

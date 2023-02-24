@@ -41,3 +41,7 @@ func TestTimeoutClient(t *testing.T) {
 func TestTimeoutServer(t *testing.T) {
 	t.Log(TimeoutServer(10089, time.Second*5))
 }
+
+func TestGoFor(t *testing.T) {
+	t.Log(GoFor(10089))
+}
