@@ -3,6 +3,7 @@ package proxy
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
@@ -20,9 +21,9 @@ const (
 )
 
 type Server struct {
-	s        *io.Server                   //监听服务
-	e        *Entity                      //代理实例,正向,反向
-	dealFunc func(msg *io.IMessage) error //处理函数
+	s        *io.Server               //监听服务
+	e        *Entity                  //代理实例,正向,反向
+	dealFunc func(msg *Message) error //处理函数
 }
 
 func (this *Server) Debug() *Server {
@@ -68,7 +69,7 @@ func (this *Server) WriteMessage(m *Message) (int, error) {
 	}
 }
 
-func (this *Server) SetDealFunc(fn func(msg *io.IMessage) error) {
+func (this *Server) SetDealFunc(fn func(msg *Message) error) {
 	this.dealFunc = fn
 }
 
@@ -89,9 +90,10 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	ser := &Server{s: s, e: New(), dealFunc: func(msg *io.IMessage) error {
+	ser := &Server{s: s, e: New(), dealFunc: func(msg *Message) error {
+		m := "未设置处理函数"
 		s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
-		return msg.Close()
+		return errors.New(m)
 	}}
 	// 设置处理数据函数
 	// 处理监听到的用户数据,只能监听http协议数据
@@ -118,9 +120,9 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 				//msg.Close()
 				//return
 			}
-			bs := NewWriteMessage(msg.GetKey(), addr, msg.Bytes()).Bytes()
+			m := NewWriteMessage(msg.GetKey(), addr, msg.Bytes())
 			if ser.dealFunc != nil {
-				msg.CloseWithErr(ser.dealFunc(io.NewIMessage(msg.Client, bs)))
+				msg.CloseWithErr(ser.dealFunc(m))
 			}
 		}
 	})

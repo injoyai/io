@@ -2,6 +2,7 @@ package testdata
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
@@ -79,16 +80,16 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	}()
 
 	//设置数据处理函数
-	tcp.SetDealFunc(func(msg *io.IMessage) error {
+	tcp.SetDealFunc(func(msg *proxy.Message) error {
 		if c == nil {
-			return msg.Close()
+			return errors.New("pipe未连接")
 		}
 		_, err := c.Write(msg.Bytes())
 		return err
 	})
-	udp.SetDealFunc(func(msg *io.IMessage) error {
+	udp.SetDealFunc(func(msg *proxy.Message) error {
 		if c == nil {
-			return msg.Close()
+			return errors.New("pipe未连接")
 		}
 		_, err := c.Write(msg.Bytes())
 		return err
