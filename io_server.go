@@ -23,6 +23,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	}
 	s := &Server{
 		IPrinter:   NewIPrinter(fmt.Sprintf("%p", listener)),
+		ICloser:    NewICloserWithContext(ctx, listener),
 		listener:   listener,
 		clientMap:  make(map[string]*Client),
 		timeout:    DefaultTimeout * 3,
@@ -35,6 +36,10 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		writeFunc:  nil,
 		printFunc:  PrintWithASCII,
 	}
+	s.ICloser.SetCloseFunc(func(ctx context.Context, msg Message) {
+		s.listener.Close()
+		s.CloseClientAll()
+	})
 	s.SetBeforeFunc(s._beforeFunc)
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.dealQueue.SetHandler(func(no, num int, data interface{}) {
@@ -52,17 +57,19 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 // Server todo 整体待优化
 type Server struct {
 	*IPrinter
-	listener   Listener
-	clientMap  map[string]*Client  //链接集合,远程地址为key
-	clientMu   sync.RWMutex        //锁
-	ctx        context.Context     //上下文
-	cancel     context.CancelFunc  //上下文
+	*ICloser
+
+	listener  Listener
+	clientMap map[string]*Client //链接集合,远程地址为key
+	clientMu  sync.RWMutex       //锁
+	//ctx        context.Context     //上下文
+	//cancel     context.CancelFunc  //上下文
 	beforeFunc func(*Client) error //连接前置事件
 	dealFunc   func(msg *IMessage) //数据处理方法
 	dealQueue  *chans.Entity       //数据处理队列
-	closed     uint32              //是否关闭
-	closeErr   error               //错误信息
-	clientMax  int                 //最大连接数
+	//closed     uint32              //是否关闭
+	//closeErr   error               //错误信息
+	clientMax int //最大连接数
 
 	readFunc  buf.ReadFunc        //数据读取方法
 	closeFunc func(msg *IMessage) //断开连接事件
@@ -72,38 +79,9 @@ type Server struct {
 	timeout   time.Duration       //超时时间,0是永久有效
 }
 
-// Ctx 上下文
-func (this *Server) Ctx() context.Context {
-	return this.ctx
-}
+//================================SetFunc================================
 
-// Done ctx.Done
-func (this *Server) Done() <-chan struct{} {
-	return this.Ctx().Done()
-}
-
-// Close 关闭
-func (this *Server) Close() error {
-	return this.CloseWithErr(ErrHandClose)
-}
-
-// CloseWithErr 根据错误关闭
-func (this *Server) CloseWithErr(err error) error {
-	select {
-	case <-this.Done():
-	default:
-		if err != nil {
-			this.closeErr = err
-			if this.cancel != nil {
-				this.cancel()
-			}
-			this.listener.Close()
-			this.CloseClientAll()
-		}
-	}
-	return nil
-}
-
+// SetMaxClient 设置最大连接数
 func (this *Server) SetMaxClient(max int) *Server {
 	this.clientMax = max
 	return this
@@ -182,6 +160,8 @@ func (this *Server) SetTimeout(t time.Duration) *Server {
 	this.timeout = t
 	return this
 }
+
+//================================Client================================
 
 // GetClient 获取一个客户端
 func (this *Server) GetClient(key string) *Client {
@@ -275,21 +255,10 @@ func (this *Server) SetClientKey(newClient *Client, newKey string) {
 
 // GoFor 协程循环
 func (this *Server) GoFor(interval time.Duration, do func(s *Server)) {
-	if interval > 0 {
-		go func() {
-			timer := time.NewTimer(interval)
-			defer timer.Stop()
-			for {
-				timer.Reset(interval)
-				select {
-				case <-this.Done():
-					return
-				case <-timer.C:
-					do(this)
-				}
-			}
-		}()
-	}
+	this.ICloser.GoForParent(interval, func() error {
+		do(this)
+		return nil
+	})
 }
 
 // Swap 和一个IO交换数据
@@ -317,6 +286,40 @@ func (this *Server) SwapServer(s *Server) {
 	this.SetDealWithWriter(s)
 	s.SetDealWithWriter(this)
 }
+
+//================================RunTime================================
+
+//// Ctx 上下文
+//func (this *Server) Ctx() context.Context {
+//	return this.ctx
+//}
+//
+//// Done ctx.Done
+//func (this *Server) Done() <-chan struct{} {
+//	return this.Ctx().Done()
+//}
+//
+//// Close 关闭,实现io.Closer
+//func (this *Server) Close() error {
+//	return this.CloseWithErr(ErrHandClose)
+//}
+
+//// CloseWithErr 根据错误关闭
+//func (this *Server) CloseWithErr(err error) error {
+//	select {
+//	case <-this.Done():
+//	default:
+//		if err != nil {
+//			this.closeErr = err
+//			if this.cancel != nil {
+//				this.cancel()
+//			}
+//			this.listener.Close()
+//			this.CloseClientAll()
+//		}
+//	}
+//	return nil
+//}
 
 // Running 是否在运行
 func (this *Server) Running() bool {
@@ -382,11 +385,7 @@ func (this *Server) Run() error {
 	}
 }
 
-/*
-
-inside
-
-*/
+//================================Inside================================
 
 // beforeFunc 默认前置函数
 func (this *Server) _beforeFunc(c *Client) error {

@@ -41,16 +41,17 @@ func NewServer(port int) error {
 // CloseAll 测试closeAll
 func CloseAll(port int) error {
 
-	s, err := io.NewServer(dial.TCPListenFunc(port))
+	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+		s.Debug()
+	})
 	if err != nil {
 		return err
 	}
-	s.Debug()
 	go func() {
 		logs.Err("服务端:", s.Run())
 	}()
 
-	c := io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)), func(ctx context.Context, c *io.Client) {
+	c := dial.RedialTCP(fmt.Sprintf(":%d", port), func(ctx context.Context, c *io.Client) {
 		c.Debug()
 	})
 

@@ -56,7 +56,7 @@ func (this *ICloser) SetCloseWithNil() *ICloser {
 	return this
 }
 
-// SetRedialMaxTime 设置退避重试时间
+// SetRedialMaxTime 设置退避重试时间,默认32秒
 func (this *ICloser) SetRedialMaxTime(t time.Duration) *ICloser {
 	if t <= 0 {
 		t = time.Second * 32
@@ -77,6 +77,39 @@ func (this *ICloser) SetRedialFunc(fn DialFunc) *ICloser {
 func (this *ICloser) SetRedialWithNil() *ICloser {
 	this.SetRedialFunc(nil)
 	return this
+}
+
+//================================GoFor================================
+
+// GoForParent 协程执行周期,生命周期(客户端关闭,除非主动或上下文关闭),待测试
+func (this *ICloser) GoForParent(interval time.Duration, fn func() error) {
+	this.goFor(this.ParentCtx(), func(err error) error { return this.CloseAll() }, interval, fn)
+}
+
+// GoFor 协程执行周期写入数据,生命周期(一次链接,单次连接断开)
+func (this *ICloser) GoFor(interval time.Duration, fn func() error) {
+	this.goFor(this.Ctx(), this.CloseWithErr, interval, fn)
+}
+
+func (this *ICloser) goFor(ctx context.Context, dealErr func(error) error, interval time.Duration, fn func() error) {
+	if interval > 0 {
+		go func() {
+			timer := time.NewTimer(interval)
+			defer timer.Stop()
+			for {
+				timer.Reset(interval)
+				select {
+				case <-ctx.Done():
+					return
+				case <-timer.C:
+					if err := fn(); err != nil {
+						_ = dealErr(err)
+						return
+					}
+				}
+			}
+		}()
+	}
 }
 
 //================================RunTime================================

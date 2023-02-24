@@ -134,46 +134,16 @@ func (this *Client) WriteRead(request []byte) (response []byte, err error) {
 
 // GoForWriter 协程执行周期写入数据,生命周期(一次链接,单次连接断开)
 func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) error) {
-	if interval <= 0 {
-		return
-	}
-	go func(ctx context.Context, writer *IWriter) {
-		t := time.NewTimer(interval)
-		defer t.Stop()
-		for {
-			t.Reset(interval)
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				if err := write(writer); err != nil {
-					return
-				}
-			}
-		}
-	}(this.Ctx(), this.IWriter)
+	this.ICloser.GoFor(interval, func() error {
+		return write(this.IWriter)
+	})
 }
 
 // GoFor 协程执行周期,生命周期(客户端关闭,除非主动或上下文关闭),待测试
 func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
-	if interval <= 0 {
-		return
-	}
-	go func(ctx context.Context, c *Client) {
-		t := time.NewTimer(interval)
-		defer t.Stop()
-		for {
-			t.Reset(interval)
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				if err := fn(c); err != nil {
-					return
-				}
-			}
-		}
-	}(this.ParentCtx(), this)
+	this.ICloser.GoForParent(interval, func() error {
+		return fn(this)
+	})
 }
 
 // SetKeepAlive 设置连接保持,另外起了携程,服务器不需要,客户端再起一个也没啥问题

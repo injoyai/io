@@ -22,7 +22,7 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 		ICloser:  NewICloserWithContext(ctx, readCloser),
 		running:  0,
 		timeout:  0,
-		readChan: make(chan struct{}),
+		readSign: make(chan struct{}),
 	}
 }
 
@@ -32,7 +32,7 @@ type IReadCloser struct {
 	dealFunc DealFunc      //处理数据函数
 	running  uint32        //是否在运行
 	timeout  time.Duration //超时时间
-	readChan chan struct{} //读取到数据信号,配合超时机制使用
+	readSign chan struct{} //读取到数据信号,配合超时机制使用
 }
 
 //================================Nature================================
@@ -120,7 +120,7 @@ func (this *IReadCloser) Run() error {
 				select {
 				case <-timer.C:
 					_ = this.CloseWithErr(ErrWithReadTimeout)
-				case <-this.readChan:
+				case <-this.readSign:
 				}
 			}
 		}()
@@ -144,7 +144,7 @@ func (this *IReadCloser) Run() error {
 				}
 				//尝试加入通道,超时定时器重置
 				select {
-				case this.readChan <- struct{}{}:
+				case this.readSign <- struct{}{}:
 				default:
 				}
 				//处理数据
