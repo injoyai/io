@@ -1,7 +1,6 @@
 package dial
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/injoyai/io"
 	"net"
@@ -53,7 +52,7 @@ func UDPListener(port int) (io.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &_udpServer{UDPConn: listener}, nil
+	return &_udpServer{UDPConn: listener, m: make(map[string]*_udp)}, nil
 }
 
 func UDPListenFunc(port int) io.ListenFunc {
@@ -69,11 +68,15 @@ func NewUDPServer(port int, fn ...func(s *io.Server)) (*io.Server, error) {
 type _udp struct {
 	s    *_udpServer
 	addr *net.UDPAddr
-	buff *bytes.Buffer
+	buff chan []byte
 }
 
 func (this *_udp) Read(p []byte) (int, error) {
-	return this.buff.Read(p)
+	return 0, nil
+}
+
+func (this *_udp) ReadMessage() ([]byte, error) {
+	return <-this.buff, nil
 }
 
 func (this *_udp) Write(p []byte) (int, error) {
@@ -91,7 +94,7 @@ func (this *_udp) Close() error {
 type _udpServer struct {
 	*net.UDPConn
 	m  map[string]*_udp
-	mu sync.Mutex
+	mu sync.RWMutex
 }
 
 func (this *_udpServer) Accept() (io.ReadWriteCloser, string, error) {
@@ -101,20 +104,29 @@ func (this *_udpServer) Accept() (io.ReadWriteCloser, string, error) {
 		if err != nil {
 			return nil, "", err
 		}
+
+		this.mu.RLock()
 		val, ok := this.m[addr.String()]
+		this.mu.RUnlock()
 		if ok {
-			val.buff.Write(buff[:n])
+			select {
+			case val.buff <- buff[:n]:
+			default:
+			}
 			continue
 		}
 
 		u := &_udp{
+			s:    this,
 			addr: addr,
-			buff: bytes.NewBuffer(buff[:n]),
+			buff: make(chan []byte, 100),
 		}
 
 		this.mu.Lock()
 		this.m[addr.String()] = u
 		this.mu.Unlock()
+
+		u.buff <- buff[:n]
 
 		return u, u.addr.String(), nil
 	}

@@ -3,6 +3,7 @@ package proxy
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/logs"
@@ -38,11 +39,15 @@ func (this *Server) Write(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	return this.WriteMessage(m)
+}
+
+func (this *Server) WriteMessage(m *Message) (int, error) {
 	switch m.OperateType {
 	case Response:
 		//代理响应
-		_, err = this.s.WriteClient(m.Key, m.GetData())
-		return len(p), err
+		_, err := this.s.WriteClient(m.Key, m.GetData())
+		return 0, err
 	case Close:
 		//关闭请求连接
 		c := this.s.GetClient(m.Key)
@@ -50,16 +55,16 @@ func (this *Server) Write(p []byte) (int, error) {
 			switch val := c.ReadWriteCloser().(type) {
 			case net.Conn:
 				val.SetWriteDeadline(time.Time{})
-				return len(p), nil
+				return 0, nil
 			}
 		}
 		this.s.CloseClient(m.Key)
 
 		//关闭代理连接
-		return len(p), this.e.WriteMessage(m)
+		return 0, this.e.WriteMessage(m)
 	default:
 		//代理请求 逻辑
-		return len(p), this.e.WriteMessage(m)
+		return 0, this.e.WriteMessage(m)
 	}
 }
 
@@ -71,8 +76,8 @@ func (this *Server) SetPrintFunc(fn func(msg io.Message, tag ...string)) {
 	this.s.SetPrintFunc(fn)
 }
 
-func NewServer(port int, fn ...func(s *Server)) (*Server, error) {
-	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
+	s, err := io.NewServer(dial, func(s *io.Server) {
 		//读取全部数据
 		s.SetReadWithAll()
 		//设置打印函数
@@ -109,9 +114,9 @@ func NewServer(port int, fn ...func(s *Server)) (*Server, error) {
 			//后续的包
 			addr, err := getAddr(msg)
 			if err != nil {
-				logs.Err(err)
-				msg.Close()
-				return
+				//logs.Err(err)
+				//msg.Close()
+				//return
 			}
 			bs := NewWriteMessage(msg.GetKey(), addr, msg.Bytes()).Bytes()
 			if ser.dealFunc != nil {
@@ -123,6 +128,22 @@ func NewServer(port int, fn ...func(s *Server)) (*Server, error) {
 		v(ser)
 	}
 	return ser, nil
+}
+
+func NewUDPServer(port int, fn ...func(s *Server)) (*Server, error) {
+	s, err := NewServer(dial.UDPListenFunc(port), fn...)
+	if err == nil {
+		s.s.SetKey(fmt.Sprintf(":%d", port))
+	}
+	return s, err
+}
+
+func NewTCPServer(port int, fn ...func(s *Server)) (*Server, error) {
+	s, err := NewServer(dial.TCPListenFunc(port), fn...)
+	if err == nil {
+		s.s.SetKey(fmt.Sprintf(":%d", port))
+	}
+	return s, err
 }
 
 // 获取请求地址

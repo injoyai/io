@@ -67,8 +67,7 @@ func (this *Message) SetData(data interface{}) *Message {
 }
 
 func (this *Message) String() string {
-	return fmt.Sprintf("连接标识:%s   消息类型:%s   请求地址:%s\n%s", this.Key, this.OperateType, this.Addr, string(this.GetData()))
-	return string(this.Bytes())
+	return fmt.Sprintf("标识:%s   类型:%s(%s)   地址:%s\n%s", this.Key, this.OperateType, this.ConnectType, this.Addr, string(this.GetData()))
 }
 
 func (this *Message) Bytes() []byte {
