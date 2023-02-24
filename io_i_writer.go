@@ -36,12 +36,15 @@ func (this *IWriter) LastTime() time.Time {
 }
 
 // Write 写入字节,实现io.Writer
-func (this *IWriter) Write(p []byte) (int, error) {
+func (this *IWriter) Write(p []byte) (num int, err error) {
 	this.Print(p, TagWrite, this.GetKey())
 	if this.writeFunc != nil {
-		p = this.writeFunc(p)
+		p, err = this.writeFunc(p)
+		if err != nil {
+			return 0, dealErr(err)
+		}
 	}
-	num, err := this.writer.Write(p)
+	num, err = this.writer.Write(p)
 	if err != nil {
 		return 0, dealErr(err)
 	}
@@ -99,8 +102,8 @@ func (this *IWriter) Copy(reader Reader) (int64, error) {
 
 //================================WriteFunc================================
 
-// SetWriteFunc 设置写入函数
-func (this *IWriter) SetWriteFunc(fn func(p []byte) []byte) {
+// SetWriteFunc 设置写入函数,封装数据包
+func (this *IWriter) SetWriteFunc(fn func(p []byte) ([]byte, error)) {
 	this.writeFunc = fn
 }
 
@@ -111,7 +114,7 @@ func (this *IWriter) SetWriteWithNil() {
 
 // SetWriteWithStartEnd 设置写入函数,增加头尾
 func (this *IWriter) SetWriteWithStartEnd(start, end []byte) {
-	this.writeFunc = func(p []byte) []byte {
-		return append(start, append(p, end...)...)
+	this.writeFunc = func(p []byte) ([]byte, error) {
+		return append(start, append(p, end...)...), nil
 	}
 }

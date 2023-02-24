@@ -14,42 +14,55 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 	ctxParent, cancelParent := context.WithCancel(ctx)
 	ctxChild, cancelChild := context.WithCancel(ctxParent)
 	return &ICloser{
-		IPrinter:     NewIPrinter(""),
-		closer:       closer,
-		redialFunc:   nil,
-		closeFunc:    nil,
-		closeErr:     nil,
-		closed:       0,
-		ctx:          ctxChild,
-		cancel:       cancelChild,
-		ctxParent:    ctxParent,
-		cancelParent: cancelParent,
+		IPrinter:      NewIPrinter(""),
+		closer:        closer,
+		redialFunc:    nil,
+		redialMaxTime: time.Second * 32,
+		closeFunc:     nil,
+		closeErr:      nil,
+		closed:        0,
+		ctx:           ctxChild,
+		cancel:        cancelChild,
+		ctxParent:     ctxParent,
+		cancelParent:  cancelParent,
 	}
 }
 
 type ICloser struct {
-	*IPrinter                       //打印
-	closer       Closer             //实例
-	redialFunc   DialFunc           //重连函数
-	closeFunc    CloseFunc          //关闭函数
-	closeErr     error              //错误信息
-	closed       uint32             //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
-	ctx          context.Context    //子级上下文
-	cancel       context.CancelFunc //子级上下文
-	ctxParent    context.Context    //父级上下文,主动关闭时,用于关闭redial
-	cancelParent context.CancelFunc //父级上下文,主动关闭时,用于关闭redial
+	*IPrinter                        //打印
+	closer        Closer             //实例
+	redialFunc    DialFunc           //重连函数
+	redialMaxTime time.Duration      //最大尝试退避重连时间
+	closeFunc     CloseFunc          //关闭函数
+	closeErr      error              //错误信息
+	closed        uint32             //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
+	ctx           context.Context    //子级上下文
+	cancel        context.CancelFunc //子级上下文
+	ctxParent     context.Context    //父级上下文,主动关闭时,用于关闭redial
+	cancelParent  context.CancelFunc //父级上下文,主动关闭时,用于关闭redial
 }
 
 //================================CloseFunc================================
 
 // SetCloseFunc 设置关闭函数
-func (this *ICloser) SetCloseFunc(fn func(ctx context.Context, msg Message)) {
+func (this *ICloser) SetCloseFunc(fn func(ctx context.Context, msg Message)) *ICloser {
 	this.closeFunc = fn
+	return this
 }
 
 // SetCloseWithNil 设置无关闭函数
-func (this *ICloser) SetCloseWithNil() {
+func (this *ICloser) SetCloseWithNil() *ICloser {
 	this.SetCloseFunc(nil)
+	return this
+}
+
+// SetRedialMaxTime 设置退避重试时间
+func (this *ICloser) SetRedialMaxTime(t time.Duration) *ICloser {
+	if t <= 0 {
+		t = time.Second * 32
+	}
+	this.redialMaxTime = t
+	return this
 }
 
 //================================RedialFunc================================
@@ -106,12 +119,12 @@ func (this *ICloser) CloseAll() error {
 	return this.CloseWithErr(ErrHandClose)
 }
 
-// Close 主动关闭,会重试
+// Close 主动关闭,会重试(如果设置了重连)
 func (this *ICloser) Close() error {
 	return this.CloseWithErr(ErrHandClose)
 }
 
-// CloseWithErr 根据错误关闭
+// CloseWithErr 根据错误关闭,会重试(如果设置了重连)
 func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 	if closeErr != nil {
 		if atomic.SwapUint32(&this.closed, 1) == 1 {
@@ -153,10 +166,11 @@ func (this *ICloser) Redial(ctx context.Context) ReadWriteCloser {
 				return readWriteCloser
 			}
 			this.Print(NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second), TagErr, this.GetKey())
-			if t < time.Second*32 {
-				t = 2 * t
-				timer.Reset(t)
+			t *= 2
+			if t > this.redialMaxTime {
+				t = this.redialMaxTime
 			}
+			timer.Reset(t)
 		}
 	}
 }

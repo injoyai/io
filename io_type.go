@@ -60,7 +60,7 @@ type DialFunc func() (ReadWriteCloser, error)
 type ReadFunc func(buf *bufio.Reader) ([]byte, error)
 
 // WriteFunc 写入函数
-type WriteFunc func(p []byte) []byte
+type WriteFunc func(p []byte) ([]byte, error)
 
 // DealFunc 数据处理函数
 type DealFunc func(msg Message)

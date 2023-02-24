@@ -103,6 +103,7 @@ func (this *IReadCloser) Running() bool {
 	return this.running == 1
 }
 
+// Run 开始运行数据读取
 func (this *IReadCloser) Run() error {
 
 	if atomic.SwapUint32(&this.running, 1) == 1 {
@@ -137,17 +138,18 @@ func (this *IReadCloser) Run() error {
 					}
 				}()
 				//读取数据
-				bytes, err := this.ReadMessage()
-				if err != nil || len(bytes) == 0 {
+				bs, err := this.ReadMessage()
+				if err != nil || len(bs) == 0 {
 					return err
 				}
+				//尝试加入通道,超时定时器重置
 				select {
 				case this.readChan <- struct{}{}:
 				default:
 				}
 				//处理数据
 				if this.dealFunc != nil {
-					this.dealFunc(bytes)
+					this.dealFunc(bs)
 				}
 				return
 			}())

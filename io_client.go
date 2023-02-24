@@ -43,6 +43,7 @@ func NewDialWithContext(ctx context.Context, dial DialFunc) (*Client, error) {
 }
 
 // NewClient 标准库io.ReadWriterCloser转*Client
+// 和隐性的MessageReadWriteCloser转*Client,后续1.18之后改成泛型
 func NewClient(i ReadWriteCloser) *Client {
 	return NewClientWithContext(context.Background(), i)
 }
@@ -72,14 +73,14 @@ type Client struct {
 	*IReadCloser
 	*IWriter
 
-	i          ReadWriteCloser //接口
-	tag        *maps.Safe      //标签
-	createTime time.Time       //创建时间,链接成功时间
+	i          ReadWriteCloser //接口,实例,传入的原始参数
+	tag        *maps.Safe      //标签,用于记录连接的一些信息
+	createTime time.Time       //创建时间
 }
 
 //================================Nature================================
 
-// ReadWriteCloser 读写接口
+// ReadWriteCloser 读写接口,实例,传入的原始参数
 func (this *Client) ReadWriteCloser() io.ReadWriteCloser {
 	return this.i
 }
@@ -94,7 +95,7 @@ func (this *Client) CreateTime() time.Time {
 	return this.createTime
 }
 
-// Tag 自定义信息
+// Tag 自定义信息,方便记录连接信息 例:c.Tag().GetString("imei")
 func (this *Client) Tag() *maps.Safe {
 	return this.tag
 }

@@ -64,12 +64,12 @@ type Server struct {
 	closeErr   error               //错误信息
 	clientMax  int                 //最大连接数
 
-	readFunc  buf.ReadFunc          //数据读取方法
-	closeFunc func(msg *IMessage)   //断开连接事件
-	writeFunc func(p []byte) []byte //数据发送函数,包装下原始数据
-	printFunc PrintFunc             //打印数据方法
-	running   uint32                //是否在运行
-	timeout   time.Duration         //超时时间,0是永久有效
+	readFunc  buf.ReadFunc        //数据读取方法
+	closeFunc func(msg *IMessage) //断开连接事件
+	writeFunc WriteFunc           //数据发送函数,包装下原始数据
+	printFunc PrintFunc           //打印数据方法
+	running   uint32              //是否在运行
+	timeout   time.Duration       //超时时间,0是永久有效
 }
 
 // Ctx 上下文
@@ -153,7 +153,7 @@ func (this *Server) SetReadWithAll() {
 }
 
 // SetWriteFunc 设置数据发送函数
-func (this *Server) SetWriteFunc(fn func([]byte) []byte) *Server {
+func (this *Server) SetWriteFunc(fn func([]byte) ([]byte, error)) *Server {
 	this.writeFunc = fn
 	return this
 }

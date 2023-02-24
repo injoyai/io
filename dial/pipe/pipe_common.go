@@ -25,10 +25,10 @@ func DefaultReadFunc(buf *bufio.Reader) ([]byte, error) {
 }
 
 // DefaultWriteFunc 默认使用base64编码
-func DefaultWriteFunc(req []byte) []byte {
+func DefaultWriteFunc(req []byte) ([]byte, error) {
 	req = []byte(base64.StdEncoding.EncodeToString(req))
 	req = append(append(defaultStart, req...), defaultEnd...)
-	return req
+	return req, nil
 }
 
 // DefaultDecode 默认数据解码
