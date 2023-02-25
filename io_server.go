@@ -17,10 +17,12 @@ func NewServer(newListen ListenFunc, fn ...func(s *Server)) (*Server, error) {
 }
 
 func NewServerWithContext(ctx context.Context, newListen func() (Listener, error), fn ...func(s *Server)) (*Server, error) {
+	//连接listener
 	listener, err := newListen()
 	if err != nil {
 		return nil, err
 	}
+	//新建实例
 	s := &Server{
 		IPrinter:   NewIPrinter(fmt.Sprintf("%p", listener)),
 		ICloser:    NewICloserWithContext(ctx, listener),
@@ -58,6 +60,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 			s.readChan <- data.(*IMessage)
 		}
 	})
+	//预设服务处理
 	for _, v := range fn {
 		v(s)
 	}
