@@ -32,17 +32,25 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		dealQueue:  chans.NewEntity(1, 1000),
 		readChan:   make(chan *IMessage),
 		closeFunc:  nil,
-		clientMax:  1000,
+		clientMax:  0,
 		beforeFunc: nil,
 		writeFunc:  nil,
 		printFunc:  PrintWithASCII,
 	}
+	//设置关闭函数
 	s.ICloser.SetCloseFunc(func(ctx context.Context, msg Message) {
+		//关闭listener
 		s.listener.Close()
+		//关闭已连接的客户端,关闭listener后,客户端还能正常通讯
 		s.CloseClientAll()
 	})
-	s.SetBeforeFunc(s._beforeFunc)
-	s.ctx, s.cancel = context.WithCancel(ctx)
+	//设置前置函数
+	s.SetBeforeFunc(func(c *Client) error {
+		//默认连接打印信息
+		s.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
+		return nil
+	})
+	//设置队列处理数据函数
 	s.dealQueue.SetHandler(func(no, num int, data interface{}) {
 		if s.dealFunc != nil {
 			s.dealFunc(data.(*IMessage))
@@ -50,7 +58,6 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 			s.readChan <- data.(*IMessage)
 		}
 	})
-	go s.timeoutFunc()
 	for _, v := range fn {
 		v(s)
 	}
@@ -62,7 +69,7 @@ type Server struct {
 	*IPrinter
 	*ICloser
 
-	listener   Listener
+	listener   Listener            //listener
 	clientMap  map[string]*Client  //链接集合,远程地址为key
 	clientMu   sync.RWMutex        //锁
 	clientMax  int                 //最大连接数
@@ -87,12 +94,6 @@ func (this *Server) SetMaxClient(max int) *Server {
 	return this
 }
 
-// SetDealQueueNum 设置数据处理队列协程数量,能加快处理速度
-func (this *Server) SetDealQueueNum(num int) *Server {
-	this.dealQueue.SetNum(num)
-	return this
-}
-
 // SetBeforeFunc 设置连接前置方法
 // 如果返回错误则关闭该连接,需要主动读取数据
 func (this *Server) SetBeforeFunc(fn func(c *Client) error) *Server {
@@ -103,6 +104,13 @@ func (this *Server) SetBeforeFunc(fn func(c *Client) error) *Server {
 // SetCloseFunc 设置断开连接事件
 func (this *Server) SetCloseFunc(fn func(msg *IMessage)) *Server {
 	this.closeFunc = fn
+	return this
+}
+
+// SetDealQueueNum 设置数据处理队列协程数量,并发处理
+// 例如处理方式是进行数据转发(或处理较慢)时,会出现阻塞,后续数据等待过长
+func (this *Server) SetDealQueueNum(n int) *Server {
+	this.dealQueue.SetNum(n)
 	return this
 }
 
@@ -310,9 +318,24 @@ func (this *Server) Run() error {
 
 	this.Print(NewMessage("开启服务成功..."), TagInfo, this.GetKey())
 
+	//执行超时机制
+	go func() {
+		for {
+			interval := conv.SelectDuration(this.timeout/3 > time.Second, this.timeout/3, time.Minute)
+			<-time.After(interval)
+			now := time.Now()
+			for _, v := range this.GetClientMap() {
+				if this.timeout > 0 && now.Sub(v.IReadCloser.LastTime()) > this.timeout {
+					_ = v.CloseWithErr(ErrWithReadTimeout)
+				}
+			}
+		}
+	}()
+
+	//执行监听连接
 	for {
 		select {
-		case <-this.ctx.Done():
+		case <-this.Done():
 			return this.closeErr
 		default:
 		}
@@ -324,7 +347,7 @@ func (this *Server) Run() error {
 		}
 
 		//判断是否到达最大连接数,禁止新连接
-		if len(this.clientMap) >= this.clientMax {
+		if this.clientMax > 0 && len(this.clientMap) >= this.clientMax {
 			c.Write([]byte(fmt.Sprintf("超过最大连接数(%d)", len(this.clientMap))))
 			c.Close()
 			continue
@@ -364,10 +387,13 @@ func (this *Server) Run() error {
 
 //================================Inside================================
 
-// _beforeFunc 默认前置函数
-func (this *Server) _beforeFunc(c *Client) error {
-	this.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
-	return nil
+// _dealFunc 处理数据
+func (this *Server) _dealFunc(msg *IMessage) {
+	select {
+	case <-this.Done():
+	default:
+		this.dealQueue.Do(msg)
+	}
 }
 
 // _closeFunc 删除连接
@@ -383,27 +409,4 @@ func (this *Server) _closeFunc(ctx context.Context, msg *IMessage) {
 		return
 	}
 	delete(this.clientMap, msg.GetKey())
-}
-
-// _dealFunc 处理数据
-func (this *Server) _dealFunc(msg *IMessage) {
-	select {
-	case <-this.ctx.Done():
-	default:
-		this.dealQueue.Do(msg)
-	}
-}
-
-// timeoutFunc 服务端超时机制,(客户端突然断电,服务端检测不出来)
-func (this *Server) timeoutFunc() {
-	for {
-		interval := conv.SelectDuration(this.timeout/3 > time.Second, this.timeout/3, time.Minute)
-		<-time.After(interval)
-		now := time.Now()
-		for _, v := range this.GetClientMap() {
-			if this.timeout > 0 && now.Sub(v.IReadCloser.LastTime()) > this.timeout {
-				_ = v.CloseWithErr(ErrWithReadTimeout)
-			}
-		}
-	}
 }
