@@ -93,7 +93,8 @@ func (this *Server) SetDealQueueNum(num int) *Server {
 	return this
 }
 
-// SetBeforeFunc 设置连接前置方法,连接数据还未监听
+// SetBeforeFunc 设置连接前置方法
+// 如果返回错误则关闭该连接,需要主动读取数据
 func (this *Server) SetBeforeFunc(fn func(c *Client) error) *Server {
 	this.beforeFunc = fn
 	return this
