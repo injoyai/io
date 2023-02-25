@@ -30,6 +30,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		readFunc:   buf.ReadWithAll,
 		dealFunc:   nil,
 		dealQueue:  chans.NewEntity(1, 1000),
+		readChan:   make(chan *IMessage),
 		closeFunc:  nil,
 		clientMax:  1000,
 		beforeFunc: nil,
@@ -45,6 +46,8 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	s.dealQueue.SetHandler(func(no, num int, data interface{}) {
 		if s.dealFunc != nil {
 			s.dealFunc(data.(*IMessage))
+		} else {
+			s.readChan <- data.(*IMessage)
 		}
 	})
 	go s.timeoutFunc()
@@ -66,6 +69,7 @@ type Server struct {
 	beforeFunc func(*Client) error //连接前置事件
 	dealFunc   func(msg *IMessage) //数据处理方法
 	dealQueue  *chans.Entity       //数据处理队列
+	readChan   chan *IMessage      //数据通道,dealFunc二选一
 
 	readFunc  buf.ReadFunc        //数据读取方法
 	closeFunc func(msg *IMessage) //断开连接事件
@@ -77,13 +81,13 @@ type Server struct {
 
 //================================SetFunc================================
 
-// SetMaxClient 设置最大连接数
+// SetMaxClient 设置最大连接数,超过最大连接数的连接会直接断开
 func (this *Server) SetMaxClient(max int) *Server {
 	this.clientMax = max
 	return this
 }
 
-// SetDealQueueNum 设置数据处理队列协程数量
+// SetDealQueueNum 设置数据处理队列协程数量,能加快处理速度
 func (this *Server) SetDealQueueNum(num int) *Server {
 	this.dealQueue.SetNum(num)
 	return this
@@ -104,6 +108,10 @@ func (this *Server) SetCloseFunc(fn func(msg *IMessage)) *Server {
 // SetDealFunc 设置处理数据方法
 func (this *Server) SetDealFunc(fn func(msg *IMessage)) *Server {
 	this.dealFunc = fn
+	select {
+	case <-this.readChan:
+	default:
+	}
 	return this
 }
 
@@ -159,7 +167,7 @@ func (this *Server) SetTimeout(t time.Duration) *Server {
 
 //================================Client================================
 
-// GetClient 获取一个客户端
+// GetClient 根据key获取一个客户端
 func (this *Server) GetClient(key string) *Client {
 	this.clientMu.RLock()
 	defer this.clientMu.RUnlock()
@@ -187,14 +195,26 @@ func (this *Server) GetClientMap() map[string]*Client {
 	return m
 }
 
-// GetClientCount 获取客户端数量
-func (this *Server) GetClientCount() int {
+// GetClientLen 获取客户端数量
+func (this *Server) GetClientLen() int {
 	return len(this.clientMap)
 }
 
-// Read todo
+// Read 无效,使用ReadMessage
 func (this *Server) Read(p []byte) (int, error) {
 	return 0, nil
+}
+
+// ReadMessage 读取数据,当未设置DealFunc时生效
+func (this *Server) ReadMessage() ([]byte, error) {
+	m := <-this.readChan
+	return m.Message, nil
+}
+
+// Write 给所有客户端发送数据,实现io.Writer接口
+func (this *Server) Write(p []byte) (int, error) {
+	this.WriteClientAll(p)
+	return len(p), nil
 }
 
 // WriteClient 给一个客户端发送数据
@@ -204,12 +224,6 @@ func (this *Server) WriteClient(key string, msg []byte) (exist bool, err error) 
 		_, err = c.Write(msg)
 	}
 	return
-}
-
-// Write 给所有客户端发送数据,实现io.Writer接口
-func (this *Server) Write(p []byte) (int, error) {
-	this.WriteClientAll(p)
-	return len(p), nil
 }
 
 // WriteClientAll 广播,发送数据给所有连接
@@ -251,7 +265,7 @@ func (this *Server) SetClientKey(newClient *Client, newKey string) {
 
 // GoFor 协程循环
 func (this *Server) GoFor(interval time.Duration, do func(s *Server)) {
-	this.ICloser.GoForParent(interval, func() error {
+	this.ICloser.GoFor(interval, func() error {
 		do(this)
 		return nil
 	})
@@ -259,63 +273,27 @@ func (this *Server) GoFor(interval time.Duration, do func(s *Server)) {
 
 // Swap 和一个IO交换数据
 func (this *Server) Swap(i ReadWriteCloser) *Server {
-	this.SwapWithReadFunc(i, buf.ReadWithAll)
-	return this
-}
-
-// SwapWithReadFunc 根据读取规则俩进行IO数据交换
-func (this *Server) SwapWithReadFunc(i ReadWriteCloser, readFunc buf.ReadFunc) {
 	c := NewClient(i)
-	c.SetReadFunc(readFunc)
-	this.SwapClient(c)
+	c.SetReadWithAll()
+	return this.SwapClient(c)
 }
 
 // SwapClient 和一个客户端交换数据
-func (this *Server) SwapClient(c *Client) {
+func (this *Server) SwapClient(c *Client) *Server {
 	this.SetDealWithWriter(c)
 	c.SetDealWithWriter(this)
 	go c.Run()
+	return this
 }
 
-// SwapServer 和另一个服务交换数据
-func (this *Server) SwapServer(s *Server) {
+// SwapServer 和另一个服务交换数据,客户端都的话存在数据重复发送客户端和速度瓶颈
+func (this *Server) SwapServer(s *Server) *Server {
 	this.SetDealWithWriter(s)
 	s.SetDealWithWriter(this)
+	return this
 }
 
 //================================RunTime================================
-
-//// Ctx 上下文
-//func (this *Server) Ctx() context.Context {
-//	return this.ctx
-//}
-//
-//// Done ctx.Done
-//func (this *Server) Done() <-chan struct{} {
-//	return this.Ctx().Done()
-//}
-//
-//// Close 关闭,实现io.Closer
-//func (this *Server) Close() error {
-//	return this.CloseWithErr(ErrHandClose)
-//}
-
-//// CloseWithErr 根据错误关闭
-//func (this *Server) CloseWithErr(err error) error {
-//	select {
-//	case <-this.Done():
-//	default:
-//		if err != nil {
-//			this.closeErr = err
-//			if this.cancel != nil {
-//				this.cancel()
-//			}
-//			this.listener.Close()
-//			this.CloseClientAll()
-//		}
-//	}
-//	return nil
-//}
 
 // Running 是否在运行
 func (this *Server) Running() bool {
@@ -346,12 +324,13 @@ func (this *Server) Run() error {
 
 		//判断是否到达最大连接数,禁止新连接
 		if len(this.clientMap) >= this.clientMax {
+			c.Write([]byte(fmt.Sprintf("超过最大连接数(%d)", len(this.clientMap))))
 			c.Close()
 			continue
 		}
 
 		//新建客户端,并配置
-		x := NewClientWithContext(this.ctx, c)
+		x := NewClientWithContext(this.Ctx(), c)
 		x.SetKey(key)                   //设置唯一标识符
 		x.Debug(this.GetDebug())        //调试模式
 		x.SetReadFunc(this.readFunc)    //读取数据方法
@@ -376,6 +355,7 @@ func (this *Server) Run() error {
 			this.clientMap[x.GetKey()] = x
 			this.clientMu.Unlock()
 			x.Run()
+
 		}(x)
 
 	}
@@ -383,13 +363,13 @@ func (this *Server) Run() error {
 
 //================================Inside================================
 
-// beforeFunc 默认前置函数
+// _beforeFunc 默认前置函数
 func (this *Server) _beforeFunc(c *Client) error {
 	this.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
 	return nil
 }
 
-// delConn 删除连接
+// _closeFunc 删除连接
 func (this *Server) _closeFunc(ctx context.Context, msg *IMessage) {
 	if this.closeFunc != nil {
 		defer this.closeFunc(msg)

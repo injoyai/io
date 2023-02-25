@@ -15,7 +15,7 @@ func NewIReader(r Reader) *IReader {
 		lastTime: time.Now(),
 	}
 	if v, ok := r.(MessageReader); ok {
-		i.MessageReader = v
+		i.mReader = v
 	} else {
 		i.buf = bufio.NewReader(r)
 	}
@@ -24,12 +24,12 @@ func NewIReader(r Reader) *IReader {
 }
 
 type IReader struct {
-	*IPrinter
-	MessageReader
-	buf      *bufio.Reader                       //buffer
-	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
-	lastChan chan Message                        //读取最新数据chan
-	lastTime time.Time                           //最后读取数据时间
+	*IPrinter                                     //
+	mReader   MessageReader                       //接口MessageReader,兼容Reader
+	buf       *bufio.Reader                       //buffer
+	readFunc  func(*bufio.Reader) ([]byte, error) //读取函数
+	lastChan  chan Message                        //读取最新数据chan
+	lastTime  time.Time                           //最后读取数据时间
 }
 
 //================================Nature================================
@@ -100,12 +100,12 @@ func (this *IReader) CopyTo(writer Writer) (int64, error) {
 //================================ReadFunc================================
 
 // SetReadFunc 设置读取函数
-func (this *IReader) SetReadFunc(fn buf.ReadFunc) {
+func (this *IReader) SetReadFunc(fn buf.ReadFunc) *IReader {
 	this.readFunc = func(reader *bufio.Reader) (bs []byte, err error) {
 		switch true {
-		case this.MessageReader != nil:
+		case this.mReader != nil:
 			//特殊处理MessageReader
-			bs, err = this.MessageReader.ReadMessage()
+			bs, err = this.mReader.ReadMessage()
 		case fn == nil:
 			//默认读取全部
 			bs, err = buf.ReadWithAll(reader)
@@ -129,16 +129,17 @@ func (this *IReader) SetReadFunc(fn buf.ReadFunc) {
 		}
 		return bs, nil
 	}
+	return this
 }
 
 // SetReadWithAll 一次性全部读取
-func (this *IReader) SetReadWithAll() {
-	this.SetReadFunc(buf.ReadWithAll)
+func (this *IReader) SetReadWithAll() *IReader {
+	return this.SetReadFunc(buf.ReadWithAll)
 }
 
 // SetReadWithKB 读取固定字节长度
-func (this *IReader) SetReadWithKB(n uint) {
-	this.SetReadFunc(func(buf *bufio.Reader) ([]byte, error) {
+func (this *IReader) SetReadWithKB(n uint) *IReader {
+	return this.SetReadFunc(func(buf *bufio.Reader) ([]byte, error) {
 		bytes := make([]byte, n<<10)
 		length, err := buf.Read(bytes)
 		return bytes[:length], err
@@ -146,26 +147,26 @@ func (this *IReader) SetReadWithKB(n uint) {
 }
 
 // SetReadWithStartEnd 设置根据包头包尾读取数据
-func (this *IReader) SetReadWithStartEnd(packageStart, packageEnd []byte) {
-	this.SetReadFunc(buf.NewReadWithStartEnd(packageStart, packageEnd))
+func (this *IReader) SetReadWithStartEnd(packageStart, packageEnd []byte) *IReader {
+	return this.SetReadFunc(buf.NewReadWithStartEnd(packageStart, packageEnd))
 }
 
 // SetReadWithWriter same io.Copy 注意不能设置读取超时
-func (this *IReader) SetReadWithWriter(writer io.Writer) {
-	this.SetReadFunc(buf.NewReadWithWriter(writer))
+func (this *IReader) SetReadWithWriter(writer io.Writer) *IReader {
+	return this.SetReadFunc(buf.NewReadWithWriter(writer))
 }
 
 // SetReadWithLenFrame 根据动态长度读取数据
-func (this *IReader) SetReadWithLenFrame(f *buf.LenFrame) {
-	this.SetReadFunc(buf.NewReadWithLen(f))
+func (this *IReader) SetReadWithLenFrame(f *buf.LenFrame) *IReader {
+	return this.SetReadFunc(buf.NewReadWithLen(f))
 }
 
 // SetReadWithTimeout 根据超时时间读取数据(需要及时读取,避免阻塞产生粘包)
-func (this *IReader) SetReadWithTimeout(timeout time.Duration) {
-	this.SetReadFunc(buf.NewReadWithTimeout(timeout))
+func (this *IReader) SetReadWithTimeout(timeout time.Duration) *IReader {
+	return this.SetReadFunc(buf.NewReadWithTimeout(timeout))
 }
 
 // SetReadWithFrame 适配预大部分读取
-func (this *IReader) SetReadWithFrame(f *buf.Frame) {
-	this.SetReadFunc(buf.NewReadWithFrame(f))
+func (this *IReader) SetReadWithFrame(f *buf.Frame) *IReader {
+	return this.SetReadFunc(buf.NewReadWithFrame(f))
 }

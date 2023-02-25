@@ -147,8 +147,11 @@ func (this *ICloser) Closed() bool {
 
 // CloseAll 主动关闭,不会重试
 func (this *ICloser) CloseAll() error {
+	//关闭重试函数
 	this.SetCloseWithNil()
+	//关闭父级上下文
 	this.cancelParent()
+	//关闭子级
 	return this.CloseWithErr(ErrHandClose)
 }
 
