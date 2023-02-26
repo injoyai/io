@@ -45,3 +45,7 @@ func TestTimeoutServer(t *testing.T) {
 func TestGoFor(t *testing.T) {
 	t.Log(GoFor(10089))
 }
+
+func TestServerMaxClient(t *testing.T) {
+	t.Log(ServerMaxClient(10089))
+}

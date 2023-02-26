@@ -67,7 +67,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	return s, nil
 }
 
-// Server todo 整体待优化
+// Server 服务端
 type Server struct {
 	*IPrinter
 	*ICloser
@@ -86,7 +86,7 @@ type Server struct {
 	writeFunc WriteFunc           //数据发送函数,包装下原始数据
 	printFunc PrintFunc           //打印数据方法
 	running   uint32              //是否在运行
-	timeout   time.Duration       //超时时间,0是永久有效
+	timeout   time.Duration       //超时时间,小于0是不超时
 }
 
 //================================SetFunc================================
@@ -339,14 +339,14 @@ func (this *Server) Run() error {
 	for {
 		select {
 		case <-this.Done():
-			return this.closeErr
+			return this.Err()
 		default:
 		}
 
 		c, key, err := this.listener.Accept()
 		if err != nil {
 			this.CloseWithErr(err)
-			return this.closeErr
+			return err
 		}
 
 		//判断是否到达最大连接数,禁止新连接
@@ -370,11 +370,9 @@ func (this *Server) Run() error {
 		go func(x *Client) {
 
 			//前置操作,例如等待注册数据,不符合的返回错误则关闭连接
-			if this.beforeFunc != nil {
-				if err := this.beforeFunc(x); err != nil {
-					_ = c.Close()
-					return
-				}
+			if this.beforeFunc != nil && this.beforeFunc(x) != nil {
+				_ = c.Close()
+				return
 			}
 
 			//加入map 进行管理
@@ -395,6 +393,7 @@ func (this *Server) _dealFunc(msg *IMessage) {
 	select {
 	case <-this.Done():
 	default:
+		//加入消费队列
 		this.dealQueue.Do(msg)
 	}
 }
@@ -406,9 +405,10 @@ func (this *Server) _closeFunc(ctx context.Context, msg *IMessage) {
 	}
 	this.clientMu.Lock()
 	defer this.clientMu.Unlock()
+	//获取老的连接
 	oldConn := this.clientMap[msg.GetKey()]
+	//存在新连接上来被关闭的情况,判断是否是老的连接
 	if oldConn == nil || oldConn.Pointer() != msg.Pointer() {
-		//存在新连接上来被关闭的情况,判断是否是老的连接
 		return
 	}
 	delete(this.clientMap, msg.GetKey())

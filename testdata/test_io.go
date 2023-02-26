@@ -114,6 +114,7 @@ func TimeoutServer(port int, timeout time.Duration) error {
 	return s.Run()
 }
 
+// GoFor 测试客户端的GoFor函数
 func GoFor(port int) error {
 	s, err := dial.NewTCPServer(port, func(s *io.Server) {
 		s.Debug()
@@ -133,5 +134,23 @@ func GoFor(port int) error {
 		c.Close()
 		return nil
 	})
+	return s.Run()
+}
+
+// ServerMaxClient 测试服务端最大连接数
+func ServerMaxClient(port int) error {
+	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+		s.Debug()
+		s.SetMaxClient(1)
+	})
+	if err != nil {
+		return err
+	}
+	for i := 0; i < 2; i++ {
+		dial.RedialTCP(fmt.Sprintf(":%d", port), func(ctx context.Context, c *io.Client) {
+			c.Debug()
+			c.SetKeepAlive(time.Second)
+		})
+	}
 	return s.Run()
 }
