@@ -12,6 +12,9 @@ func TestNewWebsocket(t *testing.T) {
 		"Sec-WebSocket-Protocol": {"BFEBFBFF000906ED"},
 	}, func(ctx context.Context, c *io.Client) {
 		c.Debug()
+		c.SetDealQueueFunc(10, func(msg io.Message) {
+			t.Log(msg)
+		})
 	})
 	select {}
 }

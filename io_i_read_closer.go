@@ -2,6 +2,7 @@ package io
 
 import (
 	"context"
+	"github.com/injoyai/base/chans"
 	"sync/atomic"
 	"time"
 )
@@ -32,6 +33,7 @@ type IReadCloser struct {
 	running  uint32        //是否在运行
 	timeout  time.Duration //超时时间
 	readSign chan struct{} //读取到数据信号,配合超时机制使用
+	queue    *chans.Entity //协程队列,可选
 }
 
 //================================Nature================================
@@ -93,6 +95,23 @@ func (this *IReadCloser) SetDealWithChan(c chan Message) *IReadCloser {
 	return this.SetDealFunc(func(msg Message) {
 		c <- msg
 	})
+}
+
+// SetDealQueueFunc 设置协程队列处理数据
+// @num 协程数量
+// @no 协程序号
+// @count 当前协程执行次数
+// @msg 消息内容
+func (this *IReadCloser) SetDealQueueFunc(num int, fn func(msg Message)) *IReadCloser {
+	if this.queue == nil {
+		this.queue = chans.NewEntity(num).SetHandler(func(no, count int, data interface{}) {
+			fn(data.(Message))
+		})
+	} else {
+		this.queue.SetNum(num)
+	}
+	this.SetDealFunc(func(msg Message) { this.queue.Do(msg) })
+	return this
 }
 
 //================================RunTime================================
