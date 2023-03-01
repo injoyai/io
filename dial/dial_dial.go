@@ -9,6 +9,7 @@ import (
 	"github.com/injoyai/io"
 	"net"
 	"net/http"
+	gourl "net/url"
 	"os"
 )
 
@@ -218,14 +219,24 @@ func WebsocketFunc(url string, header http.Header) func() (io.ReadWriteCloser, e
 func NewWebsocket(url string, header http.Header) (*io.Client, error) {
 	c, err := io.NewDial(WebsocketFunc(url, header))
 	if err == nil {
-		c.SetKey(url)
+		c.SetKey(func() string {
+			if u, err := gourl.Parse(url); err == nil {
+				return u.Path
+			}
+			return url
+		}())
 	}
 	return c, err
 }
 
 func RedialWebsocket(url string, header http.Header, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
 	return io.Redial(WebsocketFunc(url, header), func(ctx context.Context, c *io.Client) {
-		c.SetKey(url)
+		c.SetKey(func() string {
+			if u, err := gourl.Parse(url); err == nil {
+				return u.Path
+			}
+			return url
+		}())
 		for _, v := range fn {
 			v(ctx, c)
 		}
@@ -236,6 +247,7 @@ type _websocket struct {
 	*websocket.Conn
 }
 
+// Read 无效,请使用ReadMessage
 func (this *_websocket) Read(p []byte) (int, error) {
 	return 0, nil
 }

@@ -12,7 +12,7 @@ func TestRedial(t *testing.T) {
 	addr := ":10089"
 	RedialTCP(addr, func(ctx context.Context, c *io.Client) {
 		c.Debug()
-		c.GoForWriter(time.Second*3, func(c *io.IWriter) error {
+		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")
 			return err
 		})

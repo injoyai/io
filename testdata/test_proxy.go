@@ -15,7 +15,7 @@ func TestProxy() error {
 
 	go proxy.SwapTCPClient(":10089", func(ctx context.Context, c *io.Client, e *proxy.Entity) {
 		c.Debug()
-		c.GoForWriter(time.Second*3, func(c *io.IWriter) error {
+		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
 			e.Proxy(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
 			return nil
 		})

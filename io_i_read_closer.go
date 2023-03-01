@@ -2,7 +2,6 @@ package io
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -126,33 +125,22 @@ func (this *IReadCloser) Run() error {
 		}()
 	}
 
-	for {
-		select {
-		case <-this.Done():
-			return this.Err()
-		default:
-			_ = this.CloseWithErr(func() (err error) {
-				defer func() {
-					if e := recover(); e != nil {
-						err = fmt.Errorf("%v", e)
-					}
-				}()
-				//读取数据
-				bs, err := this.ReadMessage()
-				if err != nil || len(bs) == 0 {
-					return err
-				}
-				//尝试加入通道,超时定时器重置
-				select {
-				case this.readSign <- struct{}{}:
-				default:
-				}
-				//处理数据
-				if this.dealFunc != nil {
-					this.dealFunc(bs)
-				}
-				return
-			}())
+	return this.For(func() (err error) {
+		//读取数据
+		bs, err := this.ReadMessage()
+		if err != nil || len(bs) == 0 {
+			return err
 		}
-	}
+		//尝试加入通道,超时定时器重置
+		select {
+		case this.readSign <- struct{}{}:
+		default:
+		}
+		//处理数据
+		if this.dealFunc != nil {
+			this.dealFunc(bs)
+		}
+		return nil
+	})
+
 }

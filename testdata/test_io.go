@@ -124,12 +124,12 @@ func GoFor(port int) error {
 	}
 	c := dial.RedialTCP(fmt.Sprintf(":%d", port), func(ctx context.Context, c *io.Client) {
 		c.Debug()
-		c.GoForWriter(time.Second*3, func(c *io.IWriter) error {
+		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")
 			return err
 		})
 	})
-	c.GoFor(time.Second*5, func(c *io.Client) error {
+	c.GoTimer(time.Second*5, func(c *io.Client) error {
 		logs.Debug(777)
 		c.Close()
 		return nil

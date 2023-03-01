@@ -132,16 +132,16 @@ func (this *Client) WriteRead(request []byte) (response []byte, err error) {
 	return this.WriteReadWithTimeout(request, 0)
 }
 
-// GoForWriter 协程执行周期写入数据,生命周期(一次链接,单次连接断开)
-func (this *Client) GoForWriter(interval time.Duration, write func(c *IWriter) error) {
-	this.ICloser.GoFor(interval, func() error {
+// GoTimerWriter 协程,定时写入数据,生命周期(一次链接,单次连接断开)
+func (this *Client) GoTimerWriter(interval time.Duration, write func(c *IWriter) error) {
+	this.ICloser.GoTimer(interval, func() error {
 		return write(this.IWriter)
 	})
 }
 
-// GoFor 协程执行周期,生命周期(客户端关闭,除非主动或上下文关闭),待测试
-func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
-	this.ICloser.GoForParent(interval, func() error {
+// GoTimer 协程,定时器执行函数,生命周期(客户端关闭,除非主动或上下文关闭)
+func (this *Client) GoTimer(interval time.Duration, fn func(c *Client) error) {
+	this.ICloser.GoTimerParent(interval, func() error {
 		return fn(this)
 	})
 }
@@ -149,7 +149,7 @@ func (this *Client) GoFor(interval time.Duration, fn func(c *Client) error) {
 // SetKeepAlive 设置连接保持,另外起了携程,服务器不需要,客户端再起一个也没啥问题
 // TCP keepalive定义于RFC 1122，但并不是TCP规范中的一部分,默认必需是关闭,连接方不一定支持
 func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
-	this.GoForWriter(t, func(c *IWriter) error {
+	this.GoTimerWriter(t, func(c *IWriter) error {
 		keep := conv.GetDefaultBytes([]byte(Ping), keeps...)
 		_, err := c.Write(keep)
 		return err

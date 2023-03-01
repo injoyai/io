@@ -277,7 +277,7 @@ func (this *Server) SetClientKey(newClient *Client, newKey string) {
 
 // GoFor 协程循环
 func (this *Server) GoFor(interval time.Duration, do func(s *Server)) {
-	this.ICloser.GoFor(interval, func() error {
+	this.ICloser.GoTimer(interval, func() error {
 		do(this)
 		return nil
 	})

@@ -2,6 +2,7 @@ package io
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -81,34 +82,62 @@ func (this *ICloser) SetRedialWithNil() *ICloser {
 
 //================================GoFor================================
 
-// GoForParent 协程执行周期,生命周期(客户端关闭,除非主动或上下文关闭),待测试
-func (this *ICloser) GoForParent(interval time.Duration, fn func() error) {
-	this.goFor(this.ParentCtx(), func(err error) error { return this.CloseAll() }, interval, fn)
+// GoTimerParent 协程,定时器执行函数,生命周期(客户端关闭,除非主动或上下文关闭)
+func (this *ICloser) GoTimerParent(interval time.Duration, fn func() error) {
+	go this.TimerParent(interval, fn)
 }
 
-// GoFor 协程执行周期写入数据,生命周期(一次链接,单次连接断开)
-func (this *ICloser) GoFor(interval time.Duration, fn func() error) {
-	this.goFor(this.Ctx(), this.CloseWithErr, interval, fn)
+// TimerParent 协程,定时器执行函数,生命周期(客户端关闭,除非主动或上下文关闭)
+func (this *ICloser) TimerParent(interval time.Duration, fn func() error) {
+	this.timer(this.ParentCtx(), func(err error) error { return this.CloseAll() }, interval, fn)
 }
 
-func (this *ICloser) goFor(ctx context.Context, dealErr func(error) error, interval time.Duration, fn func() error) {
+// GoTimer 协程,定时器执行函数,生命周期(一次链接,单次连接断开)
+func (this *ICloser) GoTimer(interval time.Duration, fn func() error) {
+	go this.Timer(interval, fn)
+}
+
+// Timer 定时器执行函数,直到错误
+func (this *ICloser) Timer(interval time.Duration, fn func() error) {
+	this.timer(this.Ctx(), this.CloseWithErr, interval, fn)
+}
+
+// timer 定时器
+func (this *ICloser) timer(ctx context.Context, dealErr func(error) error, interval time.Duration, fn func() error) {
 	if interval > 0 {
-		go func() {
-			timer := time.NewTimer(interval)
-			defer timer.Stop()
-			for {
-				timer.Reset(interval)
-				select {
-				case <-ctx.Done():
+		timer := time.NewTimer(interval)
+		defer timer.Stop()
+		for {
+			timer.Reset(interval)
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				if err := fn(); err != nil {
+					_ = dealErr(err)
 					return
-				case <-timer.C:
-					if err := fn(); err != nil {
-						_ = dealErr(err)
-						return
-					}
 				}
 			}
-		}()
+		}
+	}
+}
+
+// For 循环执行,无定时等待
+func (this *ICloser) For(fn func() error) (err error) {
+	for {
+		select {
+		case <-this.Done():
+			return this.Err()
+		default:
+			_ = this.CloseWithErr(func() (err error) {
+				defer func() {
+					if e := recover(); e != nil {
+						err = fmt.Errorf("%v", e)
+					}
+				}()
+				return fn()
+			}())
+		}
 	}
 }
 
