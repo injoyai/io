@@ -82,12 +82,12 @@ func (this *ICloser) SetRedialWithNil() *ICloser {
 
 //================================GoFor================================
 
-// GoTimerParent 协程,定时器执行函数,生命周期(客户端关闭,除非主动或上下文关闭)
+// GoTimerParent 协程,定时器执行函数,生命周期(客户端关闭,CloseAll或上下文关闭)
 func (this *ICloser) GoTimerParent(interval time.Duration, fn func() error) {
 	go this.TimerParent(interval, fn)
 }
 
-// TimerParent 协程,定时器执行函数,生命周期(客户端关闭,除非主动或上下文关闭)
+// TimerParent 协程,定时器执行函数,生命周期(客户端关闭,CloseAll或上下文关闭)
 func (this *ICloser) TimerParent(interval time.Duration, fn func() error) {
 	this.timer(this.ParentCtx(), func(err error) error { return this.CloseAll() }, interval, fn)
 }
@@ -122,7 +122,7 @@ func (this *ICloser) timer(ctx context.Context, dealErr func(error) error, inter
 	}
 }
 
-// For 循环执行,无定时等待
+// For 循环执行
 func (this *ICloser) For(fn func() error) (err error) {
 	for {
 		select {
@@ -143,12 +143,12 @@ func (this *ICloser) For(fn func() error) (err error) {
 
 //================================RunTime================================
 
-// ParentCtx 父级上下文
+// ParentCtx 父级上下文(客户端)
 func (this *ICloser) ParentCtx() context.Context {
 	return this.ctxParent
 }
 
-// Ctx 子级上下文
+// Ctx 子级上下文,生命周期(单次连接)
 func (this *ICloser) Ctx() context.Context {
 	return this.ctx
 }

@@ -139,7 +139,7 @@ func (this *Client) GoTimerWriter(interval time.Duration, write func(c *IWriter)
 	})
 }
 
-// GoTimer 协程,定时器执行函数,生命周期(客户端关闭,除非主动或上下文关闭)
+// GoTimer 协程,定时器执行函数,生命周期(客户端关闭,CloseAll或上下文关闭)
 func (this *Client) GoTimer(interval time.Duration, fn func(c *Client) error) {
 	this.ICloser.GoTimerParent(interval, func() error {
 		return fn(this)
@@ -158,7 +158,7 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 
 //================================SetFunc================================
 
-// SetDealFunc 设置处理数据函数
+// SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
 func (this *Client) SetDealFunc(fn func(msg *IMessage)) {
 	this.IReadCloser.SetDealFunc(func(msg Message) {
 		switch msg.String() {
