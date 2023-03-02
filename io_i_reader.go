@@ -10,7 +10,7 @@ import (
 // NewIReader 新建IReader,默认读取函数ReadAll
 func NewIReader(r Reader) *IReader {
 	i := &IReader{
-		IPrinter: NewIPrinter(""),
+		printer:  newPrinter(""),
 		lastChan: make(chan Message),
 		lastTime: time.Now(),
 	}
@@ -24,12 +24,12 @@ func NewIReader(r Reader) *IReader {
 }
 
 type IReader struct {
-	*IPrinter                                     //
-	mReader   MessageReader                       //接口MessageReader,兼容Reader
-	buf       *bufio.Reader                       //buffer
-	readFunc  func(*bufio.Reader) ([]byte, error) //读取函数
-	lastChan  chan Message                        //读取最新数据chan
-	lastTime  time.Time                           //最后读取数据时间
+	*printer                                     //
+	mReader  MessageReader                       //接口MessageReader,兼容Reader
+	buf      *bufio.Reader                       //buffer
+	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
+	lastChan chan Message                        //读取最新数据chan
+	lastTime time.Time                           //最后读取数据时间
 }
 
 //================================Nature================================
@@ -125,7 +125,7 @@ func (this *IReader) SetReadFunc(fn buf.ReadFunc) *IReader {
 			default:
 			}
 			//打印日志
-			this.IPrinter.Print(bs, TagRead, this.GetKey())
+			this.Print(bs, TagRead, this.GetKey())
 		}
 		return bs, nil
 	}

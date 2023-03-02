@@ -15,7 +15,7 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 	ctxParent, cancelParent := context.WithCancel(ctx)
 	ctxChild, cancelChild := context.WithCancel(ctxParent)
 	return &ICloser{
-		IPrinter:      NewIPrinter(""),
+		printer:       newPrinter(""),
 		closer:        closer,
 		redialFunc:    nil,
 		redialMaxTime: time.Second * 32,
@@ -30,7 +30,7 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 }
 
 type ICloser struct {
-	*IPrinter                        //打印
+	*printer                         //打印
 	closer        Closer             //实例
 	redialFunc    DialFunc           //重连函数
 	redialMaxTime time.Duration      //最大尝试退避重连时间
@@ -148,6 +148,10 @@ func (this *ICloser) ParentCtx() context.Context {
 	return this.ctxParent
 }
 
+func (this *ICloser) DoneAll() <-chan struct{} {
+	return this.ParentCtx().Done()
+}
+
 // Ctx 子级上下文,生命周期(单次连接)
 func (this *ICloser) Ctx() context.Context {
 	return this.ctx
@@ -155,7 +159,7 @@ func (this *ICloser) Ctx() context.Context {
 
 // Done 结束,关闭信号,一定有错误
 func (this *ICloser) Done() <-chan struct{} {
-	return this.ctx.Done()
+	return this.Ctx().Done()
 }
 
 // Err 错误信息
@@ -166,7 +170,7 @@ func (this *ICloser) Err() error {
 // Closed 是否已关闭
 func (this *ICloser) Closed() bool {
 	select {
-	case <-this.Ctx().Done():
+	case <-this.Done():
 		//确保错误信息closeErr已经赋值,不用this.closed==1
 		return true
 	default:
@@ -192,6 +196,7 @@ func (this *ICloser) Close() error {
 // CloseWithErr 根据错误关闭,会重试(如果设置了重连)
 func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 	if closeErr != nil {
+		//原子判断是否执行过
 		if atomic.SwapUint32(&this.closed, 1) == 1 {
 			return
 		}
@@ -201,11 +206,14 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 		this.cancel()
 		//关闭实例
 		err = this.closer.Close()
+		//生成错误信息
 		msg := NewMessage(this.closeErr.Error())
-		this.IPrinter.Print(msg, TagErr, this.GetKey())
+		//打印错误信息
+		this.printer.Print(msg, TagErr, this.GetKey())
+		//执行用户设置的错误函数
 		if this.closeFunc != nil {
-			//需要最后执行,防止后续操作无法执行
-			defer this.closeFunc(this.ParentCtx(), msg)
+			//需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
+			this.closeFunc(this.ctxParent, msg)
 		}
 	}
 	return

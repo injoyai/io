@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"context"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"testing"
@@ -8,7 +9,16 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	t.Log(NewClient(":10089"))
+	io.Redial(dial.TCPFunc(":10089"), func(ctx context.Context, c *io.Client) {
+		c.Debug()
+		c.SetPrintWithASCII()
+		c.SetKey("test")
+		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
+			_, err := c.WriteString("666")
+			return err
+		})
+	})
+	select {}
 }
 
 func TestNewServer(t *testing.T) {
@@ -27,11 +37,6 @@ func TestNewServer(t *testing.T) {
 
 func TestCloseAll(t *testing.T) {
 	t.Log(CloseAll(10089))
-}
-
-func TestClientRun(t *testing.T) {
-	ClientRun(":10089")
-
 }
 
 func TestTimeoutClient(t *testing.T) {

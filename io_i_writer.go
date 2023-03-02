@@ -13,7 +13,7 @@ func NewWriter(writer Writer) *IWriter {
 		return c
 	}
 	return &IWriter{
-		IPrinter:  NewIPrinter(""),
+		printer:   newPrinter(""),
 		writer:    writer,
 		writeFunc: nil,
 		lastTime:  time.Time{},
@@ -22,7 +22,7 @@ func NewWriter(writer Writer) *IWriter {
 
 // IWriter 写
 type IWriter struct {
-	*IPrinter           //打印
+	*printer            //打印
 	writer    Writer    //io.Writer
 	writeFunc WriteFunc //写入函数
 	lastTime  time.Time //最后写入时间

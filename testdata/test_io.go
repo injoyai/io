@@ -71,8 +71,8 @@ func CloseAll(port int) error {
 	return nil
 }
 
-func ClientRun(addr string) {
-	io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
+func ClientRun(addr string) *io.Client {
+	return io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
 		c.Debug()
 		c.SetPrintWithASCII()
 		c.SetKey("test")

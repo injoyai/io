@@ -6,58 +6,58 @@ import (
 	"strings"
 )
 
-func NewIPrinter(key string) *IPrinter {
-	cp := &IPrinter{}
+func newPrinter(key string) *printer {
+	cp := &printer{}
 	cp.SetKey(key)
 	cp.SetPrintWithASCII()
 	return cp
 }
 
-type IPrinter struct {
+type printer struct {
 	key       string
 	debug     bool
 	printFunc PrintFunc
 }
 
 // SetKey 设置唯一标识
-func (this *IPrinter) SetKey(key string) {
+func (this *printer) SetKey(key string) {
 	this.key = key
 }
 
 // GetKey 获取唯一标识
-func (this *IPrinter) GetKey() string {
+func (this *printer) GetKey() string {
 	return this.key
 }
 
 // SetPrintFunc 设置打印函数
-func (this *IPrinter) SetPrintFunc(fn PrintFunc) {
+func (this *printer) SetPrintFunc(fn PrintFunc) {
 	this.printFunc = fn
 }
 
 // SetPrintWithHEX 设置打印HEX
-func (this *IPrinter) SetPrintWithHEX() {
+func (this *printer) SetPrintWithHEX() {
 	this.printFunc = PrintWithHEX
 }
 
 // SetPrintWithASCII 设置打印ASCII
-func (this *IPrinter) SetPrintWithASCII() {
+func (this *printer) SetPrintWithASCII() {
 	this.printFunc = PrintWithASCII
 }
 
 // Print 打印输出
-func (this *IPrinter) Print(msg Message, tag ...string) {
+func (this *printer) Print(msg Message, tag ...string) {
 	if this.debug && this.printFunc != nil {
 		this.printFunc(msg, tag...)
 	}
 }
 
 // Debug 调试模式
-func (this *IPrinter) Debug(b ...bool) {
+func (this *printer) Debug(b ...bool) {
 	this.debug = !(len(b) > 0 && !b[0])
 }
 
 // GetDebug 获取调试
-func (this *IPrinter) GetDebug() bool {
+func (this *printer) GetDebug() bool {
 	return this.debug
 }
 

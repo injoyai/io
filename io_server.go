@@ -24,7 +24,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	}
 	//新建实例
 	s := &Server{
-		IPrinter:   NewIPrinter(fmt.Sprintf("%p", listener)),
+		printer:    newPrinter(fmt.Sprintf("%p", listener)),
 		ICloser:    NewICloserWithContext(ctx, listener),
 		listener:   listener,
 		clientMap:  make(map[string]*Client),
@@ -69,7 +69,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 
 // Server 服务端
 type Server struct {
-	*IPrinter
+	*printer
 	*ICloser
 
 	listener   Listener            //listener
@@ -154,7 +154,7 @@ func (this *Server) SetWriteFunc(fn func([]byte) ([]byte, error)) *Server {
 
 // SetPrintFunc 设置打印方式
 func (this *Server) SetPrintFunc(fn PrintFunc) *Server {
-	this.IPrinter.SetPrintFunc(fn)
+	this.printer.SetPrintFunc(fn)
 	this.printFunc = fn
 	return this
 }
