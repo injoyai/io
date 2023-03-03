@@ -134,15 +134,8 @@ func (this *Client) WriteRead(request []byte) (response []byte, err error) {
 
 // GoTimerWriter 协程,定时写入数据,生命周期(一次链接,单次连接断开)
 func (this *Client) GoTimerWriter(interval time.Duration, write func(c *IWriter) error) {
-	this.ICloser.GoTimer(interval, func() error {
+	go this.ICloser.Timer(interval, func() error {
 		return write(this.IWriter)
-	})
-}
-
-// GoTimer 协程,定时器执行函数,生命周期(客户端关闭,CloseAll或上下文关闭)
-func (this *Client) GoTimer(interval time.Duration, fn func(c *Client) error) {
-	this.ICloser.GoTimerParent(interval, func() error {
-		return fn(this)
 	})
 }
 

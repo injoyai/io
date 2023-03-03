@@ -110,7 +110,7 @@ func TimeoutServer(port int, timeout time.Duration) error {
 		return err
 	}
 	s.Debug()
-	s.SetTimeout(time.Second * 5)
+	s.SetTimeout(timeout)
 	return s.Run()
 }
 
@@ -129,11 +129,12 @@ func GoFor(port int) error {
 			return err
 		})
 	})
-	c.GoTimer(time.Second*5, func(c *io.Client) error {
-		logs.Debug(777)
-		c.Close()
-		return nil
-	})
+	_ = c
+	//c.GoTimer(time.Second*5, func(c *io.Client) error {
+	//	logs.Debug(777)
+	//	c.Close()
+	//	return nil
+	//})
 	return s.Run()
 }
 
@@ -153,4 +154,38 @@ func ServerMaxClient(port int) error {
 		})
 	}
 	return s.Run()
+}
+
+// ClientCtxParent 测试ctxAll
+func ClientCtxParent(port int) error {
+	s, err := io.NewServer(dial.TCPListenFunc(port))
+	if err != nil {
+		return err
+	}
+	<-time.After(time.Second * 5)
+	go s.Run()
+	c := io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
+		func(ctx context.Context, c *io.Client) {
+			c.Debug()
+			c.GoTimerWriter(time.Second, func(c *io.IWriter) error {
+				_, err := c.WriteString("666")
+				return err
+			})
+		})
+	//c.GoTimer(time.Second, func(c *io.Client) error {
+	//	logs.Debug(777)
+	//	return nil
+	//})
+	go func() {
+		<-time.After(time.Second * 5)
+		//断开客户端
+		logs.Debug("断开客户端")
+		s.CloseClientAll()
+		//等待客户端重连
+		<-time.After(time.Second * 5)
+		logs.Debug("关闭客户端")
+		c.CloseAll()
+	}()
+	select {}
+	return nil
 }

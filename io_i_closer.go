@@ -13,7 +13,7 @@ func NewICloser(closer Closer) *ICloser {
 
 func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 	ctxParent, cancelParent := context.WithCancel(ctx)
-	ctxChild, cancelChild := context.WithCancel(ctxParent)
+	ctx, cancel := context.WithCancel(ctxParent)
 	return &ICloser{
 		printer:       newPrinter(""),
 		closer:        closer,
@@ -22,8 +22,8 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 		closeFunc:     nil,
 		closeErr:      nil,
 		closed:        0,
-		ctx:           ctxChild,
-		cancel:        cancelChild,
+		ctx:           ctx,
+		cancel:        cancel,
 		ctxParent:     ctxParent,
 		cancelParent:  cancelParent,
 	}
@@ -82,21 +82,6 @@ func (this *ICloser) SetRedialWithNil() *ICloser {
 
 //================================GoFor================================
 
-// GoTimerParent 协程,定时器执行函数,生命周期(客户端关闭,CloseAll或上下文关闭)
-func (this *ICloser) GoTimerParent(interval time.Duration, fn func() error) {
-	go this.TimerParent(interval, fn)
-}
-
-// TimerParent 协程,定时器执行函数,生命周期(客户端关闭,CloseAll或上下文关闭)
-func (this *ICloser) TimerParent(interval time.Duration, fn func() error) {
-	this.timer(this.ParentCtx(), func(err error) error { return this.CloseAll() }, interval, fn)
-}
-
-// GoTimer 协程,定时器执行函数,生命周期(一次链接,单次连接断开)
-func (this *ICloser) GoTimer(interval time.Duration, fn func() error) {
-	go this.Timer(interval, fn)
-}
-
 // Timer 定时器执行函数,直到错误
 func (this *ICloser) Timer(interval time.Duration, fn func() error) {
 	this.timer(this.Ctx(), this.CloseWithErr, interval, fn)
@@ -143,13 +128,14 @@ func (this *ICloser) For(fn func() error) (err error) {
 
 //================================RunTime================================
 
-// ParentCtx 父级上下文(客户端)
-func (this *ICloser) ParentCtx() context.Context {
+// CtxAll 父级上下文,生命周期(客户端)
+func (this *ICloser) CtxAll() context.Context {
 	return this.ctxParent
 }
 
+// DoneAll 全部结束,关闭信号,一定有错误,只能手动或者上下文
 func (this *ICloser) DoneAll() <-chan struct{} {
-	return this.ParentCtx().Done()
+	return this.CtxAll().Done()
 }
 
 // Ctx 子级上下文,生命周期(单次连接)
@@ -181,7 +167,7 @@ func (this *ICloser) Closed() bool {
 // CloseAll 主动关闭,不会重试
 func (this *ICloser) CloseAll() error {
 	//关闭重试函数
-	this.SetCloseWithNil()
+	this.SetRedialWithNil()
 	//关闭父级上下文
 	this.cancelParent()
 	//关闭子级
@@ -213,7 +199,7 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 		//执行用户设置的错误函数
 		if this.closeFunc != nil {
 			//需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
-			this.closeFunc(this.ctxParent, msg)
+			this.closeFunc(this.CtxAll(), msg)
 		}
 	}
 	return

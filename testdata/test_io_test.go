@@ -54,3 +54,7 @@ func TestGoFor(t *testing.T) {
 func TestServerMaxClient(t *testing.T) {
 	t.Log(ServerMaxClient(10089))
 }
+
+func TestClientCtxParent(t *testing.T) {
+	t.Log(ClientCtxParent(10089))
+}

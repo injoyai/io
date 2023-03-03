@@ -52,6 +52,7 @@ func (this *printer) Print(msg Message, tag ...string) {
 }
 
 // Debug 调试模式
+// 开启时,已连接的客户端无效,需重连生效
 func (this *printer) Debug(b ...bool) {
 	this.debug = !(len(b) > 0 && !b[0])
 }
