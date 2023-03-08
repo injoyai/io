@@ -11,7 +11,7 @@ func ExampleRedial() {
 				c.SetDealFunc(func(msg *io.IMessage) {
 					//业务逻辑,处理读取到的数据
 				})
-				c.GoForWriter(time.Minute, func(c *io.IWriter) (int, error) {
+				c.GoTimerWriter(time.Minute, func(c *io.IWriter) (int, error) {
 					return c.WriteString("心跳") //定时发送心跳
 				})
 			})
