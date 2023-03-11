@@ -57,7 +57,7 @@ func (this *ICloser) SetCloseWithNil() *ICloser {
 	return this
 }
 
-// SetRedialMaxTime 设置退避重试时间,默认32秒,需要连接成功的后续重连
+// SetRedialMaxTime 设置退避重试时间,默认32秒,需要连接成功的后续重连生效
 func (this *ICloser) SetRedialMaxTime(t time.Duration) *ICloser {
 	if t <= 0 {
 		t = time.Second * 32
