@@ -198,6 +198,7 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 // Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
 func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *IMessage) {
+		<-time.After(time.Second)
 		readWriteCloser := this.IReadCloser.Redial(ctx)
 		if readWriteCloser == nil {
 			this.ICloser.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ICloser.Err()), TagErr, this.GetKey())

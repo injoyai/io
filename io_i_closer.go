@@ -208,7 +208,7 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 // Redial 无限重连,返回nil,或者成功数据
 func (this *ICloser) Redial(ctx context.Context) ReadWriteCloser {
 	t := time.Second
-	timer := time.NewTimer(t)
+	timer := time.NewTimer(0)
 	defer timer.Stop()
 	for {
 		select {
@@ -224,11 +224,11 @@ func (this *ICloser) Redial(ctx context.Context) ReadWriteCloser {
 				//上下文关闭
 				return readWriteCloser
 			}
-			this.Print(NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second), TagErr, this.GetKey())
 			t *= 2
 			if t > this.redialMaxTime {
 				t = this.redialMaxTime
 			}
+			this.Print(NewMessageFormat("%v,等待%d秒重试", dealErr(err), t/time.Second), TagErr, this.GetKey())
 			timer.Reset(t)
 		}
 	}
