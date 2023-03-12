@@ -17,5 +17,5 @@ func TestDecodePkg(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	t.Log(p)
+	t.Logf("%#v", p)
 }
