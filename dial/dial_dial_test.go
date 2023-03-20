@@ -20,3 +20,12 @@ func TestNewWebsocket(t *testing.T) {
 	})
 	select {}
 }
+
+func TestNewTCP(t *testing.T) {
+	//"ws://192.168.10.3:1880/node-red/comms"
+	RedialTCP(":1082", func(ctx context.Context, c *io.Client) {
+		c.Debug()
+		c.WriteAny("666")
+	})
+	select {}
+}

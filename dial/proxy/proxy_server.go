@@ -8,7 +8,6 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/logs"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -46,25 +45,25 @@ func (this *Server) Write(p []byte) (int, error) {
 func (this *Server) WriteMessage(m *Message) (int, error) {
 	switch m.OperateType {
 	case Response:
-		//代理响应
+		//代理响应,写入请求客户端
 		_, err := this.s.WriteClient(m.Key, m.GetData())
 		return 0, err
 	case Close:
-		//关闭请求连接
+		//关闭客户端请求连接
 		c := this.s.GetClient(m.Key)
 		if c != nil {
 			switch val := c.ReadWriteCloser().(type) {
-			case net.Conn:
+			case interface{ SetWriteDeadline(t time.Time) }:
 				val.SetWriteDeadline(time.Time{})
-				return 0, nil
+			default:
+				val.Close()
 			}
 		}
-		this.s.CloseClient(m.Key)
 
 		//关闭代理连接
-		return 0, this.e.WriteMessage(m)
+		return 0, this.e.Close()
 	default:
-		//代理请求 逻辑
+		//代理请求 改服务作为代理 发起请求
 		return 0, this.e.WriteMessage(m)
 	}
 }
@@ -116,6 +115,7 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 			//后续的包
 			addr, err := getAddr(msg)
 			if err != nil {
+				//这里不做处理
 				//logs.Err(err)
 				//msg.Close()
 				//return

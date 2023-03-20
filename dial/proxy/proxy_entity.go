@@ -297,7 +297,12 @@ func (this *Entity) closeIO(key string) {
 func (this *Entity) closeIOAll() {
 	this.ioMap.Range(func(key, value interface{}) bool {
 		if val, ok := value.(*io.Client); ok {
-			val.Close()
+			switch c := val.ReadWriteCloser().(type) {
+			case interface{ SetWriteDeadline(t time.Time) }:
+				c.SetWriteDeadline(time.Time{})
+			default:
+				c.Close()
+			}
 		}
 		return true
 	})

@@ -36,6 +36,7 @@ type ICloser struct {
 	redialMaxTime time.Duration      //最大尝试退避重连时间
 	closeFunc     CloseFunc          //关闭函数
 	closeErr      error              //错误信息
+	writeDeadline bool               //等数据传输完成再关闭
 	closed        uint32             //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
 	ctx           context.Context    //子级上下文
 	cancel        context.CancelFunc //子级上下文
@@ -44,6 +45,12 @@ type ICloser struct {
 }
 
 //================================CloseFunc================================
+
+// SetWriteDeadline 设置尝试使用SetWriteDeadline函数关闭连接,如果存在改函数的话
+func (this *ICloser) SetWriteDeadline(b ...bool) *ICloser {
+	this.writeDeadline = !(len(b) > 0 && b[0])
+	return this
+}
 
 // SetCloseFunc 设置关闭函数
 func (this *ICloser) SetCloseFunc(fn func(ctx context.Context, msg Message)) *ICloser {
@@ -195,6 +202,18 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 		//关闭子级上下文
 		this.cancel()
 		//关闭实例
+		{
+			switch closer := this.closer.(type) {
+			case interface{ SetWriteDeadline(t time.Time) }:
+				if this.writeDeadline {
+					closer.SetWriteDeadline(time.Time{})
+				} else {
+					err = this.closer.Close()
+				}
+			default:
+				err = this.closer.Close()
+			}
+		}
 		err = this.closer.Close()
 		//生成错误信息
 		msg := NewMessage(this.closeErr.Error())

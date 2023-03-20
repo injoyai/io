@@ -47,12 +47,6 @@ func ProxyTransmit(port int) error {
 
 func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 
-	// 普通的udpServer服务,用于监听用户数据
-	udp, err := proxy.NewUDPServer(udpPort, func(s *proxy.Server) { s.Debug() })
-	if err != nil {
-		return err
-	}
-
 	// 普通的tcpServer服务,用于监听用户数据
 	tcp, err := proxy.NewTCPServer(tcpPort, func(s *proxy.Server) { s.Debug() })
 	if err != nil {
@@ -61,17 +55,16 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 
 	// 通道客户端,用于连接数据转发服务端,进行数据的封装
 	// 所有数据都经过这个连接
-	var c *io.Client
+	var pipeClient *io.Client
 	go func() {
-		c = pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
+		pipeClient = pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
 			c.Debug()
 			c.SetDealFunc(func(msg *io.IMessage) {
 				m, err := proxy.DecodeMessage(msg.Message)
 				if err == nil {
 					switch m.ConnectType {
-					case proxy.UDP:
-						udp.WriteMessage(m)
 					default:
+						//通道过来的数据
 						tcp.WriteMessage(m)
 					}
 				}
@@ -80,22 +73,14 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	}()
 
 	//设置数据处理函数
+	tcp.Debug()
 	tcp.SetDealFunc(func(msg *proxy.Message) error {
-		if c == nil {
+		if pipeClient == nil {
 			return errors.New("pipe未连接")
 		}
-		_, err := c.Write(msg.Bytes())
-		return err
-	})
-	udp.SetDealFunc(func(msg *proxy.Message) error {
-		if c == nil {
-			return errors.New("pipe未连接")
-		}
-		_, err := c.Write(msg.Bytes())
+		_, err := pipeClient.Write(msg.Bytes())
 		return err
 	})
 
-	//运行服务
-	go udp.Run()
 	return tcp.Run()
 }
