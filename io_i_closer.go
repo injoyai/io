@@ -190,6 +190,10 @@ func (this *ICloser) Close() error {
 	return this.CloseWithErr(ErrHandClose)
 }
 
+func (this *ICloser) TryCloseDeadline() {
+
+}
+
 // CloseWithErr 根据错误关闭,会重试(如果设置了重连)
 func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 	if closeErr != nil {

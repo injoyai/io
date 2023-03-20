@@ -52,6 +52,7 @@ func (this *Server) WriteMessage(m *Message) (int, error) {
 		//关闭客户端请求连接
 		c := this.s.GetClient(m.Key)
 		if c != nil {
+
 			switch val := c.ReadWriteCloser().(type) {
 			case interface{ SetWriteDeadline(t time.Time) }:
 				val.SetWriteDeadline(time.Time{})
