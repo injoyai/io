@@ -190,6 +190,7 @@ func (this *ICloser) Close() error {
 	return this.CloseWithErr(ErrHandClose)
 }
 
+// TryCloseDeadline 参数使用Deadline关闭
 func (this *ICloser) TryCloseDeadline() {
 
 }
