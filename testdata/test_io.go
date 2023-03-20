@@ -189,3 +189,38 @@ func ClientCtxParent(port int) error {
 	select {}
 	return nil
 }
+
+func Pool(port int) error {
+	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+		s.Debug()
+	})
+	if err != nil {
+		return err
+	}
+	io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), 10, func(ctx context.Context, c *io.Client) {
+		c.Debug()
+		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
+			_, err := c.WriteString("666")
+			return err
+		})
+	})
+	return s.Run()
+}
+
+func PoolWrite(port int) (*io.Pool, error) {
+	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+		s.Debug()
+	})
+	if err != nil {
+		return nil, err
+	}
+	p := io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), 10, func(ctx context.Context, c *io.Client) {
+		c.Debug()
+		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
+			_, err := c.WriteString("666")
+			return err
+		})
+	})
+	go s.Run()
+	return p, nil
+}

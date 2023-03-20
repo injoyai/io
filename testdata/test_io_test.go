@@ -58,3 +58,19 @@ func TestServerMaxClient(t *testing.T) {
 func TestClientCtxParent(t *testing.T) {
 	t.Log(ClientCtxParent(10089))
 }
+
+func TestPool(t *testing.T) {
+	t.Log(Pool(10089))
+}
+
+func TestPoolWrite(t *testing.T) {
+	p, err := PoolWrite(10089)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for {
+		<-time.After(time.Second)
+		p.WriteString("666")
+	}
+}
