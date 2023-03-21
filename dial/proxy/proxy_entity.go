@@ -10,7 +10,6 @@ import (
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/logs"
-	"time"
 )
 
 // New 新建代理实例
@@ -71,6 +70,7 @@ func (this *Entity) Write(p []byte) (int, error) {
 
 // WriteMessage 需要并发处理,防止1个连接阻塞,导致后续请求都超时
 func (this *Entity) WriteMessage(msg *Message) (err error) {
+	return this.writeMessage(msg)
 	go this.writeMessage(msg)
 	return nil
 }
@@ -80,28 +80,36 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 	c := this.getIO(msg.Key)
 
 	if c == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
-		if this.connectFunc == nil {
-			this.connectFunc = DefaultConnectFunc
-		}
-		i, err := this.connectFunc(msg)
-		if err != nil {
-			return err
-		}
+		go func() {
+			if this.connectFunc == nil {
+				this.connectFunc = DefaultConnectFunc
+			}
+			i, err := this.connectFunc(msg)
+			if err != nil {
+				this.Proxy(NewCloseMessage(msg.Key, ""))
+				return
+				//return err
+			}
 
-		c = io.NewClient(i)
-		c.Debug(this.debug)
-		c.SetPrintFunc(this.printFunc)
-		c.SetKey(msg.Addr)
-		c.SetReadFunc(buf.ReadWithAll)
-		c.SetDealFunc(func(m *io.IMessage) {
-			this.Proxy(msg.Response(m.Bytes()))
-		})
-		c.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
-			this.delIO(msg.Key)
-			this.Proxy(NewCloseMessage(msg.Key, ""))
-		})
-		go c.Run()
-		this.setIO(msg.Key, c)
+			c = io.NewClient(i)
+			c.Debug(this.debug)
+			c.SetPrintFunc(this.printFunc)
+			c.SetKey(msg.Addr)
+			c.SetReadFunc(buf.ReadWithAll)
+			c.SetDealFunc(func(m *io.IMessage) {
+				this.Proxy(msg.Response(m.Bytes()))
+			})
+			c.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
+				this.delIO(msg.Key)
+				this.Proxy(NewCloseMessage(msg.Key, ""))
+			})
+			go c.Run()
+			this.setIO(msg.Key, c)
+			//if msg.OperateType == Write {
+			c.Write(msg.GetData())
+			//}
+		}()
+		return
 	}
 
 	if c == nil {
@@ -289,14 +297,7 @@ func (this *Entity) closeIO(key string) {
 // CloseIOAll 关闭全部io
 func (this *Entity) closeIOAll() {
 	this.ioMap.Range(func(key, value interface{}) bool {
-		if val, ok := value.(*io.Client); ok {
-			switch c := val.ReadWriteCloser().(type) {
-			case interface{ SetWriteDeadline(t time.Time) }:
-				c.SetWriteDeadline(time.Time{})
-			default:
-				c.Close()
-			}
-		}
+		value.(*io.Client).TryCloseWithDeadline()
 		return true
 	})
 	this.ioMap = maps.NewSafe()

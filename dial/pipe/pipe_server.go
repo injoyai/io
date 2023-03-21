@@ -29,7 +29,8 @@ func NewTransmit(listen io.ListenFunc) (*io.Server, error) {
 		s.SetDealFunc(func(msg *io.IMessage) {
 			for _, v := range s.GetClientMap() {
 				if v.GetKey() != msg.GetKey() {
-					v.Write(msg.Bytes())
+					//队列执行,避免阻塞其他
+					v.WriteQueue(msg.Bytes())
 				}
 			}
 		})
