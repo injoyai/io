@@ -119,6 +119,14 @@ func (this *Client) Debug(b ...bool) *Client {
 	return this
 }
 
+// WriteQueue 按队列写入
+func (this *Client) WriteQueue(p []byte) {
+	queue, _ := this.Tag().GetOrSetByHandler("_write_queue", func() (interface{}, error) {
+		return this.IWriter.NewWriteQueue(this.Ctx()), nil
+	})
+	queue.(chan []byte) <- p
+}
+
 // WriteReadWithTimeout 同步写读,超时
 func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error) {
 	if _, err = this.Write(request); err != nil {

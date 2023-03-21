@@ -10,7 +10,6 @@ import (
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/logs"
-	"net"
 	"time"
 )
 
@@ -84,7 +83,6 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 		if this.connectFunc == nil {
 			this.connectFunc = DefaultConnectFunc
 		}
-		logs.Debug(msg)
 		i, err := this.connectFunc(msg)
 		if err != nil {
 			return err
@@ -116,13 +114,8 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 		//收到写数据信息
 		_, err = c.Write(msg.GetData())
 	case Close:
-		switch val := c.ReadWriteCloser().(type) {
-		case net.Conn:
-			val.SetWriteDeadline(time.Time{})
-			return
-		}
 		//收到关闭连接信息
-		err = c.Close()
+		err = c.TryCloseWithDeadline()
 	}
 
 	return

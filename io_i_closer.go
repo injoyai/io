@@ -36,7 +36,6 @@ type ICloser struct {
 	redialMaxTime time.Duration      //最大尝试退避重连时间
 	closeFunc     CloseFunc          //关闭函数
 	closeErr      error              //错误信息
-	writeDeadline bool               //等数据传输完成再关闭
 	closed        uint32             //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
 	ctx           context.Context    //子级上下文
 	cancel        context.CancelFunc //子级上下文
@@ -45,12 +44,6 @@ type ICloser struct {
 }
 
 //================================CloseFunc================================
-
-// SetWriteDeadline 设置尝试使用SetWriteDeadline函数关闭连接,如果存在改函数的话
-func (this *ICloser) SetWriteDeadline(b ...bool) *ICloser {
-	this.writeDeadline = !(len(b) > 0 && b[0])
-	return this
-}
 
 // SetCloseFunc 设置关闭函数
 func (this *ICloser) SetCloseFunc(fn func(ctx context.Context, msg Message)) *ICloser {
@@ -190,13 +183,26 @@ func (this *ICloser) Close() error {
 	return this.CloseWithErr(ErrHandClose)
 }
 
-// TryCloseDeadline 参数使用Deadline关闭
-func (this *ICloser) TryCloseDeadline() {
-
+// TryCloseWithDeadline 尝试使用Deadline关闭
+func (this *ICloser) TryCloseWithDeadline() error {
+	return this.closeWithErr(ErrHandClose, func(closer Closer) error {
+		switch c := closer.(type) {
+		case interface{ SetWriteDeadline(t time.Time) }:
+			c.SetWriteDeadline(time.Time{})
+			return nil
+		default:
+			return closer.Close()
+		}
+	})
 }
 
 // CloseWithErr 根据错误关闭,会重试(如果设置了重连)
 func (this *ICloser) CloseWithErr(closeErr error) (err error) {
+	return this.closeWithErr(closeErr)
+}
+
+// closeWithErr 根据错误关闭,会重试(如果设置了重连)
+func (this *ICloser) closeWithErr(closeErr error, fn ...func(Closer) error) (err error) {
 	if closeErr != nil {
 		//原子判断是否执行过
 		if atomic.SwapUint32(&this.closed, 1) == 1 {
@@ -207,19 +213,13 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 		//关闭子级上下文
 		this.cancel()
 		//关闭实例
-		{
-			switch closer := this.closer.(type) {
-			case interface{ SetWriteDeadline(t time.Time) }:
-				if this.writeDeadline {
-					closer.SetWriteDeadline(time.Time{})
-				} else {
-					err = this.closer.Close()
-				}
-			default:
-				err = this.closer.Close()
+		if len(fn) == 0 {
+			err = this.closer.Close()
+		} else {
+			for _, v := range fn {
+				err = v(this.closer)
 			}
 		}
-		err = this.closer.Close()
 		//生成错误信息
 		msg := NewMessage(this.closeErr.Error())
 		//打印错误信息

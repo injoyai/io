@@ -1,6 +1,7 @@
 package io
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"github.com/injoyai/conv"
@@ -117,4 +118,21 @@ func (this *IWriter) SetWriteWithStartEnd(start, end []byte) {
 	this.writeFunc = func(p []byte) ([]byte, error) {
 		return append(start, append(p, end...)...), nil
 	}
+}
+
+// NewWriteQueue 新建写入队列
+func (this *IWriter) NewWriteQueue(ctx context.Context) chan []byte {
+	queue := make(chan []byte, 100)
+	go func(ctx context.Context) {
+		//defer close(queue) 自动回收
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case p := <-queue:
+				this.Write(p)
+			}
+		}
+	}(ctx)
+	return queue
 }

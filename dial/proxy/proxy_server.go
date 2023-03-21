@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 const (
@@ -52,15 +51,8 @@ func (this *Server) WriteMessage(m *Message) (int, error) {
 		//关闭客户端请求连接
 		c := this.s.GetClient(m.Key)
 		if c != nil {
-
-			switch val := c.ReadWriteCloser().(type) {
-			case interface{ SetWriteDeadline(t time.Time) }:
-				val.SetWriteDeadline(time.Time{})
-			default:
-				val.Close()
-			}
+			_ = c.TryCloseWithDeadline()
 		}
-
 		//关闭代理连接
 		return 0, this.e.Close()
 	default:
