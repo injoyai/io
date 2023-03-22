@@ -71,59 +71,63 @@ func (this *Entity) Write(p []byte) (int, error) {
 // WriteMessage 需要并发处理,防止1个连接阻塞,导致后续请求都超时
 func (this *Entity) WriteMessage(msg *Message) (err error) {
 	return this.writeMessage(msg)
-	go this.writeMessage(msg)
-	return nil
 }
 
 // WriteMessage 处理获取到的消息
 func (this *Entity) writeMessage(msg *Message) (err error) {
-	c := this.getIO(msg.Key)
 
-	if c == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
+	//查找该请求是否已经代理过
+	proxyClient := this.getIO(msg.Key)
+
+	//如果不存在,请求连接或写入,则重新建立连接
+	//需要协程执行,避免阻塞后续请求
+	if proxyClient == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
 		go func() {
 			if this.connectFunc == nil {
 				this.connectFunc = DefaultConnectFunc
 			}
 			i, err := this.connectFunc(msg)
 			if err != nil {
-				this.Proxy(NewCloseMessage(msg.Key, ""))
+				this.Proxy(NewCloseMessage(msg.Key, err.Error()))
 				return
-				//return err
 			}
 
-			c = io.NewClient(i)
-			c.Debug(this.debug)
-			c.SetPrintFunc(this.printFunc)
-			c.SetKey(msg.Addr)
-			c.SetReadFunc(buf.ReadWithAll)
-			c.SetDealFunc(func(m *io.IMessage) {
+			proxyClient = io.NewClient(i)
+			proxyClient.Debug(this.debug)
+			proxyClient.SetPrintFunc(this.printFunc)
+			proxyClient.SetKey(msg.Addr)
+			proxyClient.SetReadFunc(buf.ReadWithAll)
+			proxyClient.SetDealFunc(func(m *io.IMessage) {
 				this.Proxy(msg.Response(m.Bytes()))
 			})
-			c.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
+			proxyClient.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
 				this.delIO(msg.Key)
-				this.Proxy(NewCloseMessage(msg.Key, ""))
+				this.Proxy(NewCloseMessage(msg.Key, m.String()))
 			})
-			go c.Run()
-			this.setIO(msg.Key, c)
-			//if msg.OperateType == Write {
-			c.Write(msg.GetData())
-			//}
+			go proxyClient.Run()
+			//加入到缓存
+			this.setIO(msg.Key, proxyClient)
+			if msg.OperateType == Write {
+				proxyClient.Write(msg.GetData())
+			}
 		}()
 		return
 	}
 
-	if c == nil {
+	//如果不存在则结束
+	if proxyClient == nil {
 		return
 	}
+
 	switch msg.OperateType {
 	case Connect:
 		//收到建立连接信息
 	case Write:
 		//收到写数据信息
-		_, err = c.Write(msg.GetData())
+		_, err = proxyClient.Write(msg.GetData())
 	case Close:
 		//收到关闭连接信息
-		err = c.TryCloseWithDeadline()
+		err = proxyClient.TryCloseWithDeadline()
 	}
 
 	return
@@ -175,7 +179,6 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 		c.Swap(e)
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			if msg.String() == io.Ping || msg.String() == io.Pong {
-				logs.Debug(io.Pong)
 				return
 			}
 			if len(tag) > 0 {
@@ -186,9 +189,9 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 						logs.Err(err)
 						return
 					}
-					logs.Debugf("[PI|C][%s] %s", tag[0], m.String())
+					logs.Debugf("[PI|C][%s] %s\n", tag[0], m.String())
 				default:
-					logs.Debug(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
+					logs.Debugf(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
 				}
 			}
 		})

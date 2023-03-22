@@ -8,6 +8,8 @@ import (
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/io/dial/proxy"
+	"github.com/injoyai/logs"
+	_ "net/http/pprof"
 	"time"
 )
 
@@ -48,7 +50,7 @@ func ProxyTransmit(port int) error {
 func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 
 	// 普通的tcpServer服务,用于监听用户数据
-	tcp, err := proxy.NewTCPServer(tcpPort, func(s *proxy.Server) { s.Debug() })
+	vpn, err := proxy.NewTCPServer(tcpPort, func(s *proxy.Server) { s.Debug() })
 	if err != nil {
 		return err
 	}
@@ -64,23 +66,27 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 				if err == nil {
 					switch m.ConnectType {
 					default:
-						//通道过来的数据
-						tcp.WriteMessage(m)
+						//通道过来的数据,响应给请求端
+						vpn.WriteMessage(m)
 					}
+				} else {
+					//理论不会出现
+					logs.Err(err)
 				}
 			})
 		})
 	}()
 
 	//设置数据处理函数
-	tcp.Debug()
-	tcp.SetDealFunc(func(msg *proxy.Message) error {
+	vpn.Debug()
+	vpn.SetDealFunc(func(msg *proxy.Message) error {
 		if pipeClient == nil {
 			return errors.New("pipe未连接")
 		}
+		//发送到通道
 		_, err := pipeClient.Write(msg.Bytes())
 		return err
 	})
 
-	return tcp.Run()
+	return vpn.Run()
 }

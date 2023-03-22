@@ -70,59 +70,62 @@ func (this *Server) SetPrintFunc(fn func(msg io.Message, tag ...string)) {
 }
 
 func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
-	s, err := io.NewServer(dial, func(s *io.Server) {
+	ser := &Server{}
+	_, err := io.NewServer(dial, func(s *io.Server) {
 		//读取全部数据
 		s.SetReadWithAll()
 		//设置打印函数
 		s.SetPrintFunc(func(msg io.Message, tag ...string) {
 			io.PrintWithASCII(msg, append([]string{"PR|S"}, tag...)...)
 		})
-
-	})
-	if err != nil {
-		return nil, err
-	}
-	ser := &Server{s: s, e: New(), dealFunc: func(msg *Message) error {
-		m := "未设置处理函数"
-		s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
-		return errors.New(m)
-	}}
-	// 设置处理数据函数
-	// 处理监听到的用户数据,只能监听http协议数据
-	// 处理http的CONNECT数据,及处理端口等
-	s.SetDealFunc(func(msg *io.IMessage) {
-		// HTTP 请求
-		list := strings.Split(msg.String(), " ")
-		switch true {
-		case len(list) > 2 && list[0] == http.MethodConnect:
-			//http代理请求,例如浏览器
-			addr, err := getAddr(msg)
-			if err != nil {
-				logs.Err(err)
-				msg.Close()
-				return
-			}
-			msg.Tag().Set(KeyAddr, addr)
-			msg.Client.WriteString(Connection)
-		default:
-			//后续的包
-			addr, err := getAddr(msg)
-			if err != nil {
-				//这里不做处理
-				//logs.Err(err)
-				//msg.Close()
-				//return
-			}
-			m := NewWriteMessage(msg.GetKey(), addr, msg.Bytes())
+		ser = &Server{s: s, e: New(), dealFunc: func(msg *Message) error {
+			m := "未设置处理函数"
+			s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
+			return errors.New(m)
+		}}
+		s.SetCloseFunc(func(msg *io.IMessage) {
+			m := NewCloseMessage(msg.GetKey(), msg.String())
 			if ser.dealFunc != nil {
 				msg.CloseWithErr(ser.dealFunc(m))
 			}
+		})
+		// 设置处理数据函数
+		// 处理监听到的用户数据,只能监听http协议数据
+		// 处理http的CONNECT数据,及处理端口等
+		s.SetDealFunc(func(msg *io.IMessage) {
+			// HTTP 请求
+			list := strings.Split(msg.String(), " ")
+			switch true {
+			case len(list) > 2 && list[0] == http.MethodConnect:
+				//http代理请求,例如浏览器
+				addr, err := getAddr(msg)
+				if err != nil {
+					logs.Err(err)
+					msg.Close()
+					return
+				}
+				msg.Tag().Set(KeyAddr, addr)
+				msg.Client.WriteString(Connection)
+			default:
+				//后续的包
+				addr, err := getAddr(msg)
+				if err != nil {
+					//这里不做处理
+					//logs.Err(err)
+					//msg.Close()
+					//return
+				}
+				m := NewWriteMessage(msg.GetKey(), addr, msg.Bytes())
+				if ser.dealFunc != nil {
+					msg.CloseWithErr(ser.dealFunc(m))
+				}
+			}
+		})
+		for _, v := range fn {
+			v(ser)
 		}
 	})
-	for _, v := range fn {
-		v(ser)
-	}
-	return ser, nil
+	return ser, err
 }
 
 func NewUDPServer(port int, fn ...func(s *Server)) (*Server, error) {
