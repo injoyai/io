@@ -29,3 +29,10 @@ func TestNewTCP(t *testing.T) {
 	})
 	select {}
 }
+
+func TestRtsp(t *testing.T) {
+	RedialTCP("34.227.104.115:554", func(ctx context.Context, c *io.Client) {
+		c.Debug()
+	})
+	select {}
+}
