@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/injoyai/conv"
+	"strings"
 )
 
 type ConnectType string
@@ -67,7 +68,15 @@ func (this *Message) SetData(data interface{}) *Message {
 }
 
 func (this *Message) String() string {
-	return fmt.Sprintf("标识:%s   类型:%s(%s)   地址:%s\n%s", this.Key, this.OperateType, this.ConnectType, this.Addr, string(this.GetData()))
+	return fmt.Sprintf("标识:%s   地址:%s   类型:%s(%s)   :   %s", this.Key, this.Addr, this.OperateType, this.ConnectType, func() string {
+		r := []rune(string(this.GetData()))
+		if len(r) > 200 {
+			r = r[:100]
+		}
+		s := string(r)
+		s = strings.ReplaceAll(string(r), "\n", "\\n")
+		return s
+	}())
 }
 
 func (this *Message) Bytes() []byte {
