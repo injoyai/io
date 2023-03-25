@@ -8,7 +8,6 @@ import (
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/io/dial/proxy"
-	"github.com/injoyai/logs"
 	_ "net/http/pprof"
 	"time"
 )
@@ -55,13 +54,12 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	var pipeClient *io.Client
 	go pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
 		pipeClient = c
-		c.Debug()
+		//c.Debug()
 		c.SetDealFunc(proxy.DealWithServer(vpnClient))
 	})
 
 	//设置数据处理函数
 	vpnClient.SetDealFunc(func(msg *proxy.Message) error {
-		logs.Err(333)
 		if pipeClient == nil {
 			return errors.New("pipe未连接")
 		}

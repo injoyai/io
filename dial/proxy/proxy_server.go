@@ -75,7 +75,7 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 		s.SetReadWithAll()
 		s.SetPrintFunc(func(msg io.Message, tag ...string) {
 			//设置打印函数
-			io.PrintWithASCII(msg, append([]string{"PR|S"}, tag...)...)
+			io.PrintWithASCII(msg.Bytes(), append([]string{"PR|S"}, tag...)...)
 		})
 		ser = &Server{s: s, e: New(), dealFunc: func(msg *Message) error {
 			m := "未设置处理函数"
