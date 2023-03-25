@@ -18,23 +18,18 @@ func TestProxy() error {
 	go proxy.SwapTCPClient(":10089", func(ctx context.Context, c *io.Client, e *proxy.Entity) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
-			e.Proxy(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
+			e.AddMessage(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
 			return nil
 		})
 	})
 
-	return proxy.SwapTCPServer(10089, func(s *io.Server) {
-		s.Debug()
-	})
+	return proxy.SwapTCPServer(10089, io.WithServerDebug())
 
 	return nil
 }
 
 func ProxyClient(addr string) *io.Client {
-	return proxy.SwapTCPClient(addr, func(ctx context.Context, c *io.Client, e *proxy.Entity) {
-		c.Debug()
-		//logs.Debug("重连...")
-	})
+	return proxy.SwapTCPClient(addr, proxy.WithClientDebug())
 }
 
 func ProxyTransmit(port int) error {
@@ -50,7 +45,7 @@ func ProxyTransmit(port int) error {
 func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 
 	// 普通的tcpServer服务,用于监听用户数据
-	vpn, err := proxy.NewTCPServer(tcpPort, func(s *proxy.Server) { s.Debug() })
+	vpnClient, err := proxy.NewTCPServer(tcpPort, proxy.WithServerDebug())
 	if err != nil {
 		return err
 	}
@@ -58,28 +53,15 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	// 通道客户端,用于连接数据转发服务端,进行数据的封装
 	// 所有数据都经过这个连接
 	var pipeClient *io.Client
-	go func() {
-		pipeClient = pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
-			c.Debug()
-			c.SetDealFunc(func(msg *io.IMessage) {
-				m, err := proxy.DecodeMessage(msg.Message)
-				if err == nil {
-					switch m.ConnectType {
-					default:
-						//通道过来的数据,响应给请求端
-						vpn.WriteMessage(m)
-					}
-				} else {
-					//理论不会出现
-					logs.Err(err)
-				}
-			})
-		})
-	}()
+	go pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
+		pipeClient = c
+		c.Debug()
+		c.SetDealFunc(proxy.DealWithServer(vpnClient))
+	})
 
 	//设置数据处理函数
-	vpn.Debug()
-	vpn.SetDealFunc(func(msg *proxy.Message) error {
+	vpnClient.SetDealFunc(func(msg *proxy.Message) error {
+		logs.Err(333)
 		if pipeClient == nil {
 			return errors.New("pipe未连接")
 		}
@@ -88,5 +70,5 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 		return err
 	})
 
-	return vpn.Run()
+	return vpnClient.Run()
 }

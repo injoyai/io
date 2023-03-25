@@ -43,8 +43,8 @@ func (this *Entity) SetPrintFunc(fn func(msg io.Message, tag ...string)) *Entity
 	return this
 }
 
-// Proxy 发起代理请求或手动响应数据
-func (this *Entity) Proxy(msg *Message) {
+// AddMessage 添加到message缓存,供ReadMessage读取
+func (this *Entity) AddMessage(msg *Message) {
 	this.buff <- msg.Bytes()
 }
 
@@ -84,11 +84,14 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 	if proxyClient == nil && (msg.OperateType == Connect || msg.OperateType == Write) {
 		go func() {
 			if this.connectFunc == nil {
+				//设置默认连接函数
 				this.connectFunc = DefaultConnectFunc
 			}
+			//使用连接建立连接
 			i, err := this.connectFunc(msg)
 			if err != nil {
-				this.Proxy(NewCloseMessage(msg.Key, err.Error()))
+				//连接失败,则响应关闭连接
+				this.AddMessage(NewCloseMessage(msg.Key, err.Error()))
 				return
 			}
 
@@ -98,11 +101,11 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 			proxyClient.SetKey(msg.Addr)
 			proxyClient.SetReadFunc(buf.ReadWithAll)
 			proxyClient.SetDealFunc(func(m *io.IMessage) {
-				this.Proxy(msg.Response(m.Bytes()))
+				this.AddMessage(msg.Response(m.Bytes()))
 			})
 			proxyClient.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
 				this.delIO(msg.Key)
-				this.Proxy(NewCloseMessage(msg.Key, m.String()))
+				this.AddMessage(NewCloseMessage(msg.Key, m.String()))
 			})
 			go proxyClient.Run()
 			//加入到缓存
@@ -172,12 +175,12 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
 	e := New()
 	return pipe.RedialTCP(addr, func(ctx context.Context, c *io.Client) {
-		c.SetKey(addr)
 		for _, v := range fn {
 			v(ctx, c, e)
 		}
 		c.Swap(e)
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
+			//打印函数的处理,不重要
 			if msg.String() == io.Ping || msg.String() == io.Pong {
 				return
 			}
@@ -198,7 +201,7 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 	})
 }
 
-// SwapTCPServer 和TCP服务端交换数据
+// SwapTCPServer 和TCP服务端交换数据,带测试
 func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
 	s, err := pipe.NewServer(dial.TCPListenFunc(port))
 	if err != nil {
@@ -213,6 +216,12 @@ func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
 	})
 	go s.Run()
 	return nil
+}
+
+func WithClientDebug(b ...bool) func(ctx context.Context, c *io.Client, e *Entity) {
+	return func(ctx context.Context, c *io.Client, e *Entity) {
+		c.Debug(b...)
+	}
 }
 
 //func writeFunc(writeLen uint, writeBytes func(p []byte) (int, error), key, addr string, p []byte) (int, error) {

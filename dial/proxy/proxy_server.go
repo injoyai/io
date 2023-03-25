@@ -24,15 +24,11 @@ type Server struct {
 	dealFunc func(msg *Message) error //处理函数
 }
 
-func (this *Server) Debug() *Server {
-	this.s.Debug()
-	return this
-}
+func (this *Server) Debug(b ...bool) { this.s.Debug(b...) }
 
-func (this *Server) Run() error {
-	return this.s.Run()
-}
+func (this *Server) Run() error { return this.s.Run() }
 
+// Write 写入数据,实现io.Writer
 func (this *Server) Write(p []byte) (int, error) {
 	m, err := DecodeMessage(p)
 	if err != nil {
@@ -41,6 +37,7 @@ func (this *Server) Write(p []byte) (int, error) {
 	return this.WriteMessage(m)
 }
 
+// WriteMessage 写入数据,然后代理服务开始处理数据
 func (this *Server) WriteMessage(m *Message) (int, error) {
 	switch m.OperateType {
 	case Response:
@@ -61,10 +58,12 @@ func (this *Server) WriteMessage(m *Message) (int, error) {
 	}
 }
 
+// SetDealFunc 设置处理函数,例如像通道发送数据
 func (this *Server) SetDealFunc(fn func(msg *Message) error) {
 	this.dealFunc = fn
 }
 
+// SetPrintFunc 设置打印函数
 func (this *Server) SetPrintFunc(fn func(msg io.Message, tag ...string)) {
 	this.s.SetPrintFunc(fn)
 }
@@ -74,8 +73,8 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 	_, err := io.NewServer(dial, func(s *io.Server) {
 		//读取全部数据
 		s.SetReadWithAll()
-		//设置打印函数
 		s.SetPrintFunc(func(msg io.Message, tag ...string) {
+			//设置打印函数
 			io.PrintWithASCII(msg, append([]string{"PR|S"}, tag...)...)
 		})
 		ser = &Server{s: s, e: New(), dealFunc: func(msg *Message) error {
@@ -84,30 +83,38 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 			return errors.New(m)
 		}}
 		s.SetCloseFunc(func(msg *io.IMessage) {
+			//客户端关闭了连接,发送是数据到代理端关闭代理客户端
 			m := NewCloseMessage(msg.GetKey(), msg.String())
 			if ser.dealFunc != nil {
-				msg.CloseWithErr(ser.dealFunc(m))
+				logs.PrintErr(ser.dealFunc(m))
 			}
 		})
-		// 设置处理数据函数
-		// 处理监听到的用户数据,只能监听http协议数据
-		// 处理http的CONNECT数据,及处理端口等
 		s.SetDealFunc(func(msg *io.IMessage) {
+			// 设置处理数据函数
+			// 处理监听到的用户数据,只能监听http协议数据
+			// 处理http的CONNECT数据,及处理端口等
+
 			// HTTP 请求
 			list := strings.Split(msg.String(), " ")
 			switch true {
 			case len(list) > 2 && list[0] == http.MethodConnect:
-				//http代理请求,例如浏览器
+				//http代理请求
 				addr, err := getAddr(msg)
 				if err != nil {
 					logs.Err(err)
 					msg.Close()
 					return
 				}
+
+				//保存请求地址,后续直接使用该地址
 				msg.Tag().Set(KeyAddr, addr)
+
+				//理论要先建立连接,在返回成功
+				//现在是直接返回连接成功
 				msg.Client.WriteString(Connection)
+
 			default:
-				//后续的包
+				//后续的包,尝试按http协议解析
 				addr, err := getAddr(msg)
 				if err != nil {
 					//这里不做处理
@@ -117,6 +124,7 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 				}
 				m := NewWriteMessage(msg.GetKey(), addr, msg.Bytes())
 				if ser.dealFunc != nil {
+					//多半是传输错误,例如未连接隧道,关闭客户端请求
 					msg.CloseWithErr(ser.dealFunc(m))
 				}
 			}
@@ -169,4 +177,22 @@ func getAddr(msg *io.IMessage) (string, error) {
 		}
 	}
 	return addr, nil
+}
+
+func WithServerDebug(b ...bool) func(s *Server) {
+	return func(s *Server) { s.Debug(b...) }
+}
+
+// DealWithServer 设置处理函数,解析数据并写入到proxy.Server
+func DealWithServer(s *Server) func(msg *io.IMessage) {
+	return func(msg *io.IMessage) {
+		m, err := DecodeMessage(msg.Message)
+		//理论不会出现
+		logs.PrintErr(err)
+		if err == nil {
+			//通道过来的数据,响应给请求端
+			_, err = s.WriteMessage(m)
+			logs.PrintErr(err)
+		}
+	}
 }
