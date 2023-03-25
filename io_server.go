@@ -326,10 +326,14 @@ func (this *Server) Run() error {
 		for {
 			interval := conv.SelectDuration(this.timeout/3 > time.Second, this.timeout/3, time.Minute)
 			<-time.After(interval)
-			now := time.Now()
-			for _, v := range this.GetClientMap() {
-				if this.timeout > 0 && now.Sub(v.IReadCloser.LastTime()) > this.timeout {
-					_ = v.CloseWithErr(ErrWithReadTimeout)
+			select {
+			case <-this.ctx.Done():
+			default:
+				now := time.Now()
+				for _, v := range this.GetClientMap() {
+					if this.timeout > 0 && now.Sub(v.IReadCloser.LastTime()) > this.timeout {
+						_ = v.CloseWithErr(ErrWithReadTimeout)
+					}
 				}
 			}
 		}
