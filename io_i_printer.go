@@ -2,7 +2,6 @@ package io
 
 import (
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -65,12 +64,12 @@ func (this *printer) GetDebug() bool {
 //================================Common================================
 
 func PrintWithHEX(msg Message, tag ...string) {
-	log.Print(PrintfWithHEX(msg, tag...))
+	fmt.Println(PrintfWithHEX(msg, tag...))
 }
 
-// PrintWithASCII todo 有bug win10一直有提示音
+// PrintWithASCII todo 有bug 用log.Print win10一直有提示音
 func PrintWithASCII(msg Message, tag ...string) {
-	log.Print(PrintfWithASCII(msg, tag...))
+	fmt.Println(PrintfWithASCII(msg, tag...))
 }
 
 func PrintfWithHEX(msg Message, tag ...string) string {

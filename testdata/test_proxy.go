@@ -73,7 +73,7 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	var pipeClient *io.Client
 	go pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
 		pipeClient = c
-		//c.Debug()
+		c.Debug()
 		c.SetDealFunc(proxy.DealWithServer(vpnClient))
 	})
 
