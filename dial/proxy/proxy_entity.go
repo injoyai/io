@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/buf"
@@ -189,12 +190,11 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 				case io.TagWrite, io.TagRead:
 					m, err := DecodeMessage(msg)
 					if err != nil {
-						logs.Err(err)
 						return
 					}
-					logs.Debugf("[PI|C][%s] %s\n", tag[0], m.String())
+					fmt.Printf("[PI|C][%s] %s\n", tag[0], m.String())
 				default:
-					logs.Debugf(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
+					fmt.Printf(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
 				}
 			}
 		})

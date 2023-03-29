@@ -51,13 +51,14 @@ var (
 
 const (
 	pkgBaseLength        = 13
+	pkgBitCall    uint16 = 0x00 << 8
 	pkgBitBack    uint16 = 0x80 << 8
 	pkgBitPing    uint16 = 0x40 << 8
 )
 
 func NewPkgPing() []byte {
 	//01000000
-	return (&Pkg{Type: pkgBitPing}).Bytes()
+	return (&Pkg{Type: pkgBitCall + pkgBitPing}).Bytes()
 }
 
 func NewPkgPong() []byte {
@@ -67,7 +68,7 @@ func NewPkgPong() []byte {
 
 func NewPkg(msgID uint8, data []byte) *Pkg {
 	return &Pkg{
-		Type:  pkgBitBack,
+		Type:  pkgBitCall,
 		MsgID: msgID,
 		Data:  data,
 	}
@@ -89,7 +90,7 @@ func (this *Pkg) String() string {
 	return this.Bytes().HEX()
 }
 
-func (this *Pkg) EncodeData() []byte {
+func (this *Pkg) encodeData() []byte {
 	data := this.Data
 	switch this.Type << 2 >> 13 {
 	case 1:
@@ -104,7 +105,7 @@ func (this *Pkg) EncodeData() []byte {
 	return data
 }
 
-func (this *Pkg) DecodeData() error {
+func (this *Pkg) decodeData() error {
 	switch this.Type << 2 >> 13 {
 	case 1:
 		// Gzip 解压字节
@@ -129,7 +130,7 @@ func (this *Pkg) DecodeData() error {
 func (this *Pkg) Bytes() bytes.Entity {
 	data := []byte(nil)
 	data = append(data, pkgStart...)
-	dataBytes := this.EncodeData()
+	dataBytes := this.encodeData()
 	length := len(dataBytes) + pkgBaseLength
 	data = append(data, byte(length>>8), byte(length))
 	data = append(data, byte(this.Type>>8), byte(this.Type))
@@ -142,7 +143,7 @@ func (this *Pkg) Bytes() bytes.Entity {
 
 // Resp 生成响应包
 func (this *Pkg) Resp(bs []byte) *Pkg {
-	this.Type += pkgBitBack
+	this.Type += pkgBitBack + this.Type<<1>>1
 	this.Data = bs
 	return this
 }
@@ -204,6 +205,6 @@ func DecodePkg(bs []byte) (*Pkg, error) {
 		Data:  bs[7 : length-6],
 	}
 
-	return p, p.DecodeData()
+	return p, p.decodeData()
 
 }
