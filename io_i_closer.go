@@ -80,7 +80,7 @@ func (this *ICloser) SetRedialWithNil() *ICloser {
 	return this
 }
 
-//================================GoFor================================
+//================================Timer================================
 
 // Timer 定时器执行函数,直到错误
 func (this *ICloser) Timer(interval time.Duration, fn func() error) {
@@ -183,7 +183,7 @@ func (this *ICloser) Close() error {
 	return this.CloseWithErr(ErrHandClose)
 }
 
-// TryCloseWithDeadline 尝试使用Deadline关闭
+// TryCloseWithDeadline 尝试使用Deadline关闭,例如net.Conn
 func (this *ICloser) TryCloseWithDeadline() error {
 	return this.closeWithErr(ErrHandClose, func(closer Closer) error {
 		switch c := closer.(type) {
@@ -201,7 +201,7 @@ func (this *ICloser) CloseWithErr(closeErr error) (err error) {
 	return this.closeWithErr(closeErr)
 }
 
-// closeWithErr 根据错误关闭,会重试(如果设置了重连)
+// closeWithErr 根据错误关闭,会重试(如果设置了重连),自定义关闭函数
 func (this *ICloser) closeWithErr(closeErr error, fn ...func(Closer) error) (err error) {
 	if closeErr != nil {
 		//原子判断是否执行过

@@ -24,7 +24,7 @@ func NewIReader(r Reader) *IReader {
 }
 
 type IReader struct {
-	*printer                                     //
+	*printer                                     //printer
 	mReader  MessageReader                       //接口MessageReader,兼容Reader
 	buf      *bufio.Reader                       //buffer
 	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
@@ -72,15 +72,11 @@ func (this *IReader) ReadMessage() ([]byte, error) {
 // ReadLast 读取最新的数据
 func (this *IReader) ReadLast(timeout time.Duration) (response []byte, err error) {
 	if timeout <= 0 {
-		select {
-		case response = <-this.lastChan:
-		}
+		response = <-this.lastChan
 	} else {
-		timer := time.NewTimer(timeout)
-		defer timer.Stop()
 		select {
 		case response = <-this.lastChan:
-		case <-timer.C:
+		case <-time.After(timeout):
 			err = ErrWithTimeout
 		}
 	}

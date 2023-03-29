@@ -5,6 +5,7 @@ import (
 	"errors"
 )
 
+// NewPool 新建连接池
 func NewPool(dial DialFunc, num int, fn ...func(ctx context.Context, c *Client)) *Pool {
 	p := &Pool{
 		client: make(map[string]*Client),
@@ -29,6 +30,7 @@ type Pool struct {
 	chooseFunc func(all map[string]*Client) (*Client, error)
 }
 
+// SetChooseFunc 设置选择客户端规则函数,默认随机
 func (this *Pool) SetChooseFunc(fn func(all map[string]*Client) (*Client, error)) *Pool {
 	this.chooseFunc = fn
 	return this
