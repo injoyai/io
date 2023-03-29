@@ -11,7 +11,6 @@ import (
 	"github.com/injoyai/io/dial/proxy"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
 	"time"
 )
 
@@ -73,7 +72,7 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	var pipeClient *io.Client
 	go pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
 		pipeClient = c
-		//c.Debug()
+		c.Debug()
 		c.SetDealFunc(proxy.DealWithServer(vpnClient))
 	})
 
@@ -86,10 +85,6 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 		_, err := pipeClient.Write(msg.Bytes())
 		return err
 	})
-
-	go func() {
-		log.Println(http.ListenAndServe(fmt.Sprintf(":%d", 6060), nil))
-	}()
 
 	return vpnClient.Run()
 }

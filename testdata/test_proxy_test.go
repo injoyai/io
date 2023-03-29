@@ -24,7 +24,7 @@ func TestProxyClient(t *testing.T) {
 }
 
 func TestVPNClient(t *testing.T) {
-	t.Log(VPNClient(1082, 1090, ":12000"))
+	t.Log(VPNClient(1081, 1090, ":12000"))
 }
 
 func TestVPNHTTP(t *testing.T) {
