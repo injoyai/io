@@ -68,6 +68,7 @@ func PrintWithHEX(msg Message, tag ...string) {
 	log.Print(PrintfWithHEX(msg, tag...))
 }
 
+// PrintWithASCII todo 有bug win10一直有提示音
 func PrintWithASCII(msg Message, tag ...string) {
 	log.Print(PrintfWithASCII(msg, tag...))
 }

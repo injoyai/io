@@ -4,13 +4,32 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/injoyai/base/chans"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/io/dial/proxy"
+	"log"
+	"net/http"
 	_ "net/http/pprof"
 	"time"
 )
+
+func TestClient(addr string) {
+	go func() {
+		log.Println(http.ListenAndServe(fmt.Sprintf(":%d", 6067), nil))
+	}()
+	for range chans.Count(1000, time.Millisecond*10) {
+		dial.RedialTCP(addr, func(ctx context.Context, c *io.Client) {
+			c.Debug()
+			c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
+				_, err := c.WriteString(time.Now().String())
+				return err
+			})
+		})
+	}
+	select {}
+}
 
 func TestProxy() error {
 
@@ -44,7 +63,7 @@ func ProxyTransmit(port int) error {
 func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 
 	// 普通的tcpServer服务,用于监听用户数据
-	vpnClient, err := proxy.NewTCPServer(tcpPort, proxy.WithServerDebug())
+	vpnClient, err := proxy.NewTCPServer(tcpPort, proxy.WithServerDebug(false))
 	if err != nil {
 		return err
 	}
@@ -67,6 +86,10 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 		_, err := pipeClient.Write(msg.Bytes())
 		return err
 	})
+
+	go func() {
+		log.Println(http.ListenAndServe(fmt.Sprintf(":%d", 6060), nil))
+	}()
 
 	return vpnClient.Run()
 }
