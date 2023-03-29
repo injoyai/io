@@ -52,12 +52,12 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		s.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
 		return nil
 	})
+	//设置默认处理数据函数
+	s.SetDealFunc(func(msg *IMessage) { s.readChan <- msg })
 	//设置队列处理数据函数
 	s.dealQueue.SetHandler(func(no, num int, data interface{}) {
 		if s.dealFunc != nil {
 			s.dealFunc(data.(*IMessage))
-		} else {
-			s.readChan <- data.(*IMessage)
 		}
 	})
 	//预设服务处理
@@ -81,12 +81,13 @@ type Server struct {
 	dealQueue  *chans.Entity       //数据处理队列
 	readChan   chan *IMessage      //数据通道,dealFunc二选一
 
-	readFunc  buf.ReadFunc        //数据读取方法
-	closeFunc func(msg *IMessage) //断开连接事件
-	writeFunc WriteFunc           //数据发送函数,包装下原始数据
-	printFunc PrintFunc           //打印数据方法
-	running   uint32              //是否在运行
-	timeout   time.Duration       //超时时间,小于0是不超时
+	readFunc        buf.ReadFunc        //数据读取方法
+	closeFunc       func(msg *IMessage) //断开连接事件
+	writeFunc       WriteFunc           //数据发送函数,包装下原始数据
+	printFunc       PrintFunc           //打印数据方法
+	running         uint32              //是否在运行
+	timeout         time.Duration       //超时时间,小于0是不超时
+	timeoutInterval time.Duration       //超时检测间隔
 }
 
 //================================SetFunc================================
@@ -120,19 +121,23 @@ func (this *Server) SetDealQueueNum(n int) *Server {
 // SetDealFunc 设置处理数据方法
 func (this *Server) SetDealFunc(fn func(msg *IMessage)) *Server {
 	this.dealFunc = fn
-	select {
-	case <-this.readChan:
-	default:
+	for {
+		//清除阻塞数据
+		select {
+		case <-this.readChan:
+			continue
+		default:
+		}
+		break
 	}
 	return this
 }
 
 // SetDealWithWriter 读取到的数据写入到writer
 func (this *Server) SetDealWithWriter(writer Writer) *Server {
-	this.SetDealFunc(func(msg *IMessage) {
+	return this.SetDealFunc(func(msg *IMessage) {
 		writer.Write(msg.Bytes())
 	})
-	return this
 }
 
 // SetReadFunc 设置数据读取
@@ -142,8 +147,8 @@ func (this *Server) SetReadFunc(fn func(buf *bufio.Reader) (bytes []byte, err er
 }
 
 // SetReadWithAll 设置读取函数:读取全部
-func (this *Server) SetReadWithAll() {
-	this.SetReadFunc(buf.ReadWithAll)
+func (this *Server) SetReadWithAll() *Server {
+	return this.SetReadFunc(buf.ReadWithAll)
 }
 
 // SetWriteFunc 设置数据发送函数
@@ -161,19 +166,23 @@ func (this *Server) SetPrintFunc(fn PrintFunc) *Server {
 
 // SetPrintWithHEX 设置打印方式HEX
 func (this *Server) SetPrintWithHEX() *Server {
-	this.printFunc = PrintWithHEX
-	return this
+	return this.SetPrintFunc(PrintWithHEX)
 }
 
 // SetPrintWithASCII 设置打印方式ASCII
 func (this *Server) SetPrintWithASCII() *Server {
-	this.printFunc = PrintWithASCII
-	return this
+	return this.SetPrintFunc(PrintWithASCII)
 }
 
 // SetTimeout 设置超时时间,还有time/3的时间误差
 func (this *Server) SetTimeout(t time.Duration) *Server {
 	this.timeout = t
+	return this
+}
+
+// SetTimeoutInterval 设置超时检测间隔,至少需要1秒
+func (this *Server) SetTimeoutInterval(ti time.Duration) *Server {
+	this.timeoutInterval = conv.SelectDuration(ti > time.Second, ti, time.Second)
 	return this
 }
 
@@ -194,6 +203,15 @@ func (this *Server) GetClientAny() *Client {
 		return v
 	}
 	return nil
+}
+
+// GetClientDo 获取客户端并执行函数,返回是否存在和执行错误,先判断是否存在
+func (this *Server) GetClientDo(key string, fn func(c *Client) error) (bool, error) {
+	c := this.GetClient(key)
+	if c != nil {
+		return true, fn(c)
+	}
+	return false, nil
 }
 
 // GetClientMap 获取所有连接
@@ -230,12 +248,11 @@ func (this *Server) Write(p []byte) (int, error) {
 }
 
 // WriteClient 给一个客户端发送数据
-func (this *Server) WriteClient(key string, msg []byte) (exist bool, err error) {
-	c := this.GetClient(key)
-	if exist = c != nil; exist {
-		_, err = c.Write(msg)
-	}
-	return
+func (this *Server) WriteClient(key string, msg []byte) (bool, error) {
+	return this.GetClientDo(key, func(c *Client) error {
+		_, err := c.Write(msg)
+		return err
+	})
 }
 
 // WriteClientAll 广播,发送数据给所有连接
@@ -246,10 +263,8 @@ func (this *Server) WriteClientAll(msg []byte) {
 }
 
 // CloseClient 关闭一个连接
-func (this *Server) CloseClient(key string) {
-	if c := this.GetClient(key); c != nil {
-		c.Close()
-	}
+func (this *Server) CloseClient(key string) (bool, error) {
+	return this.GetClientDo(key, func(c *Client) error { return c.Close() })
 }
 
 // CloseClientAll 关闭所有连接
@@ -275,8 +290,8 @@ func (this *Server) SetClientKey(newClient *Client, newKey string) {
 	this.clientMap[newKey] = newClient.SetKey(newKey)
 }
 
-// GoFor 协程循环
-func (this *Server) GoFor(interval time.Duration, do func(s *Server)) {
+// Timer 定时执行
+func (this *Server) Timer(interval time.Duration, do func(s *Server)) {
 	go this.ICloser.Timer(interval, func() error {
 		do(this)
 		return nil
@@ -309,7 +324,7 @@ func (this *Server) SwapServer(s *Server) *Server {
 
 // Running 是否在运行
 func (this *Server) Running() bool {
-	return this.running == 1
+	return atomic.LoadUint32(&this.running) == 1
 }
 
 // Run 运行(监听)
@@ -324,7 +339,7 @@ func (this *Server) Run() error {
 	//执行超时机制
 	go func() {
 		for {
-			interval := conv.SelectDuration(this.timeout/3 > time.Second, this.timeout/3, time.Minute)
+			interval := conv.SelectDuration(this.timeoutInterval > time.Second, this.timeoutInterval, time.Second)
 			<-time.After(interval)
 			select {
 			case <-this.ctx.Done():
