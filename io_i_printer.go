@@ -2,6 +2,7 @@ package io
 
 import (
 	"fmt"
+	"github.com/injoyai/logs"
 	"strings"
 )
 
@@ -64,12 +65,12 @@ func (this *printer) GetDebug() bool {
 //================================Common================================
 
 func PrintWithHEX(msg Message, tag ...string) {
-	fmt.Println(PrintfWithHEX(msg, tag...))
+	logs.Debug(PrintfWithHEX(msg, tag...))
 }
 
 // PrintWithASCII todo 有bug 用log.Print win10一直有提示音
 func PrintWithASCII(msg Message, tag ...string) {
-	fmt.Println(PrintfWithASCII(msg, tag...))
+	logs.Debug(PrintfWithASCII(msg, tag...))
 }
 
 func PrintfWithHEX(msg Message, tag ...string) string {
@@ -80,7 +81,7 @@ func PrintfWithHEX(msg Message, tag ...string) string {
 	if strings.Contains(t, TagRead) || strings.Contains(t, TagWrite) {
 		return fmt.Sprintf("%s %s", t, msg.HEX())
 	}
-	return fmt.Sprintf("%s %s", t, msg.ASCII())
+	return fmt.Sprintf("%s %s\n", t, msg.ASCII())
 }
 
 func PrintfWithASCII(msg Message, tag ...string) string {
@@ -88,5 +89,5 @@ func PrintfWithASCII(msg Message, tag ...string) string {
 	if len(t) > 0 {
 		t = "[" + t + "]"
 	}
-	return fmt.Sprintf("%s %s", t, msg.ASCII())
+	return fmt.Sprintf("%s %s\n", t, msg.ASCII())
 }

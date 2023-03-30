@@ -28,10 +28,38 @@ func TestVPNClient(t *testing.T) {
 }
 
 func TestVPNHTTP(t *testing.T) {
+	c, err := dial.NewTCP(":1081")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	c.Debug()
+	c.SetDealFunc(func(msg *io.IMessage) {
+		wait.Done("", nil)
+	})
+	go c.Run()
+	c.WriteString(`CONNECT / HTTP/1.1
+Host: 121.36.99.197:8000
+
+`)
+	go func() {
+		if _, err := wait.Wait(""); err == nil {
+			c.WriteString(`GET /ping HTTP/1.1
+Host: 121.36.99.197:8000
+Connection: close
+
+				`)
+		}
+	}()
+	select {}
+}
+
+func TestVPNHTTPMore(t *testing.T) {
 
 	for range chans.Count(1000) {
 		<-time.After(time.Second * 3)
-		c, err := dial.NewTCP(":1082")
+		c, err := dial.NewTCP(":1081")
 		if err != nil {
 			t.Error(err)
 			continue
@@ -50,6 +78,7 @@ Host: 121.36.99.197:8000
 			if _, err := wait.Wait(""); err == nil {
 				c.WriteString(`GET /ping HTTP/1.1
 Host: 121.36.99.197:8000
+Connection: close
 
 				`)
 			}

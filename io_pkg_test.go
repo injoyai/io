@@ -9,9 +9,9 @@ func TestNewPkg(t *testing.T) {
 
 	data := []byte{0, 1, 2, 3, 5}
 	{
-		t.Log(NewPkg(20, data).Bytes().HEX()) //8888001280001400010203057909B04C8989
+		t.Log(NewPkg(20, data).Bytes().HEX())
 
-		s := "8888001280001400010203057909B04C8989"
+		s := "888800000014000014000102030512EC39DE8989"
 		bs, err := hex.DecodeString(s)
 		if err != nil {
 			t.Error(err)
@@ -31,9 +31,9 @@ func TestNewPkg(t *testing.T) {
 		}
 	}
 	{
-		t.Log(NewPkg(20, data).SetCompress(1).Bytes().HEX()) //8888001280001400010203057909B04C8989
+		t.Log(NewPkg(20, data).SetCompress(1).Bytes().HEX())
 
-		s := "8888002A8800141F8B08000000000000FF626064626605040000FFFF5AE35D2605000000A491EE798989"
+		s := "88880000002C0800141F8B08000000000000FF626064626605040000FFFF5AE35D2605000000A456D7048989"
 		bs, err := hex.DecodeString(s)
 		if err != nil {
 			t.Error(err)

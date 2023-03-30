@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/buf"
@@ -190,11 +189,12 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 				case io.TagWrite, io.TagRead:
 					m, err := DecodeMessage(msg)
 					if err != nil {
+						logs.Debug(err)
 						return
 					}
-					fmt.Printf("[PI|C][%s] %s\n", tag[0], m.String())
+					logs.Debugf("[PI|C][%s] %s\n", tag[0], m.String())
 				default:
-					fmt.Printf(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
+					logs.Debugf(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
 				}
 			}
 		})
@@ -221,6 +221,7 @@ func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
 func WithClientDebug(b ...bool) func(ctx context.Context, c *io.Client, e *Entity) {
 	return func(ctx context.Context, c *io.Client, e *Entity) {
 		c.Debug(b...)
+		e.Debug()
 	}
 }
 

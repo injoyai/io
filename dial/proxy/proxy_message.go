@@ -1,10 +1,11 @@
 package proxy
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/injoyai/conv"
-	"github.com/injoyai/io"
+	"github.com/injoyai/logs"
 	"strings"
 )
 
@@ -139,7 +140,7 @@ func (this *Message) Bytes() []byte {
 	data = append(data, []byte(this.Addr)...)
 	data = append(data, conv.Bytes(uint32(len(this.Data)))...)
 	data = append(data, []byte(this.Data)...)
-	return io.NewPkg(0, data).Bytes()
+	return data
 }
 
 func (this *Message) GetData() []byte {
@@ -151,32 +152,34 @@ func (this *Message) GetDataString() string {
 }
 
 func DecodeMessage(bytes []byte) (*Message, error) {
-	p, err := io.DecodePkg(bytes)
-	if err != nil {
-		return nil, err
-	}
-	length := len(p.Data)
+	length := len(bytes)
 	if length < 8 {
 		return nil, errors.New("数据长度错误:基础长度错误")
 	}
 	m := new(Message)
-	m.OperateType = OperateType(p.Data[0])
-	m.ConnectType = ConnectType(p.Data[1])
-	keyLen := int(p.Data[2])
+	m.OperateType = OperateType(bytes[0])
+	m.ConnectType = ConnectType(bytes[1])
+	keyLen := int(bytes[2])
 	if length < 8+keyLen {
 		return nil, errors.New("数据长度错误:key长度错误")
 	}
-	m.Key = string(p.Data[3 : 3+keyLen])
-	addrLen := int(p.Data[3+keyLen])
+	m.Key = string(bytes[3 : 3+keyLen])
+	addrLen := int(bytes[3+keyLen])
 	if length < 8+keyLen+addrLen {
 		return nil, errors.New("数据长度错误:addr长度错误")
 	}
-	m.Addr = string(p.Data[4+keyLen : 4+keyLen+addrLen])
-	dataLen := conv.Int(p.Data[4+keyLen+addrLen : 8+keyLen+addrLen])
+	m.Addr = string(bytes[4+keyLen : 4+keyLen+addrLen])
+	dataLen := conv.Int(bytes[4+keyLen+addrLen : 8+keyLen+addrLen])
 	if length != 8+keyLen+addrLen+dataLen {
+		logs.Debug(string(bytes))
+		logs.Debug(hex.EncodeToString(bytes[:8]))
+		logs.Debug("dataLen:", dataLen)
+		logs.Debug(hex.EncodeToString(bytes[4+keyLen+addrLen : 8+keyLen+addrLen]))
+		logs.Debug("length:", length)
+		logs.Debug("sum:", 8+keyLen+addrLen+dataLen)
 		return nil, errors.New("数据长度错误:data长度错误")
 	}
-	m.Data = string(p.Data[8+keyLen+addrLen:])
+	m.Data = string(bytes[8+keyLen+addrLen:])
 	return m, nil
 }
 

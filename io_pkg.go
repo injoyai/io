@@ -1,6 +1,7 @@
 package io
 
 import (
+	"bufio"
 	"compress/gzip"
 	"fmt"
 	"github.com/injoyai/base/bytes"
@@ -50,7 +51,7 @@ var (
 )
 
 const (
-	pkgBaseLength        = 13
+	pkgBaseLength        = 15
 	pkgBitCall    uint16 = 0x00 << 8
 	pkgBitBack    uint16 = 0x80 << 8
 	pkgBitPing    uint16 = 0x40 << 8
@@ -131,8 +132,8 @@ func (this *Pkg) Bytes() bytes.Entity {
 	data := []byte(nil)
 	data = append(data, pkgStart...)
 	dataBytes := this.encodeData()
-	length := len(dataBytes) + pkgBaseLength
-	data = append(data, byte(length>>8), byte(length))
+	length := uint32(len(dataBytes) + pkgBaseLength)
+	data = append(data, conv.Bytes(length)...)
 	data = append(data, byte(this.Type>>8), byte(this.Type))
 	data = append(data, this.MsgID)
 	data = append(data, dataBytes...)
@@ -182,7 +183,7 @@ func DecodePkg(bs []byte) (*Pkg, error) {
 	}
 
 	//获取总数据长度
-	length := conv.Int(bs[2:4])
+	length := conv.Int(bs[2:6])
 
 	//校验总长度
 	if len(bs) != length {
@@ -200,11 +201,60 @@ func DecodePkg(bs []byte) (*Pkg, error) {
 	}
 
 	p := &Pkg{
-		Type:  uint16(bs[4])<<8 + uint16(bs[5]),
-		MsgID: bs[6],
-		Data:  bs[7 : length-6],
+		Type:  uint16(bs[6])<<8 + uint16(bs[7]),
+		MsgID: bs[8],
+		Data:  bs[9 : length-6],
 	}
 
 	return p, p.decodeData()
 
+}
+
+func ReadWithPkg(buf *bufio.Reader) ([]byte, error) {
+
+	for {
+		result := []byte(nil)
+
+		bs := make([]byte, 2)
+		n, err := buf.Read(bs)
+		if err != nil {
+			return nil, err
+		}
+
+		if n == 2 {
+			//帧头
+			result = append(result, bs...)
+
+			bs = make([]byte, 4)
+			n, err = buf.Read(bs)
+			if err != nil {
+				return nil, err
+			}
+			if n == 4 {
+				//长度
+				length := conv.Int(bs)
+
+				if length > pkgBaseLength {
+					result = append(result, bs...)
+
+					bs = make([]byte, length-6)
+					n, err = buf.Read(bs)
+					if err != nil {
+						return nil, err
+					}
+					if n == length-6 {
+						//数据
+						result = append(result, bs...)
+						p, err := DecodePkg(result)
+						if err != nil {
+							return nil, err
+						}
+						return p.Data, nil
+					}
+				}
+
+			}
+		}
+
+	}
 }

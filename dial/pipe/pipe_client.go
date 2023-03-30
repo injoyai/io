@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
+	"github.com/injoyai/logs"
 )
 
 /*
@@ -23,6 +24,7 @@ func Redial(dial io.DialFunc, fn ...func(ctx context.Context, c *io.Client)) *io
 	return io.Redial(dial, func(ctx context.Context, c *io.Client) {
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
+			logs.Debug(msg.HEX())
 		})
 		c.SetWriteFunc(DefaultWriteFunc)
 		c.SetReadFunc(DefaultReadFunc)
