@@ -101,6 +101,19 @@ func (this *IWriter) Copy(reader Reader) (int64, error) {
 	return Copy(this, reader)
 }
 
+// WriteChan 监听通道并写入
+func (this *IWriter) WriteChan(c chan interface{}) (int64, error) {
+	var total int64
+	for data := range c {
+		n, err := this.Write(conv.Bytes(data))
+		if err != nil {
+			return 0, err
+		}
+		total += int64(n)
+	}
+	return total, nil
+}
+
 //================================WriteFunc================================
 
 // SetWriteFunc 设置写入函数,封装数据包
