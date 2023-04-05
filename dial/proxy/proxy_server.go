@@ -196,3 +196,17 @@ func DealWithServer(s *Server) func(msg *io.IMessage) {
 		}
 	}
 }
+
+//// DealWithClient 设置处理函数,解析数据并写入到proxy.Server
+//func DealWithClient(s *Server) func(msg *io.IMessage) {
+//	return func(msg *io.IMessage) {
+//		m, err := DecodeMessage(msg.Message)
+//		//理论不会出现
+//		logs.PrintErr(err)
+//		if err == nil {
+//			//通道过来的数据,响应给请求端
+//			_, err = s.WriteMessage(m)
+//			logs.PrintErr(err)
+//		}
+//	}
+//}

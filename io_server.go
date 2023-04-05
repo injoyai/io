@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/injoyai/base/chans"
+	"github.com/injoyai/base/maps"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io/buf"
 	"sync"
@@ -26,6 +27,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	s := &Server{
 		printer:    newPrinter(fmt.Sprintf("%p", listener)),
 		ICloser:    NewICloserWithContext(ctx, listener),
+		Tag:        maps.NewSafe(),
 		listener:   listener,
 		clientMap:  make(map[string]*Client),
 		timeout:    DefaultTimeout * 3,
@@ -72,6 +74,7 @@ type Server struct {
 	*printer
 	*ICloser
 
+	Tag        *maps.Safe          //
 	listener   Listener            //listener
 	clientMap  map[string]*Client  //链接集合,远程地址为key
 	clientMu   sync.RWMutex        //锁
