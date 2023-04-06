@@ -9,3 +9,7 @@ func WithServerDebug(b ...bool) func(s *Server) {
 func WithClientDebug() func(ctx context.Context, c *Client) {
 	return func(ctx context.Context, c *Client) { c.Debug() }
 }
+
+func WithClientSetKey(key string) func(ctx context.Context, c *Client) {
+	return func(ctx context.Context, c *Client) { c.SetKey(key) }
+}

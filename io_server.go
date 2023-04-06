@@ -149,6 +149,11 @@ func (this *Server) SetReadFunc(fn func(buf *bufio.Reader) (bytes []byte, err er
 	return this
 }
 
+// SetReadWithPkg 读取方式
+func (this *Server) SetReadWithPkg() *Server {
+	return this.SetReadFunc(ReadWithPkg)
+}
+
 // SetReadWithAll 设置读取函数:读取全部
 func (this *Server) SetReadWithAll() *Server {
 	return this.SetReadFunc(buf.ReadWithAll)

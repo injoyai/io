@@ -10,6 +10,10 @@ type TimeoutWriter interface {
 	WriteWithTimeout(p []byte, timeout time.Duration) (int, error)
 }
 
+type Runner interface {
+	Run() error
+}
+
 // Closed 是否已关闭
 type Closed interface {
 	Closed() bool
@@ -70,3 +74,7 @@ type CloseFunc func(ctx context.Context, msg Message)
 
 // WriteDeadline 写入超时时间,例如tcp关闭
 type WriteDeadline func(t time.Time) error
+
+type OptionClient func(ctx context.Context, c *Client)
+
+type OptionServer func(ctx context.Context, c *Server)

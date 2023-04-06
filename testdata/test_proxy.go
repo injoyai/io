@@ -32,7 +32,7 @@ func TestClient(addr string) {
 
 func TestProxy() error {
 
-	go proxy.SwapTCPClient(":10089", func(ctx context.Context, c *io.Client, e *proxy.Entity) {
+	go proxy.NewTCPClient(":10089", func(ctx context.Context, c *io.Client, e *proxy.Entity) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
 			e.AddMessage(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
@@ -40,13 +40,13 @@ func TestProxy() error {
 		})
 	})
 
-	return proxy.SwapTCPServer(10089, io.WithServerDebug())
+	return proxy.NewSwapTCPServer(10089, io.WithServerDebug())
 
 	return nil
 }
 
 func ProxyClient(addr string) *io.Client {
-	return proxy.SwapTCPClient(addr, proxy.WithClientDebug())
+	return proxy.NewTCPClient(addr, proxy.WithClientDebug())
 }
 
 func ProxyTransmit(port int) error {
@@ -73,11 +73,11 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	go pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
 		pipeClient = c
 		c.Debug()
-		c.SetDealFunc(proxy.DealWithServer(vpnClient))
+		c.SetDealWithWriter(vpnClient)
 	})
 
 	//设置数据处理函数
-	vpnClient.SetDealFunc(func(msg *proxy.Message) error {
+	vpnClient.SetDealFunc(func(msg *proxy.CMessage) error {
 		if pipeClient == nil {
 			return errors.New("pipe未连接")
 		}

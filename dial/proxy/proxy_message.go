@@ -1,11 +1,10 @@
 package proxy
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/injoyai/conv"
-	"github.com/injoyai/logs"
+	"github.com/injoyai/io"
 	"strings"
 )
 
@@ -91,7 +90,7 @@ const (
 type Message struct {
 	OperateType OperateType `json:"ot"`   //操作类型
 	ConnectType ConnectType `json:"ct"`   //连接类型 默认tcp
-	Key         string      `json:"key"`  //标识
+	Key         string      `json:"key"`  //会话标识
 	Addr        string      `json:"addr"` //目标地址
 	Data        string      `json:"data"` //内容
 	//DataBytes   []byte      `json:"-"`    //内容字节,需要解析
@@ -100,6 +99,12 @@ type Message struct {
 func (this *Message) Response(data []byte) *Message {
 	this.SetOperateType(Response)
 	this.SetData(data)
+	return this
+}
+
+func (this *Message) Close(msg interface{}) *Message {
+	this.SetOperateType(Close)
+	this.SetData(msg)
 	return this
 }
 
@@ -119,6 +124,11 @@ func (this *Message) SetData(data interface{}) *Message {
 }
 
 func (this *Message) String() string {
+	return string(this.Bytes())
+
+}
+
+func (this *Message) Digest() string {
 	return fmt.Sprintf("标识:%s   地址:%s   类型:%s(%s)   :   %s", this.Key, this.Addr, this.OperateType, this.ConnectType, func() string {
 		r := []rune(string(this.GetData()))
 		if len(r) > 100 {
@@ -171,12 +181,6 @@ func DecodeMessage(bytes []byte) (*Message, error) {
 	m.Addr = string(bytes[4+keyLen : 4+keyLen+addrLen])
 	dataLen := conv.Int(bytes[4+keyLen+addrLen : 8+keyLen+addrLen])
 	if length != 8+keyLen+addrLen+dataLen {
-		logs.Debug(string(bytes))
-		logs.Debug(hex.EncodeToString(bytes[:8]))
-		logs.Debug("dataLen:", dataLen)
-		logs.Debug(hex.EncodeToString(bytes[4+keyLen+addrLen : 8+keyLen+addrLen]))
-		logs.Debug("length:", length)
-		logs.Debug("sum:", 8+keyLen+addrLen+dataLen)
 		return nil, errors.New("数据长度错误:data长度错误")
 	}
 	m.Data = string(bytes[8+keyLen+addrLen:])
@@ -219,4 +223,13 @@ func NewInfoMessage(key string, data []byte) *Message {
 		Key:         key,
 		OperateType: Info,
 	}).SetData(data)
+}
+
+type CMessage struct {
+	*io.Client
+	*Message
+}
+
+func NewCMessage(c *io.Client, m *Message) *CMessage {
+	return &CMessage{Client: c, Message: m}
 }

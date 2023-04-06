@@ -19,9 +19,9 @@ const (
 )
 
 type Server struct {
-	s        *io.Server               //监听服务
-	e        *Entity                  //代理实例,正向,反向
-	dealFunc func(msg *Message) error //处理函数
+	s        *io.Server                //监听服务
+	e        *Entity                   //代理实例,正向,反向
+	dealFunc func(msg *CMessage) error //处理函数
 }
 
 func (this *Server) Debug(b ...bool) { this.s.Debug(b...) }
@@ -43,7 +43,7 @@ func (this *Server) WriteMessage(m *Message) (int, error) {
 	case Response:
 		//代理响应,写入请求客户端
 		_, err := this.s.WriteClient(m.Key, m.GetData())
-		return 0, err
+		return len(m.GetData()), err
 	case Close:
 		//关闭客户端请求连接
 		c := this.s.GetClient(m.Key)
@@ -59,7 +59,7 @@ func (this *Server) WriteMessage(m *Message) (int, error) {
 }
 
 // SetDealFunc 设置处理函数,例如像通道发送数据
-func (this *Server) SetDealFunc(fn func(msg *Message) error) {
+func (this *Server) SetDealFunc(fn func(msg *CMessage) error) {
 	this.dealFunc = fn
 }
 
@@ -77,14 +77,14 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 			//设置打印函数
 			io.PrintWithASCII(msg.Bytes(), append([]string{"PR|S"}, tag...)...)
 		})
-		ser = &Server{s: s, e: New(), dealFunc: func(msg *Message) error {
+		ser = &Server{s: s, e: New(), dealFunc: func(msg *CMessage) error {
 			m := "未设置处理函数"
 			s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
 			return errors.New(m)
 		}}
 		s.SetCloseFunc(func(msg *io.IMessage) {
 			//客户端关闭了连接,发送是数据到代理端关闭代理客户端
-			m := NewCloseMessage(msg.GetKey(), msg.String())
+			m := NewCMessage(msg.Client, NewCloseMessage(msg.GetKey(), msg.String()))
 			if ser.dealFunc != nil {
 				logs.PrintErr(ser.dealFunc(m))
 			}
@@ -122,10 +122,12 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 					//msg.Close()
 					//return
 				}
-				m := NewWriteMessage(msg.GetKey(), addr, msg.Bytes())
+				m := NewCMessage(msg.Client, NewWriteMessage(msg.GetKey(), addr, msg.Bytes()))
 				if ser.dealFunc != nil {
 					//多半是传输错误,例如未连接隧道,关闭客户端请求
-					msg.CloseWithErr(ser.dealFunc(m))
+					if err := ser.dealFunc(m); err != nil {
+						msg.CloseWithErr(err)
+					}
 				}
 			}
 		})
@@ -182,31 +184,3 @@ func getAddr(msg *io.IMessage) (string, error) {
 func WithServerDebug(b ...bool) func(s *Server) {
 	return func(s *Server) { s.Debug(b...) }
 }
-
-// DealWithServer 设置处理函数,解析数据并写入到proxy.Server
-func DealWithServer(s *Server) func(msg *io.IMessage) {
-	return func(msg *io.IMessage) {
-		m, err := DecodeMessage(msg.Message)
-		//理论不会出现
-		logs.PrintErr(err)
-		if err == nil {
-			//通道过来的数据,响应给请求端
-			_, err = s.WriteMessage(m)
-			logs.PrintErr(err)
-		}
-	}
-}
-
-//// DealWithClient 设置处理函数,解析数据并写入到proxy.Server
-//func DealWithClient(s *Server) func(msg *io.IMessage) {
-//	return func(msg *io.IMessage) {
-//		m, err := DecodeMessage(msg.Message)
-//		//理论不会出现
-//		logs.PrintErr(err)
-//		if err == nil {
-//			//通道过来的数据,响应给请求端
-//			_, err = s.WriteMessage(m)
-//			logs.PrintErr(err)
-//		}
-//	}
-//}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
-	"github.com/injoyai/logs"
 )
 
 /*
@@ -21,18 +20,7 @@ Client
 */
 
 func Redial(dial io.DialFunc, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return io.Redial(dial, func(ctx context.Context, c *io.Client) {
-		c.SetPrintFunc(func(msg io.Message, tag ...string) {
-			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
-			logs.Debug(msg.HEX())
-		})
-		c.SetWriteFunc(DefaultWriteFunc)
-		c.SetReadFunc(DefaultReadFunc)
-		for _, v := range fn {
-			v(ctx, c)
-		}
-		c.SetKeepAlive(io.DefaultTimeout)
-	})
+	return io.Redial(dial, append([]func(ctx context.Context, c *io.Client){WithClient}, fn...)...)
 }
 
 func RedialTCP(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
@@ -50,8 +38,6 @@ func NewClient(dial io.DialFunc) (*io.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.SetWriteFunc(DefaultWriteFunc)
-	c.SetReadFunc(DefaultReadFunc)
-	c.Redial()
+	WithClient(c.Ctx(), c)
 	return c, nil
 }

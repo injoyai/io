@@ -150,6 +150,7 @@ func (this *Entity) SetConnectFunc(fn func(msg *Message) (i io.ReadWriteCloser, 
 
 // DefaultConnectFunc 默认连接函数
 func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
+	logs.Debug(msg.ConnectType, msg.Addr, msg.Data)
 	err = errors.New("未实现")
 	switch msg.ConnectType {
 	case TCP:
@@ -171,8 +172,7 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 	return
 }
 
-// SwapTCPClient 和TCP客户端交换数据
-func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
+func NewTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
 	e := New()
 	return pipe.RedialTCP(addr, func(ctx context.Context, c *io.Client) {
 		for _, v := range fn {
@@ -187,7 +187,7 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 			if len(tag) > 0 {
 				switch tag[0] {
 				case io.TagWrite, io.TagRead:
-					m, err := DecodeMessage(msg)
+					m, err := DecodeMessage(msg.Bytes())
 					if err != nil {
 						logs.Debug(err)
 						return
@@ -201,8 +201,8 @@ func SwapTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e 
 	})
 }
 
-// SwapTCPServer 和TCP服务端交换数据,带测试
-func SwapTCPServer(port int, fn ...func(s *io.Server)) error {
+// NewSwapTCPServer 和TCP服务端交换数据,带测试
+func NewSwapTCPServer(port int, fn ...func(s *io.Server)) error {
 	s, err := pipe.NewServer(dial.TCPListenFunc(port))
 	if err != nil {
 		return err

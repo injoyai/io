@@ -2,7 +2,7 @@ package io
 
 import (
 	"fmt"
-	"github.com/injoyai/logs"
+	"log"
 	"strings"
 )
 
@@ -65,11 +65,11 @@ func (this *printer) GetDebug() bool {
 //================================Common================================
 
 func PrintWithHEX(msg Message, tag ...string) {
-	logs.Debug(PrintfWithHEX(msg, tag...))
+	log.Print(PrintfWithHEX(msg, tag...))
 }
 
 func PrintWithASCII(msg Message, tag ...string) {
-	logs.Debug(PrintfWithASCII(msg, tag...))
+	log.Print(PrintfWithASCII(msg, tag...))
 }
 
 func PrintfWithHEX(msg Message, tag ...string) string {
