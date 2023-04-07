@@ -3,6 +3,7 @@ package dial
 import (
 	"context"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/buf"
 )
 
 /*
@@ -21,7 +22,8 @@ Client
 // RedialPipe 通道客户端
 func RedialPipe(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
 	return RedialTCP(addr, func(ctx context.Context, c *io.Client) {
-		c.SetReadWriteWithPkg()
+		c.SetReadFunc(buf.DefaultReadFunc)
+		c.SetWriteFunc(buf.DefaultWriteFunc)
 		c.SetKeepAlive(io.DefaultTimeout)
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
@@ -35,7 +37,8 @@ func RedialPipe(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.
 // NewPipeServer 通道服务端
 func NewPipeServer(port int, fn ...func(s *io.Server)) (*io.Server, error) {
 	return NewTCPServer(port, func(s *io.Server) {
-		s.SetReadWriteWithPkg()
+		s.SetReadFunc(buf.DefaultReadFunc)
+		s.SetWriteFunc(buf.DefaultWriteFunc)
 		s.SetPrintFunc(func(msg io.Message, tag ...string) {
 			io.PrintWithASCII(msg, append([]string{"PI|S"}, tag...)...)
 		})

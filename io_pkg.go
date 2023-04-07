@@ -242,7 +242,7 @@ func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 					result = append(result, bs...)
 					length -= 6
 
-					//tcp分包,导致需要多次读取
+					//tcp分包,导致需要多次读取,todo 如果数据错误是否会一直阻塞?
 					for length > 0 {
 						bs = make([]byte, length)
 						n, err = buf.Read(bs)

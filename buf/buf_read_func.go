@@ -6,7 +6,31 @@ import (
 	"time"
 )
 
+var (
+	DefaultStart     = []byte{0x88, 0x88}
+	DefaultEnd       = []byte{0x89, 0x89}
+	defaultReadFunc  = NewReadWithStartEnd(DefaultStart, DefaultEnd)
+	defaultWriteFunc = NewWriteWithStartEnd(DefaultStart, DefaultEnd)
+)
+
+func DefaultReadFunc(buf *bufio.Reader) ([]byte, error) {
+	bs, err := defaultReadFunc(buf)
+	if err != nil {
+		return nil, err
+	}
+	if len(bs) > len(DefaultStart)+len(DefaultEnd) {
+		bs = bs[len(DefaultStart) : len(bs)-len(DefaultEnd)]
+	}
+	return bs, nil
+}
+
+func DefaultWriteFunc(req []byte) ([]byte, error) {
+	return defaultWriteFunc(req)
+}
+
 type ReadFunc func(buf *bufio.Reader) (bytes []byte, err error)
+
+type WriteFunc func(req []byte) ([]byte, error)
 
 // ReadWithAll 默认读取函数,读取全部数据
 func ReadWithAll(buf *bufio.Reader) (bytes []byte, err error) {
@@ -50,6 +74,13 @@ func NewReadWithWriter(write io.Writer) ReadFunc {
 func NewReadWithStartEnd(start, end []byte) ReadFunc {
 	f := &Frame{StartEndFrame: &StartEndFrame{Start: start, End: end}}
 	return f.ReadMessage
+}
+
+// NewWriteWithStartEnd 新建buf.Writer,根据帧头帧尾
+func NewWriteWithStartEnd(start, end []byte) WriteFunc {
+	return func(req []byte) ([]byte, error) {
+		return append(start, append(req, end...)...), nil
+	}
 }
 
 // NewReadWithLen 根据长度配置分包

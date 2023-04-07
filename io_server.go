@@ -160,6 +160,13 @@ func (this *Server) SetWriteFunc(fn func([]byte) ([]byte, error)) *Server {
 	return this
 }
 
+// SetReadWriteWithStartEnd 设置读取方式为起始结束帧
+func (this *Server) SetReadWriteWithStartEnd(start, end []byte) *Server {
+	this.SetReadFunc(buf.NewReadWithStartEnd(start, end))
+	this.SetWriteFunc(buf.NewWriteWithStartEnd(start, end))
+	return this
+}
+
 // SetReadWriteWithPkg 设置读写为默认方式
 func (this *Server) SetReadWriteWithPkg() *Server {
 	this.SetReadFunc(ReadWithPkg)
