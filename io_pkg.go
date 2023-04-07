@@ -210,18 +210,22 @@ func DecodePkg(bs []byte) (*Pkg, error) {
 
 }
 
-func ReadWithPkg(buf *bufio.Reader) ([]byte, error) {
+func WriteWithPkg(req []byte) ([]byte, error) {
+	return NewPkg(0, req).Bytes(), nil
+}
 
+func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
+
+	bs := []byte(nil)
 	for {
-		result := []byte(nil)
 
-		bs := make([]byte, 2)
+		bs = make([]byte, 2)
 		n, err := buf.Read(bs)
 		if err != nil {
 			return nil, err
 		}
 
-		if n == 2 {
+		if n == 2 && bs[0] == pkgStart[0] && bs[1] == pkgStart[1] {
 			//帧头
 			result = append(result, bs...)
 
@@ -236,25 +240,27 @@ func ReadWithPkg(buf *bufio.Reader) ([]byte, error) {
 
 				if length > pkgBaseLength {
 					result = append(result, bs...)
+					length -= 6
 
-					bs = make([]byte, length-6)
-					n, err = buf.Read(bs)
-					if err != nil {
-						return nil, err
-					}
-					if n == length-6 {
-						//数据
-						result = append(result, bs...)
-						p, err := DecodePkg(result)
+					//tcp分包,导致需要多次读取
+					for length > 0 {
+						bs = make([]byte, length)
+						n, err = buf.Read(bs)
 						if err != nil {
 							return nil, err
 						}
-						return p.Data, nil
+						result = append(result, bs[:n]...)
+						length -= n
 					}
-				}
+					p, err := DecodePkg(result)
+					if err != nil {
+						logs.Err(err)
+						return nil, err
+					}
+					return p.Data, nil
 
+				}
 			}
 		}
-
 	}
 }

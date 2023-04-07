@@ -52,5 +52,18 @@ func TestNewPkg(t *testing.T) {
 			t.Errorf("解析失败,预期(%x),得到(%x)", data, p.Data)
 		}
 	}
+	{
 
+		for i := 0; i < 10000; i++ {
+			data = append(data, byte(i))
+		}
+		bs := NewPkg(20, data).Bytes()
+		p, err := DecodePkg(bs)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		t.Logf("%#v", p)
+	}
 }

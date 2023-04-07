@@ -117,20 +117,26 @@ func (this *IWriter) WriteChan(c chan interface{}) (int64, error) {
 //================================WriteFunc================================
 
 // SetWriteFunc 设置写入函数,封装数据包
-func (this *IWriter) SetWriteFunc(fn func(p []byte) ([]byte, error)) {
+func (this *IWriter) SetWriteFunc(fn func(p []byte) ([]byte, error)) *IWriter {
 	this.writeFunc = fn
+	return this
+}
+
+// SetWriteWithPkg 默认写入函数
+func (this *IWriter) SetWriteWithPkg() *IWriter {
+	return this.SetWriteFunc(WriteWithPkg)
 }
 
 // SetWriteWithNil 取消写入函数
-func (this *IWriter) SetWriteWithNil() {
-	this.writeFunc = nil
+func (this *IWriter) SetWriteWithNil() *IWriter {
+	return this.SetWriteFunc(nil)
 }
 
 // SetWriteWithStartEnd 设置写入函数,增加头尾
-func (this *IWriter) SetWriteWithStartEnd(start, end []byte) {
-	this.writeFunc = func(p []byte) ([]byte, error) {
+func (this *IWriter) SetWriteWithStartEnd(start, end []byte) *IWriter {
+	return this.SetWriteFunc(func(p []byte) ([]byte, error) {
 		return append(start, append(p, end...)...), nil
-	}
+	})
 }
 
 // NewWriteQueue 新建写入队列

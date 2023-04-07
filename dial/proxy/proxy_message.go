@@ -93,7 +93,6 @@ type Message struct {
 	Key         string      `json:"key"`  //会话标识
 	Addr        string      `json:"addr"` //目标地址
 	Data        string      `json:"data"` //内容
-	//DataBytes   []byte      `json:"-"`    //内容字节,需要解析
 }
 
 func (this *Message) Response(data []byte) *Message {

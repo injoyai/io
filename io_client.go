@@ -196,6 +196,13 @@ func (this *Client) SetPrintWithASCII() {
 	this.SetPrintFunc(PrintWithASCII)
 }
 
+// SetReadWriteWithPkg 设置读写为默认分包方式
+func (this *Client) SetReadWriteWithPkg() *Client {
+	this.IWriter.SetWriteWithPkg()
+	this.IReader.SetReadWithPkg()
+	return this
+}
+
 // SetReadWriteWithStartEnd 设置读取写入数据根据包头包尾
 func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *Client {
 	this.IWriter.SetWriteWithStartEnd(packageStart, packageEnd)

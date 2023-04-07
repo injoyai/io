@@ -128,6 +128,11 @@ func (this *IReader) SetReadFunc(fn buf.ReadFunc) *IReader {
 	return this
 }
 
+// SetReadWithPkg 使用默认读包方式
+func (this *IReader) SetReadWithPkg() *IReader {
+	return this.SetReadFunc(ReadWithPkg)
+}
+
 // SetReadWithAll 一次性全部读取
 func (this *IReader) SetReadWithAll() *IReader {
 	return this.SetReadFunc(buf.ReadWithAll)

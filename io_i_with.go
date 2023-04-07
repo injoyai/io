@@ -13,3 +13,10 @@ func WithClientDebug() func(ctx context.Context, c *Client) {
 func WithClientSetKey(key string) func(ctx context.Context, c *Client) {
 	return func(ctx context.Context, c *Client) { c.SetKey(key) }
 }
+
+func WithClientReadWritePkg() func(ctx context.Context, c *Client) {
+	return func(ctx context.Context, c *Client) {
+		c.SetReadWithPkg()
+		c.SetWriteWithPkg()
+	}
+}

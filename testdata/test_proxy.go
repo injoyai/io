@@ -7,7 +7,6 @@ import (
 	"github.com/injoyai/base/chans"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
-	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/io/dial/proxy"
 	"log"
 	"net/http"
@@ -50,7 +49,7 @@ func ProxyClient(addr string) *io.Client {
 }
 
 func ProxyTransmit(port int) error {
-	s, err := pipe.NewTransmit(dial.TCPListenFunc(port))
+	s, err := dial.NewPipeTransmit(port)
 	if err != nil {
 		return err
 	}
@@ -70,7 +69,7 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	// 通道客户端,用于连接数据转发服务端,进行数据的封装
 	// 所有数据都经过这个连接
 	var pipeClient *io.Client
-	go pipe.RedialTCP(clientAddr, func(ctx context.Context, c *io.Client) {
+	go dial.RedialPipe(clientAddr, func(ctx context.Context, c *io.Client) {
 		pipeClient = c
 		c.Debug()
 		c.SetDealWithWriter(vpnClient)

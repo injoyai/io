@@ -8,7 +8,6 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/buf"
 	"github.com/injoyai/io/dial"
-	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/logs"
 )
 
@@ -54,7 +53,10 @@ func (this *Entity) Read(p []byte) (n int, err error) {
 }
 
 // ReadMessage 实现接口 io.MessageReader
-func (this *Entity) ReadMessage() ([]byte, error) {
+func (this *Entity) ReadMessage() (bs []byte, _ error) {
+	defer func() {
+		//logs.Debug(222, string(bs))
+	}()
 	return <-this.buff, nil
 }
 
@@ -101,6 +103,7 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 			proxyClient.SetKey(msg.Addr)
 			proxyClient.SetReadFunc(buf.ReadWithAll)
 			proxyClient.SetDealFunc(func(m *io.IMessage) {
+				logs.Debug(111, m.String())
 				this.AddMessage(msg.Response(m.Bytes()))
 			})
 			proxyClient.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
@@ -150,7 +153,6 @@ func (this *Entity) SetConnectFunc(fn func(msg *Message) (i io.ReadWriteCloser, 
 
 // DefaultConnectFunc 默认连接函数
 func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
-	logs.Debug(msg.ConnectType, msg.Addr, msg.Data)
 	err = errors.New("未实现")
 	switch msg.ConnectType {
 	case TCP:
@@ -174,17 +176,16 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 
 func NewTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
 	e := New()
-	return pipe.RedialTCP(addr, func(ctx context.Context, c *io.Client) {
+	return dial.RedialPipe(addr, func(ctx context.Context, c *io.Client) {
 		for _, v := range fn {
 			v(ctx, c, e)
 		}
 		c.Swap(e)
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			//打印函数的处理,不重要
-			if msg.String() == io.Ping || msg.String() == io.Pong {
-				return
-			}
-			if len(tag) > 0 {
+			switch true {
+			case msg.String() == io.Ping || msg.String() == io.Pong:
+			case len(tag) > 0:
 				switch tag[0] {
 				case io.TagWrite, io.TagRead:
 					m, err := DecodeMessage(msg.Bytes())
@@ -203,7 +204,7 @@ func NewTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *
 
 // NewSwapTCPServer 和TCP服务端交换数据,带测试
 func NewSwapTCPServer(port int, fn ...func(s *io.Server)) error {
-	s, err := pipe.NewServer(dial.TCPListenFunc(port))
+	s, err := dial.NewPipeServer(port)
 	if err != nil {
 		return err
 	}

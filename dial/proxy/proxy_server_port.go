@@ -7,8 +7,10 @@ import (
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
-	"github.com/injoyai/io/dial/pipe"
 	"github.com/injoyai/logs"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"strings"
 )
 
@@ -17,6 +19,7 @@ func NewPortForwardingClient(addr, sn string, fn ...func(ctx context.Context, c 
 		for _, v := range fn {
 			v(ctx, c, e)
 		}
+		//注册
 		c.Write(NewRegisterMessage(sn, sn).Bytes())
 	})
 }
@@ -33,19 +36,15 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
 		s.Tag.Set("sn", sn)
 		s.Tag.Set("addr", addr)
 		s.SetDealFunc(func(msg *io.IMessage) {
-			logs.Debug(msg.Message)
 			pipe := this.GetClient(sn)
 			if pipe == nil {
-				msg.Client.Close()
+				msg.Client.CloseWithErr(fmt.Errorf("通道客户端未连接,关闭连接"))
 				return
 			}
 			key := fmt.Sprintf("%d#%s", port, msg.GetKey())
 			if _, err := pipe.WriteAny(NewWriteMessage(key, addr, msg.Bytes())); err != nil {
 				msg.Client.Close()
 			}
-		})
-		s.SetCloseFunc(func(msg *io.IMessage) {
-			logs.Err(msg.String())
 		})
 	})
 	this.listen.Set(conv.String(port), s)
@@ -55,7 +54,10 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
 
 // NewPortForwardingServer 端口转发服务端
 func NewPortForwardingServer(port int) (*PortForwardingServer, error) {
-	pipeServer, err := dial.NewTCPServer(port, pipe.WithServer)
+	go func() {
+		log.Println(http.ListenAndServe(":6060", nil))
+	}()
+	pipeServer, err := dial.NewPipeServer(port)
 	ser := &PortForwardingServer{Server: pipeServer, listen: maps.NewSafe()}
 	pipeServer.Debug()
 	pipeServer.SetCloseFunc(func(msg *io.IMessage) {
@@ -77,6 +79,7 @@ func NewPortForwardingServer(port int) (*PortForwardingServer, error) {
 		}
 		switch m.OperateType {
 		case Register:
+			//处理注册信息
 			pipeServer.SetClientKey(msg.Client, m.Data)
 		default:
 			v := ser.listen.MustGet(strings.Split(m.Key, "#")[0])
