@@ -216,13 +216,13 @@ func WriteWithPkg(req []byte) ([]byte, error) {
 
 func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 
-	bs := []byte(nil)
+	bs := make([]byte, 4090)
 	for {
 
 		bs = make([]byte, 2)
 		n, err := buf.Read(bs)
 		if err != nil {
-			return nil, err
+			return result, err
 		}
 
 		if n == 2 && bs[0] == pkgStart[0] && bs[1] == pkgStart[1] {
@@ -232,11 +232,12 @@ func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 			bs = make([]byte, 4)
 			n, err = buf.Read(bs)
 			if err != nil {
-				return nil, err
+				return result, err
 			}
 			if n == 4 {
 				//长度
 				length := conv.Int(bs)
+				logs.Debug(length)
 
 				if length > pkgBaseLength {
 					result = append(result, bs...)
@@ -247,15 +248,16 @@ func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 						bs = make([]byte, length)
 						n, err = buf.Read(bs)
 						if err != nil {
-							return nil, err
+							return result, err
 						}
+						logs.Debug(n)
 						result = append(result, bs[:n]...)
 						length -= n
 					}
 					p, err := DecodePkg(result)
 					if err != nil {
 						logs.Err(err)
-						return nil, err
+						return result, err
 					}
 					return p.Data, nil
 

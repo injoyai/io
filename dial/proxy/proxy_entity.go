@@ -190,7 +190,7 @@ func NewTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *
 				case io.TagWrite, io.TagRead:
 					m, err := DecodeMessage(msg.Bytes())
 					if err != nil {
-						logs.Debug(err)
+						logs.Debug(err, msg.ASCII())
 						return
 					}
 					logs.Debugf("[PI|C][%s] %s\n", tag[0], m.String())

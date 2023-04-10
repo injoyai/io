@@ -24,6 +24,7 @@ func RedialPipe(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.
 	return RedialTCP(addr, func(ctx context.Context, c *io.Client) {
 		c.SetReadFunc(buf.DefaultReadFunc)
 		c.SetWriteFunc(buf.DefaultWriteFunc)
+		c.SetWriteWithPkg()
 		c.SetKeepAlive(io.DefaultTimeout)
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
@@ -39,6 +40,7 @@ func NewPipeServer(port int, fn ...func(s *io.Server)) (*io.Server, error) {
 	return NewTCPServer(port, func(s *io.Server) {
 		s.SetReadFunc(buf.DefaultReadFunc)
 		s.SetWriteFunc(buf.DefaultWriteFunc)
+		s.SetReadWriteWithPkg()
 		s.SetPrintFunc(func(msg io.Message, tag ...string) {
 			io.PrintWithASCII(msg, append([]string{"PI|S"}, tag...)...)
 		})

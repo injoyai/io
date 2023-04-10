@@ -1,6 +1,8 @@
 package io
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/hex"
 	"testing"
 )
@@ -65,5 +67,10 @@ func TestNewPkg(t *testing.T) {
 		}
 
 		t.Logf("%#v", p)
+
+		buf := bufio.NewReader(bytes.NewReader(bs))
+
+		t.Log(ReadWithPkg(buf))
+
 	}
 }
