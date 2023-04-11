@@ -20,9 +20,9 @@ import (
 |-----------------------------------|
 |帧头 	|2字节 	|Byte	|固定0x0202	|
 |-----------------------------------|
-|帧长  	|2字节	|HEX	|总字节长度	|
+|帧长  	|4字节	|HEX	|总字节长度	|
 |-----------------------------------|
-|帧类型	|2字节	|Bin	|详见帧类型	|
+|帧类型	|2字节	|BIN	|详见帧类型	|
 |-----------------------------------|
 |消息号	|1字节	|Byte	|消息id		|
 |-----------------------------------|
@@ -179,7 +179,7 @@ func DecodePkg(bs []byte) (*Pkg, error) {
 
 	//校验帧头
 	if bs[0] != pkgStart[0] && bs[1] != pkgStart[1] {
-		return nil, fmt.Errorf("帧头错误,需要(%x),得到(%x)", pkgStart, bs[:2])
+		return nil, fmt.Errorf("帧头错误,预期(%x),得到(%x)", pkgStart, bs[:2])
 	}
 
 	//获取总数据长度
@@ -192,12 +192,12 @@ func DecodePkg(bs []byte) (*Pkg, error) {
 
 	//校验crc32
 	if crc1, crc2 := crc32.ChecksumIEEE(bs[:length-6]), conv.Uint32(bs[length-6:length-2]); crc1 != crc2 {
-		return nil, fmt.Errorf("数据CRC校验错误,需要(%x),得到(%x)", crc1, crc2)
+		return nil, fmt.Errorf("数据CRC校验错误,预期(%x),得到(%x)", crc1, crc2)
 	}
 
 	//校验帧尾
 	if bs[length-2] != pkgEnd[0] && bs[length-1] != bs[1] {
-		return nil, fmt.Errorf("帧尾错误,需要(%x),得到(%x)", pkgEnd, bs[length-2:])
+		return nil, fmt.Errorf("帧尾错误,预期(%x),得到(%x)", pkgEnd, bs[length-2:])
 	}
 
 	p := &Pkg{

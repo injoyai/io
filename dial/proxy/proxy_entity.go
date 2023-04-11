@@ -24,6 +24,7 @@ func New() *Entity {
 // Entity 代理实例,通过数据进行对应的操作(读取,写入,连接,关闭)
 type Entity struct {
 	ioMap       *maps.Safe                                           //存储连接
+	writeFunc   func(msg *Message) (*Message, error)                 //写入函数
 	connectFunc func(msg *Message) (i io.ReadWriteCloser, err error) //连接函数
 	buff        chan io.Message                                      //
 	debug       bool                                                 //
@@ -42,6 +43,18 @@ func (this *Entity) SetPrintFunc(fn func(msg io.Message, tag ...string)) *Entity
 	return this
 }
 
+// SetWriteFunc 设置写入函数
+func (this *Entity) SetWriteFunc(fn func(msg *Message) (*Message, error)) *Entity {
+	this.writeFunc = fn
+	return this
+}
+
+// SetConnectFunc 设置连接函数
+func (this *Entity) SetConnectFunc(fn func(msg *Message) (i io.ReadWriteCloser, err error)) *Entity {
+	this.connectFunc = fn
+	return this
+}
+
 // AddMessage 添加到message缓存,供ReadMessage读取
 func (this *Entity) AddMessage(msg *Message) {
 	this.buff <- msg.Bytes()
@@ -54,9 +67,6 @@ func (this *Entity) Read(p []byte) (n int, err error) {
 
 // ReadMessage 实现接口 io.MessageReader
 func (this *Entity) ReadMessage() (bs []byte, _ error) {
-	defer func() {
-		//logs.Debug(222, string(bs))
-	}()
 	return <-this.buff, nil
 }
 
@@ -77,6 +87,14 @@ func (this *Entity) WriteMessage(msg *Message) (err error) {
 
 // WriteMessage 处理获取到的消息
 func (this *Entity) writeMessage(msg *Message) (err error) {
+
+	//写入处理函数
+	if this.writeFunc != nil {
+		msg, err = this.writeFunc(msg)
+		if err != nil {
+			return
+		}
+	}
 
 	//查找该请求是否已经代理过
 	proxyClient := this.getIO(msg.Key)
@@ -142,12 +160,6 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 func (this *Entity) Close() error {
 	this.closeIOAll()
 	return nil
-}
-
-// SetConnectFunc 设置连接函数
-func (this *Entity) SetConnectFunc(fn func(msg *Message) (i io.ReadWriteCloser, err error)) *Entity {
-	this.connectFunc = fn
-	return this
 }
 
 // DefaultConnectFunc 默认连接函数

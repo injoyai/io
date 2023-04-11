@@ -8,9 +8,6 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/logs"
-	"log"
-	"net/http"
-	_ "net/http/pprof"
 	"strings"
 )
 
@@ -47,16 +44,16 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
 			}
 		})
 	})
+	if err != nil {
+		return err
+	}
 	this.listen.Set(conv.String(port), s)
 	go s.Run()
-	return err
+	return nil
 }
 
 // NewPortForwardingServer 端口转发服务端
 func NewPortForwardingServer(port int) (*PortForwardingServer, error) {
-	go func() {
-		log.Println(http.ListenAndServe(":6060", nil))
-	}()
 	pipeServer, err := dial.NewPipeServer(port)
 	ser := &PortForwardingServer{Server: pipeServer, listen: maps.NewSafe()}
 	pipeServer.Debug()
