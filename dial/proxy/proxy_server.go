@@ -74,7 +74,6 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 		//读取全部数据
 		s.SetReadWithAll()
 		s.SetPrintFunc(func(msg io.Message, tag ...string) {
-			//设置打印函数
 			io.PrintWithASCII(msg.Bytes(), append([]string{"PR|S"}, tag...)...)
 		})
 		ser = &Server{s: s, e: New(), dealFunc: func(msg *CMessage) error {

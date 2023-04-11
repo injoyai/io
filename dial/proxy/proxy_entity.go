@@ -103,7 +103,6 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 			proxyClient.SetKey(msg.Addr)
 			proxyClient.SetReadFunc(buf.ReadWithAll)
 			proxyClient.SetDealFunc(func(m *io.IMessage) {
-				logs.Debug(111, m.String())
 				this.AddMessage(msg.Response(m.Bytes()))
 			})
 			proxyClient.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
@@ -181,24 +180,7 @@ func NewTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *
 			v(ctx, c, e)
 		}
 		c.Swap(e)
-		c.SetPrintFunc(func(msg io.Message, tag ...string) {
-			//打印函数的处理,不重要
-			switch true {
-			case msg.String() == io.Ping || msg.String() == io.Pong:
-			case len(tag) > 0:
-				switch tag[0] {
-				case io.TagWrite, io.TagRead:
-					m, err := DecodeMessage(msg.Bytes())
-					if err != nil {
-						logs.Debug(err, msg.ASCII())
-						return
-					}
-					logs.Debugf("[PI|C][%s] %s\n", tag[0], m.String())
-				default:
-					logs.Debugf(io.PrintfWithASCII(msg, append([]string{"PI|C"}, tag...)...))
-				}
-			}
-		})
+		c.SetPrintFunc(PrintWithASCII)
 	})
 }
 

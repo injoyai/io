@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"github.com/injoyai/conv"
+	"github.com/injoyai/io/buf"
 	"time"
 )
 
@@ -134,9 +135,7 @@ func (this *IWriter) SetWriteWithNil() *IWriter {
 
 // SetWriteWithStartEnd 设置写入函数,增加头尾
 func (this *IWriter) SetWriteWithStartEnd(start, end []byte) *IWriter {
-	return this.SetWriteFunc(func(p []byte) ([]byte, error) {
-		return append(start, append(p, end...)...), nil
-	})
+	return this.SetWriteFunc(buf.NewWriteWithStartEnd(start, end))
 }
 
 // NewWriteQueue 新建写入队列

@@ -75,6 +75,7 @@ func NewPortForwardingServer(port int) (*PortForwardingServer, error) {
 		m, err := DecodeMessage(msg.Bytes())
 		if err != nil {
 			//msg.Close()
+			logs.Err(err)
 			return
 		}
 		switch m.OperateType {
@@ -101,7 +102,6 @@ func NewPortForwardingServer(port int) (*PortForwardingServer, error) {
 				}
 			default:
 				//代理请求 改服务作为代理 发起请求
-				logs.Debug(666)
 
 			}
 

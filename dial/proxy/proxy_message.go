@@ -3,6 +3,7 @@ package proxy
 import (
 	"errors"
 	"fmt"
+	"github.com/injoyai/base/bytes"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
 	"github.com/injoyai/logs"
@@ -47,6 +48,8 @@ const (
 	MQTT      ConnectType = 5 //"mqtt"
 	HTTP      ConnectType = 6 //"http"
 	Websocket ConnectType = 7 //"websocket"
+
+	Check = 0x7E //校验位
 )
 
 type OperateType uint8
@@ -125,7 +128,6 @@ func (this *Message) SetData(data interface{}) *Message {
 
 func (this *Message) String() string {
 	return string(this.Bytes())
-
 }
 
 func (this *Message) Digest() string {
@@ -140,8 +142,8 @@ func (this *Message) Digest() string {
 	}())
 }
 
-func (this *Message) Bytes() []byte {
-	data := []byte(nil)
+func (this *Message) Bytes() bytes.Entity {
+	data := []byte{Check} //增加校验位,方便查找问题
 	data = append(data, this.OperateType.Uint8())
 	data = append(data, this.ConnectType.Uint8())
 	data = append(data, uint8(len(this.Key)))
@@ -163,9 +165,14 @@ func (this *Message) GetDataString() string {
 
 func DecodeMessage(bytes []byte) (*Message, error) {
 	length := len(bytes)
-	if length < 8 {
+	if length < 9 {
 		return nil, errors.New("数据长度错误:基础长度错误")
 	}
+	if bytes[0] != Check {
+		return nil, fmt.Errorf("数据校验位错误,预期(%x),得到(%x)", Check, bytes[0])
+	}
+	bytes = bytes[1:]
+	length--
 	m := new(Message)
 	m.OperateType = OperateType(bytes[0])
 	m.ConnectType = ConnectType(bytes[1])
@@ -181,6 +188,7 @@ func DecodeMessage(bytes []byte) (*Message, error) {
 	m.Addr = string(bytes[4+keyLen : 4+keyLen+addrLen])
 	dataLen := conv.Int(bytes[4+keyLen+addrLen : 8+keyLen+addrLen])
 	if length != 8+keyLen+addrLen+dataLen {
+		logs.Debug(bytes[4+keyLen+addrLen : 8+keyLen+addrLen])
 		logs.Debug(bytes[:8+keyLen+addrLen])
 		return nil, fmt.Errorf("数据长度错误:data长度错误,预期(%d),得到(%d)", 8+keyLen+addrLen+dataLen, length)
 	}

@@ -18,7 +18,7 @@ import (
 .===================================.
 |构成	|字节	|类型	|说明		|
 |-----------------------------------|
-|帧头 	|2字节 	|Byte	|固定0x8888	|
+|帧头 	|2字节 	|Byte	|固定0x0202	|
 |-----------------------------------|
 |帧长  	|2字节	|HEX	|总字节长度	|
 |-----------------------------------|
@@ -30,7 +30,7 @@ import (
 |-----------------------------------|
 |校验和	|4字节	|Byte	|crc IEEE	|
 |-----------------------------------|
-|帧尾 	|2字节	|Byte	|固定0x8989	|
+|帧尾 	|2字节	|Byte	|固定0x0303	|
 ^===================================^
 
 包类型:
@@ -46,8 +46,8 @@ import (
 */
 
 var (
-	pkgStart = []byte{0x88, 0x88} //帧头
-	pkgEnd   = []byte{0x89, 0x89} //帧尾
+	pkgStart = []byte{0x02, 0x02} //帧头
+	pkgEnd   = []byte{0x03, 0x03} //帧尾
 )
 
 const (
@@ -237,7 +237,6 @@ func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 			if n == 4 {
 				//长度
 				length := conv.Int(bs)
-				logs.Debug(length)
 
 				if length > pkgBaseLength {
 					result = append(result, bs...)
@@ -250,13 +249,11 @@ func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 						if err != nil {
 							return result, err
 						}
-						logs.Debug(n)
 						result = append(result, bs[:n]...)
 						length -= n
 					}
 					p, err := DecodePkg(result)
 					if err != nil {
-						logs.Err(err)
 						return result, err
 					}
 					return p.Data, nil
