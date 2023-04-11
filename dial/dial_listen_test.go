@@ -22,7 +22,7 @@ func TestTCPServer(t *testing.T) {
 }
 
 func TestRedial(t *testing.T) {
-	io.Redial(TCPFunc("121.36.99.197:10086"), func(ctx context.Context, c *io.Client) {
+	RedialTCP("121.36.99.197:10086", func(ctx context.Context, c *io.Client) {
 		c.SetPrintWithASCII()
 		c.Debug()
 		c.GoTimerWriter(time.Second*5, func(c *io.IWriter) error {

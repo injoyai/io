@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	io.Redial(dial.TCPFunc(":10089"), func(ctx context.Context, c *io.Client) {
+	dial.RedialTCP(":10089", func(ctx context.Context, c *io.Client) {
 		c.Debug()
 		c.SetPrintWithASCII()
 		c.SetKey("test")

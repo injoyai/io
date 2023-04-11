@@ -86,7 +86,7 @@ func ClientRun(addr string) *io.Client {
 
 // TimeoutClient 测试客户端超时
 func TimeoutClient(port int, timeout time.Duration) error {
-	go io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
+	go dial.RedialTCP(fmt.Sprintf(":%d", port),
 		func(ctx context.Context, c *io.Client) {
 			c.Debug()
 			c.SetTimeout(timeout)
