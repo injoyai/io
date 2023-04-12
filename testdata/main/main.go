@@ -24,9 +24,10 @@ func main() {
 
 func NewPortForwardingClient() {
 	serverAddr := ""
-	for len(serverAddr) == 0 {
-		fmt.Println("请输入服务地址(默认121.36.99.197:9000):")
-		fmt.Scanln(&serverAddr)
+	fmt.Println("请输入服务地址(默认121.36.99.197:9000):")
+	fmt.Scanln(&serverAddr)
+	if len(serverAddr) == 0 {
+		serverAddr = "121.36.99.197:9000"
 	}
 	sn := ""
 	fmt.Println("请输入SN(默认test):")
@@ -38,6 +39,7 @@ func NewPortForwardingClient() {
 	fmt.Println("请输入代理地址(默认代理全部):")
 	fmt.Scanln(&proxyAddr)
 	c := proxy.NewPortForwardingClient(serverAddr, sn, func(ctx context.Context, c *io.Client, e *proxy.Entity) {
+		c.SetPrintWithBase()
 		c.Debug()
 		if len(proxyAddr) > 0 {
 			e.SetWriteFunc(func(msg *proxy.Message) (*proxy.Message, error) {
@@ -53,11 +55,13 @@ func NewPortForwardingClient() {
 func NewPortForwardingServer() error {
 
 	port := cfg.GetInt("port", 9000)
-	s, err := proxy.NewPortForwardingServer(port)
+	s, err := proxy.NewPortForwardingServer(port, func(s *io.Server) {
+		s.SetPrintWithBase()
+		s.Debug()
+	})
 	if err != nil {
 		return err
 	}
-	s.Debug()
 	for _, v := range cfg.GetStrings("listen") {
 		m := conv.NewMap(v)
 		logs.PrintErr(s.Listen(m.GetInt("port"), m.GetString("sn"), m.GetString("addr")))

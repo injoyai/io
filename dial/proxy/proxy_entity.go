@@ -186,13 +186,13 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 }
 
 func NewTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
-	e := New()
 	return dial.RedialPipe(addr, func(ctx context.Context, c *io.Client) {
+		c.SetPrintFunc(PrintWithASCII)
+		e := New()
 		for _, v := range fn {
 			v(ctx, c, e)
 		}
 		c.Swap(e)
-		c.SetPrintFunc(PrintWithASCII)
 	})
 }
 
@@ -216,7 +216,7 @@ func NewSwapTCPServer(port int, fn ...func(s *io.Server)) error {
 func WithClientDebug(b ...bool) func(ctx context.Context, c *io.Client, e *Entity) {
 	return func(ctx context.Context, c *io.Client, e *Entity) {
 		c.Debug(b...)
-		e.Debug()
+		e.Debug(b...)
 	}
 }
 

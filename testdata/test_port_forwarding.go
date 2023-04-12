@@ -7,7 +7,7 @@ import (
 
 // NewPortForwardingClient 端口转发客户端
 func NewPortForwardingClient(addr string) error {
-	return proxy.NewPortForwardingClient(addr, "sn", proxy.WithClientDebug()).Run()
+	return proxy.NewPortForwardingClient(addr, "sn", proxy.WithClientDebug(false)).Run()
 }
 
 // NewPortForwardingServer 端口转发服务端
@@ -16,7 +16,7 @@ func NewPortForwardingServer(port int) error {
 	if err != nil {
 		return err
 	}
-	s.Debug()
+	s.Debug(false)
 	logs.PrintErr(s.Listen(10000, "sn", "192.168.10.24:10001"))
 	return s.Run()
 }

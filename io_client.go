@@ -196,6 +196,11 @@ func (this *Client) SetPrintWithASCII() {
 	this.SetPrintFunc(PrintWithASCII)
 }
 
+// SetPrintWithBase 设置打印ASCII,基础信息
+func (this *Client) SetPrintWithBase() {
+	this.SetPrintFunc(PrintWithBase)
+}
+
 // SetReadWriteWithPkg 设置读写为默认分包方式
 func (this *Client) SetReadWriteWithPkg() *Client {
 	this.IWriter.SetWriteWithPkg()

@@ -8,6 +8,7 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/logs"
+	"regexp"
 	"strings"
 )
 
@@ -29,10 +30,19 @@ type PortForwardingServer struct {
 // Listen 监听
 func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
 	s, err := dial.NewTCPServer(port, func(s *io.Server) {
-		s.Debug()
 		s.Tag.Set("sn", sn)
 		s.Tag.Set("addr", addr)
 		s.SetDealFunc(func(msg *io.IMessage) {
+			{
+				if _addr := regexp.MustCompile("(\\?|&)(_addr=)[0-9.:]+").FindString(msg.String()); len(_addr) > 7 {
+					s.Tag.Set("addr", _addr[7:])
+				}
+				if _sn := regexp.MustCompile("(\\?|&)(_sn=)[0-9a-zA-Z]+").FindString(msg.String()); len(_sn) > 5 {
+					s.Tag.Set("sn", _sn[5:])
+				}
+			}
+			sn = s.Tag.GetString("sn")
+			addr = s.Tag.GetString("addr")
 			pipe := this.GetClient(sn)
 			if pipe == nil {
 				msg.Client.CloseWithErr(fmt.Errorf("通道客户端未连接,关闭连接"))
@@ -53,10 +63,9 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
 }
 
 // NewPortForwardingServer 端口转发服务端
-func NewPortForwardingServer(port int) (*PortForwardingServer, error) {
-	pipeServer, err := dial.NewPipeServer(port)
+func NewPortForwardingServer(port int, fn ...func(s *io.Server)) (*PortForwardingServer, error) {
+	pipeServer, err := dial.NewPipeServer(port, fn...)
 	ser := &PortForwardingServer{Server: pipeServer, listen: maps.NewSafe()}
-	pipeServer.Debug()
 	pipeServer.SetCloseFunc(func(msg *io.IMessage) {
 		//通道断开连接,则关闭所有代理连接
 		sn := msg.GetKey()

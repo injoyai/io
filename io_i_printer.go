@@ -72,6 +72,12 @@ func PrintWithASCII(msg Message, tag ...string) {
 	log.Print(PrintfWithASCII(msg, tag...))
 }
 
+func PrintWithBase(msg Message, tag ...string) {
+	if len(tag) > 0 && (tag[0] == TagErr || tag[0] == TagInfo) {
+		log.Print(PrintfWithASCII(msg, tag...))
+	}
+}
+
 func PrintfWithHEX(msg Message, tag ...string) string {
 	t := strings.Join(tag, "][")
 	if len(t) > 0 {
