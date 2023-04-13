@@ -178,7 +178,7 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 		}
 		i, err = dial.Serial(cfg)
 	case File, MQ, MQTT, HTTP, Websocket:
-		//待实现
+		// todo 待实现
 	default:
 		i, err = dial.TCP(msg.Addr)
 	}
