@@ -89,9 +89,10 @@ func NewPortForwardingServer(port int, fn ...func(s *io.Server)) (*PortForwardin
 			//处理注册信息
 			pipeServer.SetClientKey(msg.Client, m.Data)
 		default:
-			v := ser.listen.MustGet(strings.Split(m.Key, "#")[0])
+			listenPort := strings.Split(m.Key, "#")[0]
+			v := ser.listen.MustGet(listenPort)
 			if v == nil {
-				msg.WriteAny(m.Close("未找到服务"))
+				msg.WriteAny(m.Close(fmt.Sprintf("未找到监听服务(%s)", listenPort)))
 				return
 			}
 			s := v.(*io.Server)
@@ -110,7 +111,6 @@ func NewPortForwardingServer(port int, fn ...func(s *io.Server)) (*PortForwardin
 				//代理请求 改服务作为代理 发起请求
 
 			}
-
 		}
 	})
 	return ser, err
