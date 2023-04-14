@@ -159,6 +159,14 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 
 //================================SetFunc================================
 
+// SetOptions 设置选项
+func (this *Client) SetOptions(fn ...func(ctx context.Context, c *Client)) *Client {
+	for _, v := range fn {
+		v(this.Ctx(), this)
+	}
+	return this
+}
+
 // SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
 func (this *Client) SetDealFunc(fn func(msg *IMessage)) {
 	this.IReadCloser.SetDealFunc(func(msg Message) {
@@ -233,9 +241,7 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 		this.Redial(fn...)
 		go this.Run()
 	})
-	for _, v := range fn {
-		v(this.Ctx(), this)
-	}
+	this.SetOptions(fn...)
 	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
 	this.Print(NewMessage("连接服务端成功..."), TagInfo, this.GetKey())
 	go this.Run()

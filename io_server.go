@@ -34,13 +34,16 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		readFunc:   buf.ReadWithAll,
 		dealFunc:   nil,
 		dealQueue:  chans.NewEntity(1, 1000),
-		readChan:   make(chan *IMessage),
+		readChan:   make(chan *IMessage, 100),
 		closeFunc:  nil,
 		clientMax:  0,
 		beforeFunc: nil,
 		writeFunc:  nil,
-		printFunc:  PrintWithASCII,
 	}
+	//设置默认打印函数,打印基础信息
+	s.SetPrintWithBase()
+	//开启基础信息打印
+	s.Debug()
 	//设置关闭函数
 	s.ICloser.SetCloseFunc(func(ctx context.Context, msg Message) {
 		//关闭listener
@@ -63,9 +66,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		}
 	})
 	//预设服务处理
-	for _, v := range fn {
-		v(s)
-	}
+	s.SetOptions(fn...)
 	return s, nil
 }
 
@@ -74,7 +75,7 @@ type Server struct {
 	*printer
 	*ICloser
 
-	Tag        *maps.Safe          //
+	Tag        *maps.Safe          //tag
 	listener   Listener            //listener
 	clientMap  map[string]*Client  //链接集合,远程地址为key
 	clientMu   sync.RWMutex        //锁
@@ -87,13 +88,20 @@ type Server struct {
 	readFunc        buf.ReadFunc        //数据读取方法
 	closeFunc       func(msg *IMessage) //断开连接事件
 	writeFunc       WriteFunc           //数据发送函数,包装下原始数据
-	printFunc       PrintFunc           //打印数据方法
 	running         uint32              //是否在运行
 	timeout         time.Duration       //超时时间,小于0是不超时
 	timeoutInterval time.Duration       //超时检测间隔
 }
 
 //================================SetFunc================================
+
+// SetOptions 设置选项
+func (this *Server) SetOptions(fn ...func(s *Server)) *Server {
+	for _, v := range fn {
+		v(this)
+	}
+	return this
+}
 
 // SetMaxClient 设置最大连接数,超过最大连接数的连接会直接断开
 func (this *Server) SetMaxClient(max int) *Server {
@@ -399,13 +407,13 @@ func (this *Server) Run() error {
 
 		//新建客户端,并配置
 		x := NewClientWithContext(this.Ctx(), c)
-		x.SetKey(key)                   //设置唯一标识符
-		x.Debug(this.GetDebug())        //调试模式
-		x.SetReadFunc(this.readFunc)    //读取数据方法
-		x.SetDealFunc(this._dealFunc)   //数据处理方法
-		x.SetCloseFunc(this._closeFunc) //连接关闭方法
-		x.SetPrintFunc(this.printFunc)  //设置打印函数
-		x.SetWriteFunc(this.writeFunc)  //设置发送函数
+		x.SetKey(key)                               //设置唯一标识符
+		x.Debug(this.GetDebug())                    //调试模式
+		x.SetReadFunc(this.readFunc)                //读取数据方法
+		x.SetDealFunc(this._dealFunc)               //数据处理方法
+		x.SetCloseFunc(this._closeFunc)             //连接关闭方法
+		x.SetPrintFunc(this.printer.GetPrintFunc()) //设置打印函数
+		x.SetWriteFunc(this.writeFunc)              //设置发送函数
 
 		// 协程执行,等待连接的后续数据,来决定后续操作
 		go func(x *Client) {
