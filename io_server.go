@@ -157,12 +157,12 @@ func (this *Server) SetReadFunc(fn func(buf *bufio.Reader) (bytes []byte, err er
 	return this
 }
 
-// SetReadWithAll 设置读取函数:读取全部
+// SetReadWithAll 设置客户端读取函数:读取全部
 func (this *Server) SetReadWithAll() *Server {
 	return this.SetReadFunc(buf.ReadWithAll)
 }
 
-// SetWriteFunc 设置数据发送函数
+// SetWriteFunc 设置客户端的数据发送函数
 func (this *Server) SetWriteFunc(fn func([]byte) ([]byte, error)) *Server {
 	this.writeFunc = fn
 	return this
