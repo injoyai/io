@@ -14,8 +14,11 @@ func TestTCPServer(t *testing.T) {
 		return
 	}
 	s.Debug()
+	s.SetPrintWithASCII()
 	s.SetDealFunc(func(msg *io.IMessage) {
-		msg.WriteString("777")
+		//msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: http://www.baidu.com\r\n")
+		msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: /\r\n")
+		msg.TryCloseWithDeadline()
 	})
 	t.Error(s.Run())
 

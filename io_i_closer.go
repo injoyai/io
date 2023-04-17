@@ -187,9 +187,8 @@ func (this *ICloser) Close() error {
 func (this *ICloser) TryCloseWithDeadline() error {
 	return this.closeWithErr(ErrHandClose, func(closer Closer) error {
 		switch c := closer.(type) {
-		case interface{ SetWriteDeadline(t time.Time) }:
-			c.SetWriteDeadline(time.Time{})
-			return nil
+		case interface{ SetWriteDeadline(t time.Time) error }:
+			return c.SetWriteDeadline(time.Time{})
 		default:
 			return closer.Close()
 		}
