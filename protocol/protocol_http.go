@@ -1,11 +1,103 @@
 package protocol
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/injoyai/conv"
+	"io"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 )
+
+type HTTP11Request http.Request
+
+func (this *HTTP11Request) AddHeader(key string, val ...string) *HTTP11Request {
+	for _, v := range val {
+		this.Header.Add(key, v)
+	}
+	return this
+}
+
+func (this *HTTP11Request) AddHeaders(m map[string][]string) *HTTP11Request {
+	for k, v := range m {
+		this.AddHeader(k, v...)
+	}
+	return this
+}
+
+func (this *HTTP11Request) SetHeader(key string, val ...string) *HTTP11Request {
+	this.Header.Del(key)
+	for _, v := range val {
+		this.Header.Add(key, v)
+	}
+	return this
+}
+
+func (this *HTTP11Request) SetHeaders(m map[string][]string) *HTTP11Request {
+	for k, v := range m {
+		this.SetHeader(k, v...)
+	}
+	return this
+}
+
+func (this *HTTP11Request) AddCookie(cookies ...*http.Cookie) *HTTP11Request {
+	for _, v := range cookies {
+		(*http.Request)(this).AddCookie(v)
+	}
+	return this
+}
+
+func (this *HTTP11Request) GetCookies() []*http.Cookie {
+	return (*http.Request)(this).Cookies()
+}
+
+func (this *HTTP11Request) GetCookie(key string) (*http.Cookie, error) {
+	return (*http.Request)(this).Cookie(key)
+}
+
+func (this *HTTP11Request) SetUserAgent(s string) *HTTP11Request {
+	return this.SetHeader("User-Agent", s)
+}
+
+// SetReferer 设置Referer
+func (this *HTTP11Request) SetReferer(s string) *HTTP11Request {
+	return this.SetHeader("Referer", s)
+}
+
+func (this *HTTP11Request) SetAuthorization(s string) *HTTP11Request {
+	return this.SetHeader("Authorization", s)
+}
+
+func (this *HTTP11Request) SetToken(s string) *HTTP11Request {
+	return this.SetHeader("Authorization", s)
+}
+
+func (this *HTTP11Request) SetContentType(s string) *HTTP11Request {
+	return this.SetHeader("Content-Type", s)
+}
+
+func (this *HTTP11Request) SetBody(body interface{}) *HTTP11Request {
+	switch val := body.(type) {
+	case io.ReadCloser:
+		this.Body = val
+	case io.Reader:
+		this.Body = io.NopCloser(val)
+	default:
+		this.Body = io.NopCloser(bytes.NewReader(conv.Bytes(body)))
+	}
+	return this
+}
+
+func (this *HTTP11Request) Bytes() []byte {
+	bs, _ := httputil.DumpRequest((*http.Request)(this), true)
+	return bs
+}
+
+func NewHTTP11Request(method, url string, body io.Reader) *HTTP11Request {
+	r, _ := http.NewRequest(method, url, body)
+	return (*HTTP11Request)(r)
+}
 
 type HTTP11Response struct {
 	StatusCode     int
