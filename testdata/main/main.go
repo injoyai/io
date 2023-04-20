@@ -9,6 +9,7 @@ import (
 	"github.com/injoyai/io/dial/proxy"
 	"github.com/injoyai/io/testdata"
 	"github.com/injoyai/logs"
+	"runtime"
 )
 
 func main() {
@@ -23,21 +24,34 @@ func main() {
 }
 
 func NewPortForwardingClient() {
-	serverAddr := ""
-	fmt.Println("请输入服务地址(默认121.36.99.197:9000):")
-	fmt.Scanln(&serverAddr)
-	if len(serverAddr) == 0 {
-		serverAddr = "121.36.99.197:9000"
+
+	//服务端地址
+	serverAddr := cfg.GetString("addr")
+	if runtime.GOOS == "windows" && len(serverAddr) == 0 {
+		fmt.Println("请输入服务地址(默认121.36.99.197:9000):")
+		fmt.Scanln(&serverAddr)
+		if len(serverAddr) == 0 {
+			serverAddr = "121.36.99.197:9000"
+		}
 	}
-	sn := ""
-	fmt.Println("请输入SN(默认test):")
-	fmt.Scanln(&sn)
-	if len(sn) == 0 {
-		sn = "test"
+
+	//客户端唯一标识
+	sn := cfg.GetString("sn")
+	if runtime.GOOS == "windows" && len(sn) == 0 {
+		fmt.Println("请输入SN(默认test):")
+		fmt.Scanln(&sn)
+		if len(sn) == 0 {
+			sn = "test"
+		}
 	}
+
+	//代理地址
 	proxyAddr := ""
-	fmt.Println("请输入代理地址(默认代理全部):")
-	fmt.Scanln(&proxyAddr)
+	if runtime.GOOS == "windows" {
+		fmt.Println("请输入代理地址(默认代理全部):")
+		fmt.Scanln(&proxyAddr)
+	}
+
 	c := proxy.NewPortForwardingClient(serverAddr, sn, func(ctx context.Context, c *io.Client, e *proxy.Entity) {
 		c.SetPrintWithBase()
 		c.Debug()
