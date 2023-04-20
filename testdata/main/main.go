@@ -13,8 +13,8 @@ import (
 )
 
 func main() {
-	//logs.PrintErr(NewPortForwardingServer())
-	//return
+	logs.PrintErr(NewPortForwardingServer())
+	return
 	NewPortForwardingClient()
 	return
 	testdata.VPNClient(1082, 1090, ":12000")
