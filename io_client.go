@@ -55,7 +55,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 	}
 	c := &Client{
 		IReadCloser: NewIReadCloserWithContext(ctx, i),
-		IWriter:     NewWriter(i),
+		IWriter:     NewIWriter(i),
 		i:           i,
 		tag:         maps.NewSafe(),
 		createTime:  time.Now(),

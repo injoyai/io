@@ -260,6 +260,17 @@ func (this *Server) GetClientLen() int {
 	return len(this.clientMap)
 }
 
+// RangeClient 遍历客户端
+func (this *Server) RangeClient(fn func(key string, c *Client) bool) {
+	this.clientMu.RLock()
+	defer this.clientMu.RUnlock()
+	for i, v := range this.clientMap {
+		if fn(i, v) {
+			break
+		}
+	}
+}
+
 // Read 无效,使用ReadMessage
 func (this *Server) Read(p []byte) (int, error) {
 	return 0, nil

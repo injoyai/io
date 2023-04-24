@@ -10,7 +10,7 @@ func NewPool(dial DialFunc, num int, options ...func(ctx context.Context, c *Cli
 	p := &Pool{
 		client: make(map[string]*Client),
 	}
-	p.IWriter = NewWriter(p)
+	p.IWriter = NewIWriter(p)
 	p.ICloser = NewICloser(p)
 	go func() {
 		for i := 0; i < num; i++ {

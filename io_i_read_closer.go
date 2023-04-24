@@ -118,7 +118,7 @@ func (this *IReadCloser) SetDealQueueFunc(num int, fn func(msg Message)) *IReadC
 
 // Running 是否在运行
 func (this *IReadCloser) Running() bool {
-	return this.running == 1
+	return atomic.LoadUint32(&this.running) == 1
 }
 
 // Run 开始运行数据读取

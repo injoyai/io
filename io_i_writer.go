@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// NewWriter 新建写
-func NewWriter(writer Writer) *IWriter {
+// NewIWriter 新建写
+func NewIWriter(writer Writer) *IWriter {
 	if c, ok := writer.(*IWriter); ok && c != nil {
 		return c
 	}
