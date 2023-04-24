@@ -185,11 +185,11 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 	return
 }
 
-func NewTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
+func NewTCPClient(addr string, options ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
 	return dial.RedialPipe(addr, func(ctx context.Context, c *io.Client) {
 		c.SetPrintFunc(PrintWithASCII)
 		e := New()
-		for _, v := range fn {
+		for _, v := range options {
 			v(ctx, c, e)
 		}
 		c.Swap(e)
@@ -197,18 +197,16 @@ func NewTCPClient(addr string, fn ...func(ctx context.Context, c *io.Client, e *
 }
 
 // NewSwapTCPServer 和TCP服务端交换数据,带测试
-func NewSwapTCPServer(port int, fn ...func(s *io.Server)) error {
+func NewSwapTCPServer(port int, options ...func(s *io.Server)) error {
 	s, err := dial.NewPipeServer(port)
 	if err != nil {
 		return err
-	}
-	for _, v := range fn {
-		v(s)
 	}
 	s.Swap(New())
 	s.SetPrintFunc(func(msg io.Message, tag ...string) {
 		logs.Debug(io.PrintfWithASCII(msg, append([]string{"PR|S"}, tag...)...))
 	})
+	s.SetOptions(options...)
 	go s.Run()
 	return nil
 }

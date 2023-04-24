@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-func NewServer(newListen ListenFunc, fn ...func(s *Server)) (*Server, error) {
-	return NewServerWithContext(context.Background(), newListen, fn...)
+func NewServer(newListen ListenFunc, options ...func(s *Server)) (*Server, error) {
+	return NewServerWithContext(context.Background(), newListen, options...)
 }
 
-func NewServerWithContext(ctx context.Context, newListen func() (Listener, error), fn ...func(s *Server)) (*Server, error) {
+func NewServerWithContext(ctx context.Context, newListen func() (Listener, error), options ...func(s *Server)) (*Server, error) {
 	//连接listener
 	listener, err := newListen()
 	if err != nil {
@@ -66,7 +66,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		}
 	})
 	//预设服务处理
-	s.SetOptions(fn...)
+	s.SetOptions(options...)
 	return s, nil
 }
 
@@ -96,8 +96,8 @@ type Server struct {
 //================================SetFunc================================
 
 // SetOptions 设置选项
-func (this *Server) SetOptions(fn ...func(s *Server)) *Server {
-	for _, v := range fn {
+func (this *Server) SetOptions(options ...func(s *Server)) *Server {
+	for _, v := range options {
 		v(this)
 	}
 	return this
@@ -285,10 +285,19 @@ func (this *Server) WriteClient(key string, msg []byte) (bool, error) {
 	})
 }
 
-// WriteClientAll 广播,发送数据给所有连接
-func (this *Server) WriteClientAll(msg []byte) {
+// WriteClientAll 广播,发送数据给所有连接,加入到连接的队列
+func (this *Server) WriteClientAll(p []byte) {
 	for _, c := range this.GetClientMap() {
-		c.Write(msg)
+		//写入到队列,避免阻塞
+		c.WriteQueue(p)
+	}
+}
+
+// TryWriteClientAll 广播,发送数据给所有连接,尝试加入到连接的队列
+func (this *Server) TryWriteClientAll(p []byte) {
+	for _, c := range this.GetClientMap() {
+		//写入到队列,避免阻塞,加入不了则丢弃数据
+		c.TryWriteQueue(p)
 	}
 }
 

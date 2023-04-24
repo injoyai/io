@@ -6,7 +6,7 @@ import (
 )
 
 // NewPool 新建连接池
-func NewPool(dial DialFunc, num int, fn ...func(ctx context.Context, c *Client)) *Pool {
+func NewPool(dial DialFunc, num int, options ...func(ctx context.Context, c *Client)) *Pool {
 	p := &Pool{
 		client: make(map[string]*Client),
 	}
@@ -14,7 +14,7 @@ func NewPool(dial DialFunc, num int, fn ...func(ctx context.Context, c *Client))
 	p.ICloser = NewICloser(p)
 	go func() {
 		for i := 0; i < num; i++ {
-			c := Redial(dial, fn...)
+			c := Redial(dial, options...)
 			p.client[c.GetKey()] = c
 		}
 	}()

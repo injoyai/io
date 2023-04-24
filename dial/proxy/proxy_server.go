@@ -68,7 +68,7 @@ func (this *Server) SetPrintFunc(fn func(msg io.Message, tag ...string)) {
 	this.s.SetPrintFunc(fn)
 }
 
-func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
+func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) {
 	ser := &Server{}
 	_, err := io.NewServer(dial, func(s *io.Server) {
 		//读取全部数据
@@ -130,23 +130,23 @@ func NewServer(dial io.ListenFunc, fn ...func(s *Server)) (*Server, error) {
 				}
 			}
 		})
-		for _, v := range fn {
+		for _, v := range options {
 			v(ser)
 		}
 	})
 	return ser, err
 }
 
-func NewUDPServer(port int, fn ...func(s *Server)) (*Server, error) {
-	s, err := NewServer(dial.UDPListenFunc(port), fn...)
+func NewUDPServer(port int, options ...func(s *Server)) (*Server, error) {
+	s, err := NewServer(dial.UDPListenFunc(port), options...)
 	if err == nil {
 		s.s.SetKey(fmt.Sprintf(":%d", port))
 	}
 	return s, err
 }
 
-func NewTCPServer(port int, fn ...func(s *Server)) (*Server, error) {
-	s, err := NewServer(dial.TCPListenFunc(port), fn...)
+func NewTCPServer(port int, options ...func(s *Server)) (*Server, error) {
+	s, err := NewServer(dial.TCPListenFunc(port), options...)
 	if err == nil {
 		s.s.SetKey(fmt.Sprintf(":%d", port))
 	}

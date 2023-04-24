@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-func NewPortForwardingClient(addr, sn string, fn ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
+func NewPortForwardingClient(addr, sn string, options ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
 	return NewTCPClient(addr, func(ctx context.Context, c *io.Client, e *Entity) {
-		for _, v := range fn {
+		for _, v := range options {
 			v(ctx, c, e)
 		}
 		//注册
@@ -63,8 +63,8 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
 }
 
 // NewPortForwardingServer 端口转发服务端
-func NewPortForwardingServer(port int, fn ...func(s *io.Server)) (*PortForwardingServer, error) {
-	pipeServer, err := dial.NewPipeServer(port, fn...)
+func NewPortForwardingServer(port int, options ...func(s *io.Server)) (*PortForwardingServer, error) {
+	pipeServer, err := dial.NewPipeServer(port, options...)
 	ser := &PortForwardingServer{Server: pipeServer, listen: maps.NewSafe()}
 	pipeServer.SetCloseFunc(func(msg *io.IMessage) {
 		//通道断开连接,则关闭所有代理连接

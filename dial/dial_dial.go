@@ -35,12 +35,9 @@ func NewTCP(addr string) (*io.Client, error) {
 }
 
 // RedialTCP 一直连接TCP服务端,并重连
-func RedialTCP(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
+func RedialTCP(addr string, options ...func(ctx context.Context, c *io.Client)) *io.Client {
 	return io.Redial(TCPFunc(addr), func(ctx context.Context, c *io.Client) {
-		c.SetKey(addr)
-		for _, v := range fn {
-			v(ctx, c)
-		}
+		c.SetKey(addr).SetOptions(options...)
 	})
 }
 
@@ -65,12 +62,9 @@ func NewUDP(addr string) (*io.Client, error) {
 }
 
 // RedialUDP 一直连接UDP服务端,并重连
-func RedialUDP(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
+func RedialUDP(addr string, options ...func(ctx context.Context, c *io.Client)) *io.Client {
 	return io.Redial(UDPFunc(addr), func(ctx context.Context, c *io.Client) {
-		c.SetKey(addr)
-		for _, v := range fn {
-			v(ctx, c)
-		}
+		c.SetKey(addr).SetOptions(options...)
 	})
 }
 
@@ -136,12 +130,9 @@ func NewSerial(cfg *SerialConfig) (*io.Client, error) {
 	return c, err
 }
 
-func RedialSerial(cfg *SerialConfig, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
+func RedialSerial(cfg *SerialConfig, options ...func(ctx context.Context, c *io.Client)) *io.Client {
 	return io.Redial(SerialFunc(cfg), func(ctx context.Context, c *io.Client) {
-		c.SetKey(cfg.Address)
-		for _, v := range fn {
-			v(ctx, c)
-		}
+		c.SetKey(cfg.Address).SetOptions(options...)
 	})
 }
 
@@ -229,7 +220,7 @@ func NewWebsocket(url string, header http.Header) (*io.Client, error) {
 	return c, err
 }
 
-func RedialWebsocket(url string, header http.Header, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
+func RedialWebsocket(url string, header http.Header, options ...func(ctx context.Context, c *io.Client)) *io.Client {
 	return io.Redial(WebsocketFunc(url, header), func(ctx context.Context, c *io.Client) {
 		c.SetKey(func() string {
 			if u, err := gourl.Parse(url); err == nil {
@@ -237,7 +228,7 @@ func RedialWebsocket(url string, header http.Header, fn ...func(ctx context.Cont
 			}
 			return url
 		}())
-		for _, v := range fn {
+		for _, v := range options {
 			v(ctx, c)
 		}
 	})

@@ -19,34 +19,30 @@ Client
 */
 
 // RedialPipe 通道客户端
-func RedialPipe(addr string, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
+func RedialPipe(addr string, options ...func(ctx context.Context, c *io.Client)) *io.Client {
 	return RedialTCP(addr, func(ctx context.Context, c *io.Client) {
 		c.SetReadWriteWithPkg()
 		c.SetKeepAlive(io.DefaultTimeout)
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
 			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
 		})
-		for _, v := range fn {
-			v(ctx, c)
-		}
+		c.SetOptions(options...)
 	})
 }
 
 // NewPipeServer 通道服务端
-func NewPipeServer(port int, fn ...func(s *io.Server)) (*io.Server, error) {
+func NewPipeServer(port int, options ...func(s *io.Server)) (*io.Server, error) {
 	return NewTCPServer(port, func(s *io.Server) {
 		s.SetReadWriteWithPkg()
 		s.SetPrintFunc(func(msg io.Message, tag ...string) {
 			io.PrintWithASCII(msg, append([]string{"PI|S"}, tag...)...)
 		})
-		for _, v := range fn {
-			v(s)
-		}
+		s.SetOptions(options...)
 	})
 }
 
 // NewPipeTransmit 通过客户端数据转发,例如客户端1的数据会广播其他所有客户端
-func NewPipeTransmit(port int, fn ...func(s *io.Server)) (*io.Server, error) {
+func NewPipeTransmit(port int, options ...func(s *io.Server)) (*io.Server, error) {
 	return NewPipeServer(port, func(s *io.Server) {
 		s.SetPrintFunc(func(msg io.Message, tag ...string) {
 			if len(tag) > 0 {
@@ -66,8 +62,6 @@ func NewPipeTransmit(port int, fn ...func(s *io.Server)) (*io.Server, error) {
 				}
 			}
 		})
-		for _, v := range fn {
-			v(s)
-		}
+		s.SetOptions(options...)
 	})
 }

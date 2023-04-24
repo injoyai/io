@@ -10,19 +10,19 @@ import (
 )
 
 // Redial 一直连接,直到成功
-func Redial(dial DialFunc, fn ...func(ctx context.Context, c *Client)) *Client {
-	return RedialWithContext(context.Background(), dial, fn...)
+func Redial(dial DialFunc, options ...func(ctx context.Context, c *Client)) *Client {
+	return RedialWithContext(context.Background(), dial, options...)
 }
 
 // RedialWithContext 一直尝试连接,直到成功,需要输入上下文
-func RedialWithContext(ctx context.Context, dial DialFunc, fn ...func(ctx context.Context, c *Client)) *Client {
+func RedialWithContext(ctx context.Context, dial DialFunc, options ...func(ctx context.Context, c *Client)) *Client {
 	x := NewICloserWithContext(ctx, nil)
 	x.Debug()
 	x.SetRedialFunc(dial)
 	x.SetKey(conv.String(dial))
 	c := NewClientWithContext(ctx, x.Redial(ctx))
 	c.SetRedialFunc(dial)
-	c.Redial(fn...)
+	c.Redial(options...)
 	return c
 }
 
@@ -120,11 +120,24 @@ func (this *Client) Debug(b ...bool) *Client {
 }
 
 // WriteQueue 按队列写入
-func (this *Client) WriteQueue(p []byte) {
+func (this *Client) WriteQueue(p []byte) *Client {
 	queue, _ := this.Tag().GetOrSetByHandler("_write_queue", func() (interface{}, error) {
 		return this.IWriter.NewWriteQueue(this.Ctx()), nil
 	})
 	queue.(chan []byte) <- p
+	return this
+}
+
+// TryWriteQueue 尝试按队列写入,加入不了会丢弃
+func (this *Client) TryWriteQueue(p []byte) *Client {
+	queue, _ := this.Tag().GetOrSetByHandler("_write_queue", func() (interface{}, error) {
+		return this.IWriter.NewWriteQueue(this.Ctx()), nil
+	})
+	select {
+	case queue.(chan []byte) <- p:
+	default:
+	}
+	return this
 }
 
 // WriteReadWithTimeout 同步写读,超时
@@ -160,8 +173,8 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 //================================SetFunc================================
 
 // SetOptions 设置选项
-func (this *Client) SetOptions(fn ...func(ctx context.Context, c *Client)) *Client {
-	for _, v := range fn {
+func (this *Client) SetOptions(options ...func(ctx context.Context, c *Client)) *Client {
+	for _, v := range options {
 		v(this.Ctx(), this)
 	}
 	return this
@@ -224,7 +237,7 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 }
 
 // Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
-func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
+func (this *Client) Redial(options ...func(ctx context.Context, c *Client)) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *IMessage) {
 		<-time.After(time.Second)
 		readWriteCloser := this.IReadCloser.Redial(ctx)
@@ -238,10 +251,10 @@ func (this *Client) Redial(fn ...func(ctx context.Context, c *Client)) *Client {
 		*this = *NewClient(readWriteCloser)
 		this.SetKey(key)
 		this.SetRedialFunc(redialFunc)
-		this.Redial(fn...)
+		this.Redial(options...)
 		go this.Run()
 	})
-	this.SetOptions(fn...)
+	this.SetOptions(options...)
 	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
 	this.Print(NewMessage("连接服务端成功..."), TagInfo, this.GetKey())
 	go this.Run()
