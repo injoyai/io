@@ -29,6 +29,14 @@ func NewTCPServer(port int, fn ...func(s *io.Server)) (*io.Server, error) {
 	return s, err
 }
 
+func RunTCPServer(port int, fn ...func(s *io.Server)) error {
+	s, err := NewTCPServer(port, fn...)
+	if err != nil {
+		return err
+	}
+	return s.Run()
+}
+
 type _tcpServer struct {
 	net.Listener
 }

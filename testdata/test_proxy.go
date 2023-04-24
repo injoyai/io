@@ -45,7 +45,7 @@ func TestProxy() error {
 }
 
 func ProxyClient(addr string) *io.Client {
-	return proxy.NewTCPClient(addr, proxy.WithClientDebug())
+	return proxy.NewTCPClient(addr)
 }
 
 func ProxyTransmit(port int) error {
@@ -54,7 +54,7 @@ func ProxyTransmit(port int) error {
 		return err
 	}
 	s.SetKey(fmt.Sprintf(":%d", port))
-	s.Debug()
+	//s.Debug()
 	return s.Run()
 }
 
@@ -71,7 +71,7 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	var pipeClient *io.Client
 	go dial.RedialPipe(clientAddr, func(ctx context.Context, c *io.Client) {
 		pipeClient = c
-		c.Debug()
+		//c.Debug()
 		c.SetDealWithWriter(vpnClient)
 	})
 
