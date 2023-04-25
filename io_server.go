@@ -265,7 +265,7 @@ func (this *Server) RangeClient(fn func(key string, c *Client) bool) {
 	this.clientMu.RLock()
 	defer this.clientMu.RUnlock()
 	for i, v := range this.clientMap {
-		if fn(i, v) {
+		if !fn(i, v) {
 			break
 		}
 	}
