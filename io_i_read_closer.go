@@ -104,7 +104,7 @@ func (this *IReadCloser) SetDealWithChan(c chan Message) *IReadCloser {
 // @msg 消息内容
 func (this *IReadCloser) SetDealQueueFunc(num int, fn func(msg Message)) *IReadCloser {
 	if this.queue == nil {
-		this.queue = chans.NewEntity(num).SetHandler(func(no, count int, data interface{}) {
+		this.queue = chans.NewEntity(num).SetHandler(func(ctx context.Context, no, count int, data interface{}) {
 			fn(data.(Message))
 		})
 	} else {

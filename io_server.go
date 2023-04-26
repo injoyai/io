@@ -60,7 +60,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	//设置默认处理数据函数
 	s.SetDealFunc(func(msg *IMessage) { s.readChan <- msg })
 	//设置队列处理数据函数
-	s.dealQueue.SetHandler(func(no, num int, data interface{}) {
+	s.dealQueue.SetHandler(func(ctx context.Context, no, num int, data interface{}) {
 		if s.dealFunc != nil {
 			s.dealFunc(data.(*IMessage))
 		}
