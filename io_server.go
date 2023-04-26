@@ -33,7 +33,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		timeout:    DefaultTimeout * 3,
 		readFunc:   buf.ReadWithAll,
 		dealFunc:   nil,
-		dealQueue:  chans.NewEntity(1, 1000),
+		dealQueue:  chans.NewEntityWithContext(ctx, 1, 1000),
 		readChan:   make(chan *IMessage, 100),
 		closeFunc:  nil,
 		clientMax:  0,
