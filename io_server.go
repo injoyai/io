@@ -204,6 +204,11 @@ func (this *Server) SetPrintWithBase() *Server {
 	return this.SetPrintFunc(PrintWithBase)
 }
 
+// SetPrintWithErr 设置打印方式ASCII,打印错误信息
+func (this *Server) SetPrintWithErr() *Server {
+	return this.SetPrintFunc(PrintWithErr)
+}
+
 // SetTimeout 设置超时时间,还有time/3的时间误差
 func (this *Server) SetTimeout(t time.Duration) *Server {
 	this.timeout = t

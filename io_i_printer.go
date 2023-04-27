@@ -2,6 +2,7 @@ package io
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"strings"
 )
@@ -79,6 +80,12 @@ func PrintWithASCII(msg Message, tag ...string) {
 
 func PrintWithBase(msg Message, tag ...string) {
 	if len(tag) > 0 && (tag[0] == TagErr || tag[0] == TagInfo) {
+		log.Print(PrintfWithASCII(msg, tag...))
+	}
+}
+
+func PrintWithErr(msg Message, tag ...string) {
+	if len(tag) > 0 && tag[0] == TagErr && msg.String() != io.EOF.Error() {
 		log.Print(PrintfWithASCII(msg, tag...))
 	}
 }

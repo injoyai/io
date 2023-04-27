@@ -222,6 +222,11 @@ func (this *Client) SetPrintWithBase() {
 	this.SetPrintFunc(PrintWithBase)
 }
 
+// SetPrintWithErr 设置打印ASCII,错误信息
+func (this *Client) SetPrintWithErr() {
+	this.SetPrintFunc(PrintWithErr)
+}
+
 // SetReadWriteWithPkg 设置读写为默认分包方式
 func (this *Client) SetReadWriteWithPkg() *Client {
 	this.IWriter.SetWriteWithPkg()
