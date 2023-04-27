@@ -36,3 +36,7 @@ func TestRedialTCP(t *testing.T) {
 	})
 	select {}
 }
+
+func TestRedialMQTT(t *testing.T) {
+	//RedialMQTT("xxx")
+}

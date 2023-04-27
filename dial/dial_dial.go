@@ -160,6 +160,29 @@ func MQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser
 	return r, token.Error()
 }
 
+func MQTTFunc(clientID, topic string, qos byte, cfg *MQTTConfig) func() (io.ReadWriteCloser, error) {
+	return func() (closer io.ReadWriteCloser, err error) {
+		return MQTT(clientID, topic, qos, cfg)
+	}
+}
+
+func NewMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (*io.Client, error) {
+	c, err := io.NewDial(MQTTFunc(clientID, topic, qos, cfg))
+	if err == nil {
+		c.SetKey(topic)
+	}
+	return c, err
+}
+
+func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
+	return io.Redial(MQTTFunc(clientID, topic, qos, cfg.SetAutoReconnect(true)), func(ctx context.Context, c *io.Client) {
+		c.SetKey(topic)
+		for _, v := range fn {
+			v(ctx, c)
+		}
+	})
+}
+
 type _mqtt struct {
 	mqtt.Client
 	clientID string
