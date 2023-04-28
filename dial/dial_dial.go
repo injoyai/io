@@ -7,10 +7,12 @@ import (
 	"github.com/goburrow/serial"
 	"github.com/gorilla/websocket"
 	"github.com/injoyai/io"
+	"golang.org/x/crypto/ssh"
 	"net"
 	"net/http"
 	gourl "net/url"
 	"os"
+	"time"
 )
 
 //================================TCPDial================================
@@ -278,6 +280,118 @@ func (this *_websocket) ReadMessage() ([]byte, error) {
 
 func (this *_websocket) Close() error {
 	return this.Conn.Close()
+}
+
+//================================SSH================================
+
+type SSHConfig struct {
+	Addr        string
+	User        string
+	Password    string //类型为password
+	Type        string //password 或者 key
+	Timeout     time.Duration
+	key         string //类型为key
+	keyPassword string //类型为key
+	High        int    //高
+	Wide        int    //宽
+}
+
+func (this *SSHConfig) new() *SSHConfig {
+	if len(this.User) == 0 {
+		this.User = "root"
+	}
+	if this.Timeout == 0 {
+		this.Timeout = time.Second
+	}
+	if this.High == 0 {
+		this.High = 32
+	}
+	if this.Wide == 0 {
+		this.Wide = 300
+	}
+	return this
+}
+
+type Client struct {
+	io.Writer
+	io.Reader
+	*ssh.Session
+	err io.Reader
+}
+
+func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
+	cfg.new()
+	config := &ssh.ClientConfig{
+		Timeout:         cfg.Timeout,
+		User:            cfg.User,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Auth:            []ssh.AuthMethod{ssh.Password(cfg.Password)},
+	}
+	switch cfg.Type {
+	case "key":
+		signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(cfg.key), []byte(cfg.keyPassword))
+		if err != nil {
+			return nil, err
+		}
+		config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	}
+	sshClient, err := ssh.Dial("tcp", cfg.Addr, config)
+	if err != nil {
+		return nil, err
+	}
+	session, err := sshClient.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          1,     // 禁用回显（0禁用，1启动）
+		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+		ssh.TTY_OP_OSPEED: 14400, //output speed = 14.4kbaud
+	}
+	reader, err := session.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	outputErr, err := session.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	writer, err := session.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := session.RequestPty("xterm", cfg.High, cfg.Wide, modes); err != nil {
+		return nil, err
+	}
+	if err := session.Shell(); err != nil {
+		return nil, err
+	}
+	return &Client{
+		Writer:  writer,
+		Reader:  reader,
+		Session: session,
+		err:     outputErr,
+	}, nil
+}
+
+func SSHFunc(cfg *SSHConfig) func() (io.ReadWriteCloser, error) {
+	return func() (io.ReadWriteCloser, error) {
+		return SSH(cfg)
+	}
+}
+
+func NewSSH(cfg *SSHConfig) (*io.Client, error) {
+	c, err := io.NewDial(SSHFunc(cfg))
+	if err == nil {
+		c.SetKey(cfg.Addr)
+	}
+	return c, err
+}
+
+func RedialSSH(cfg *SSHConfig, options ...func(ctx context.Context, c *io.Client)) *io.Client {
+	return io.Redial(SSHFunc(cfg), func(ctx context.Context, c *io.Client) {
+		c.SetKey(cfg.Addr).SetOptions(options...)
+	})
 }
 
 //================================OtherDial================================

@@ -9,4 +9,5 @@ require (
 	github.com/injoyai/base v1.0.3
 	github.com/injoyai/conv v1.0.4
 	github.com/injoyai/logs v1.0.1
+	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 )
