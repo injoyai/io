@@ -37,7 +37,7 @@ func NewTCP(addr string) (*io.Client, error) {
 }
 
 // RedialTCP 一直连接TCP服务端,并重连
-func RedialTCP(addr string, options ...func(ctx context.Context, c *io.Client)) *io.Client {
+func RedialTCP(addr string, options ...io.OptionClient) *io.Client {
 	return io.Redial(TCPFunc(addr), func(ctx context.Context, c *io.Client) {
 		c.SetKey(addr).SetOptions(options...)
 	})
@@ -64,7 +64,7 @@ func NewUDP(addr string) (*io.Client, error) {
 }
 
 // RedialUDP 一直连接UDP服务端,并重连
-func RedialUDP(addr string, options ...func(ctx context.Context, c *io.Client)) *io.Client {
+func RedialUDP(addr string, options ...io.OptionClient) *io.Client {
 	return io.Redial(UDPFunc(addr), func(ctx context.Context, c *io.Client) {
 		c.SetKey(addr).SetOptions(options...)
 	})
@@ -132,7 +132,7 @@ func NewSerial(cfg *SerialConfig) (*io.Client, error) {
 	return c, err
 }
 
-func RedialSerial(cfg *SerialConfig, options ...func(ctx context.Context, c *io.Client)) *io.Client {
+func RedialSerial(cfg *SerialConfig, options ...io.OptionClient) *io.Client {
 	return io.Redial(SerialFunc(cfg), func(ctx context.Context, c *io.Client) {
 		c.SetKey(cfg.Address).SetOptions(options...)
 	})
@@ -380,15 +380,15 @@ func SSHFunc(cfg *SSHConfig) func() (io.ReadWriteCloser, error) {
 	}
 }
 
-func NewSSH(cfg *SSHConfig) (*io.Client, error) {
+func NewSSH(cfg *SSHConfig, options ...io.OptionClient) (*io.Client, error) {
 	c, err := io.NewDial(SSHFunc(cfg))
 	if err == nil {
-		c.SetKey(cfg.Addr)
+		c.SetKey(cfg.Addr).SetOptions(options...)
 	}
 	return c, err
 }
 
-func RedialSSH(cfg *SSHConfig, options ...func(ctx context.Context, c *io.Client)) *io.Client {
+func RedialSSH(cfg *SSHConfig, options ...io.OptionClient) *io.Client {
 	return io.Redial(SSHFunc(cfg), func(ctx context.Context, c *io.Client) {
 		c.SetKey(cfg.Addr).SetOptions(options...)
 	})

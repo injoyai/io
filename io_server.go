@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-func NewServer(newListen ListenFunc, options ...func(s *Server)) (*Server, error) {
+func NewServer(newListen ListenFunc, options ...OptionServer) (*Server, error) {
 	return NewServerWithContext(context.Background(), newListen, options...)
 }
 
-func NewServerWithContext(ctx context.Context, newListen func() (Listener, error), options ...func(s *Server)) (*Server, error) {
+func NewServerWithContext(ctx context.Context, newListen func() (Listener, error), options ...OptionServer) (*Server, error) {
 	//连接listener
 	listener, err := newListen()
 	if err != nil {
@@ -96,7 +96,7 @@ type Server struct {
 //================================SetFunc================================
 
 // SetOptions 设置选项
-func (this *Server) SetOptions(options ...func(s *Server)) *Server {
+func (this *Server) SetOptions(options ...OptionServer) *Server {
 	for _, v := range options {
 		v(this)
 	}
@@ -346,7 +346,7 @@ func (this *Server) SetClientKey(newClient *Client, newKey string) {
 }
 
 // Timer 定时执行
-func (this *Server) Timer(interval time.Duration, do func(s *Server)) {
+func (this *Server) Timer(interval time.Duration, do OptionServer) {
 	go this.ICloser.Timer(interval, func() error {
 		do(this)
 		return nil

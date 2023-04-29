@@ -1,12 +1,11 @@
 package io
 
 import (
-	"context"
 	"errors"
 )
 
 // NewPool 新建连接池
-func NewPool(dial DialFunc, num int, options ...func(ctx context.Context, c *Client)) *Pool {
+func NewPool(dial DialFunc, num int, options ...OptionClient) *Pool {
 	p := &Pool{
 		client: make(map[string]*Client),
 	}

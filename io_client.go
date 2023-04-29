@@ -10,12 +10,12 @@ import (
 )
 
 // Redial 一直连接,直到成功
-func Redial(dial DialFunc, options ...func(ctx context.Context, c *Client)) *Client {
+func Redial(dial DialFunc, options ...OptionClient) *Client {
 	return RedialWithContext(context.Background(), dial, options...)
 }
 
 // RedialWithContext 一直尝试连接,直到成功,需要输入上下文
-func RedialWithContext(ctx context.Context, dial DialFunc, options ...func(ctx context.Context, c *Client)) *Client {
+func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClient) *Client {
 	x := NewICloserWithContext(ctx, nil)
 	x.Debug()
 	x.SetRedialFunc(dial)
@@ -173,7 +173,7 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 //================================SetFunc================================
 
 // SetOptions 设置选项
-func (this *Client) SetOptions(options ...func(ctx context.Context, c *Client)) *Client {
+func (this *Client) SetOptions(options ...OptionClient) *Client {
 	for _, v := range options {
 		v(this.Ctx(), this)
 	}
@@ -242,7 +242,7 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 }
 
 // Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
-func (this *Client) Redial(options ...func(ctx context.Context, c *Client)) *Client {
+func (this *Client) Redial(options ...OptionClient) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *IMessage) {
 		<-time.After(time.Second)
 		readWriteCloser := this.IReadCloser.Redial(ctx)

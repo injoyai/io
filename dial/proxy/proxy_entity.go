@@ -197,7 +197,7 @@ func NewTCPClient(addr string, options ...func(ctx context.Context, c *io.Client
 }
 
 // NewSwapTCPServer 和TCP服务端交换数据,带测试
-func NewSwapTCPServer(port int, options ...func(s *io.Server)) error {
+func NewSwapTCPServer(port int, options ...io.OptionServer) error {
 	s, err := dial.NewPipeServer(port)
 	if err != nil {
 		return err

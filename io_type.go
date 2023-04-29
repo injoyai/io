@@ -77,4 +77,4 @@ type WriteDeadline func(t time.Time) error
 
 type OptionClient func(ctx context.Context, c *Client)
 
-type OptionServer func(ctx context.Context, c *Server)
+type OptionServer func(s *Server)
