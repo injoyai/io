@@ -21,7 +21,7 @@ func TCPListenFunc(port int) io.ListenFunc {
 	return func() (io.Listener, error) { return TCPListener(port) }
 }
 
-func NewTCPServer(port int, options ...func(s *io.Server)) (*io.Server, error) {
+func NewTCPServer(port int, options ...io.OptionServer) (*io.Server, error) {
 	s, err := io.NewServer(TCPListenFunc(port), options...)
 	if err == nil {
 		s.SetKey(fmt.Sprintf(":%d", port))
@@ -29,7 +29,7 @@ func NewTCPServer(port int, options ...func(s *io.Server)) (*io.Server, error) {
 	return s, err
 }
 
-func RunTCPServer(port int, options ...func(s *io.Server)) error {
+func RunTCPServer(port int, options ...io.OptionServer) error {
 	s, err := NewTCPServer(port, options...)
 	if err != nil {
 		return err
@@ -69,7 +69,7 @@ func UDPListenFunc(port int) io.ListenFunc {
 	}
 }
 
-func NewUDPServer(port int, options ...func(s *io.Server)) (*io.Server, error) {
+func NewUDPServer(port int, options ...io.OptionServer) (*io.Server, error) {
 	return io.NewServer(UDPListenFunc(port), options...)
 }
 
