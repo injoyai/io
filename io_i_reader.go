@@ -24,12 +24,12 @@ func NewIReader(r Reader) *IReader {
 }
 
 type IReader struct {
-	*printer                                     //printer
-	mReader  MessageReader                       //接口MessageReader,兼容Reader
-	buf      *bufio.Reader                       //buffer
-	readFunc func(*bufio.Reader) ([]byte, error) //读取函数
-	lastChan chan Message                        //读取最新数据chan
-	lastTime time.Time                           //最后读取数据时间
+	*printer               //printer
+	mReader  MessageReader //接口MessageReader,兼容Reader
+	buf      *bufio.Reader //buffer
+	readFunc ReadFunc      //读取函数
+	lastChan chan Message  //读取最新数据chan
+	lastTime time.Time     //最后读取数据时间
 }
 
 //================================Nature================================
@@ -96,7 +96,7 @@ func (this *IReader) CopyTo(writer Writer) (int64, error) {
 //================================ReadFunc================================
 
 // SetReadFunc 设置读取函数
-func (this *IReader) SetReadFunc(fn buf.ReadFunc) *IReader {
+func (this *IReader) SetReadFunc(fn func(*bufio.Reader) ([]byte, error)) *IReader {
 	this.readFunc = func(reader *bufio.Reader) (bs []byte, err error) {
 		switch true {
 		case this.mReader != nil:
