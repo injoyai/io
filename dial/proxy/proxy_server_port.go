@@ -63,7 +63,7 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
 }
 
 // NewPortForwardingServer 端口转发服务端
-func NewPortForwardingServer(port int, options ...func(s *io.Server)) (*PortForwardingServer, error) {
+func NewPortForwardingServer(port int, options ...io.OptionServer) (*PortForwardingServer, error) {
 	pipeServer, err := dial.NewPipeServer(port, options...)
 	ser := &PortForwardingServer{Server: pipeServer, listen: maps.NewSafe()}
 	pipeServer.SetCloseFunc(func(msg *io.IMessage) {
