@@ -61,7 +61,7 @@ func ProxyTransmit(port int) error {
 func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 
 	// 普通的tcpServer服务,用于监听用户数据
-	vpnClient, err := proxy.NewTCPServer(tcpPort, proxy.WithServerDebug(false))
+	vpnClient, err := proxy.NewTCPServer(tcpPort)
 	if err != nil {
 		return err
 	}
@@ -76,6 +76,7 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	})
 
 	//设置数据处理函数
+	vpnClient.Debug()
 	vpnClient.SetDealFunc(func(msg *proxy.CMessage) error {
 		if pipeClient == nil {
 			return errors.New("pipe未连接")

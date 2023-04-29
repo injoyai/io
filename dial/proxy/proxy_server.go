@@ -24,9 +24,13 @@ type Server struct {
 	dealFunc func(msg *CMessage) error //处理函数
 }
 
-func (this *Server) Debug(b ...bool) { this.s.Debug(b...) }
+func (this *Server) Debug(b ...bool) {
+	this.s.Debug(b...)
+}
 
-func (this *Server) Run() error { return this.s.Run() }
+func (this *Server) Run() error {
+	return this.s.Run()
+}
 
 // Write 写入数据,实现io.Writer
 func (this *Server) Write(p []byte) (int, error) {
@@ -68,7 +72,14 @@ func (this *Server) SetPrintFunc(fn func(msg io.Message, tag ...string)) {
 	this.s.SetPrintFunc(fn)
 }
 
-func NewServer(dial io.ListenFunc, options ...io.OptionServer) (*Server, error) {
+// SetOptions 设置选项
+func (this *Server) SetOptions(options ...func(s *Server)) {
+	for _, v := range options {
+		v(this)
+	}
+}
+
+func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) {
 	ser := &Server{}
 	_, err := io.NewServer(dial, func(s *io.Server) {
 		//读取全部数据
@@ -130,12 +141,12 @@ func NewServer(dial io.ListenFunc, options ...io.OptionServer) (*Server, error) 
 				}
 			}
 		})
-		s.SetOptions(options...)
+		ser.SetOptions(options...)
 	})
 	return ser, err
 }
 
-func NewUDPServer(port int, options ...io.OptionServer) (*Server, error) {
+func NewUDPServer(port int, options ...func(s *Server)) (*Server, error) {
 	s, err := NewServer(dial.UDPListenFunc(port), options...)
 	if err == nil {
 		s.s.SetKey(fmt.Sprintf(":%d", port))
@@ -143,7 +154,7 @@ func NewUDPServer(port int, options ...io.OptionServer) (*Server, error) {
 	return s, err
 }
 
-func NewTCPServer(port int, options ...io.OptionServer) (*Server, error) {
+func NewTCPServer(port int, options ...func(s *Server)) (*Server, error) {
 	s, err := NewServer(dial.TCPListenFunc(port), options...)
 	if err == nil {
 		s.s.SetKey(fmt.Sprintf(":%d", port))
@@ -176,8 +187,4 @@ func getAddr(msg *io.IMessage) (string, error) {
 		}
 	}
 	return addr, nil
-}
-
-func WithServerDebug(b ...bool) func(s *Server) {
-	return func(s *Server) { s.Debug(b...) }
 }

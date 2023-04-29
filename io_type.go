@@ -75,6 +75,8 @@ type CloseFunc func(ctx context.Context, msg Message)
 // WriteDeadline 写入超时时间,例如tcp关闭
 type WriteDeadline func(t time.Time) error
 
+// OptionClient 客户端选项
 type OptionClient func(ctx context.Context, c *Client)
 
+// OptionServer 服务端选项
 type OptionServer func(s *Server)
