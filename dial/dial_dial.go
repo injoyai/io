@@ -285,15 +285,15 @@ func (this *_websocket) Close() error {
 //================================SSH================================
 
 type SSHConfig struct {
-	Addr        string
-	User        string
-	Password    string //类型为password
-	Type        string //password 或者 key
-	Timeout     time.Duration
-	key         string //类型为key
-	keyPassword string //类型为key
-	High        int    //高
-	Wide        int    //宽
+	Addr     string
+	User     string
+	Password string //类型为password
+	Timeout  time.Duration
+	High     int //高
+	Wide     int //宽
+	//Type        string //password 或者 key
+	//key         string //类型为key
+	//keyPassword string //类型为key
 }
 
 func (this *SSHConfig) new() *SSHConfig {
@@ -319,6 +319,10 @@ type Client struct {
 	err io.Reader
 }
 
+func (this *Client) Write(p []byte) (int, error) {
+	return this.Writer.Write(append(p, '\n'))
+}
+
 func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 	cfg.new()
 	config := &ssh.ClientConfig{
@@ -327,14 +331,14 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Auth:            []ssh.AuthMethod{ssh.Password(cfg.Password)},
 	}
-	switch cfg.Type {
-	case "key":
-		signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(cfg.key), []byte(cfg.keyPassword))
-		if err != nil {
-			return nil, err
-		}
-		config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
-	}
+	//switch cfg.Type {
+	//case "key":
+	//	signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(cfg.key), []byte(cfg.keyPassword))
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	//}
 	sshClient, err := ssh.Dial("tcp", cfg.Addr, config)
 	if err != nil {
 		return nil, err
@@ -344,7 +348,7 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 		return nil, err
 	}
 	modes := ssh.TerminalModes{
-		ssh.ECHO:          1,     // 禁用回显（0禁用，1启动）
+		ssh.ECHO:          0,     // 禁用回显（0禁用，1启动）
 		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
 		ssh.TTY_OP_OSPEED: 14400, //output speed = 14.4kbaud
 	}
@@ -360,7 +364,7 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := session.RequestPty("xterm", cfg.High, cfg.Wide, modes); err != nil {
+	if err := session.RequestPty("xterm-256color", cfg.High, cfg.Wide, modes); err != nil {
 		return nil, err
 	}
 	if err := session.Shell(); err != nil {
