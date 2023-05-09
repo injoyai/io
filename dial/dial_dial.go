@@ -7,6 +7,7 @@ import (
 	"github.com/goburrow/serial"
 	"github.com/gorilla/websocket"
 	"github.com/injoyai/io"
+	serial2 "go.bug.st/serial"
 	"golang.org/x/crypto/ssh"
 	"net"
 	"net/http"
@@ -110,7 +111,20 @@ func (this *_memory) Close() error {
 
 //================================SerialDial================================
 
-type SerialConfig = serial.Config
+const (
+	SerialParityNone = "N" //无校验
+	SerialParityEven = "E" //奇校验
+	SerialParityOdd  = "O" //偶校验
+)
+
+var (
+	GetSerialPortList = serial2.GetPortsList
+)
+
+type (
+	SerialConfig      = serial.Config
+	SerialRS485Config = serial.RS485Config
+)
 
 // Serial 打开串口
 func Serial(cfg *SerialConfig) (io.ReadWriteCloser, error) {

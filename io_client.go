@@ -154,7 +154,7 @@ func (this *Client) WriteRead(request []byte) (response []byte, err error) {
 }
 
 // GoTimerWriter 协程,定时写入数据,生命周期(一次链接,单次连接断开)
-func (this *Client) GoTimerWriter(interval time.Duration, write func(c *IWriter) error) {
+func (this *Client) GoTimerWriter(interval time.Duration, write func(w *IWriter) error) {
 	go this.ICloser.Timer(interval, func() error {
 		return write(this.IWriter)
 	})
