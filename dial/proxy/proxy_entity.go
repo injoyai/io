@@ -211,8 +211,8 @@ func NewSwapTCPServer(port int, options ...io.OptionServer) error {
 	return nil
 }
 
-func WithClientDebug(b ...bool) func(ctx context.Context, c *io.Client, e *Entity) {
-	return func(ctx context.Context, c *io.Client, e *Entity) {
+func WithClientDebug(b ...bool) func(c *io.Client, e *Entity) {
+	return func(c *io.Client, e *Entity) {
 		c.Debug(b...)
 		e.Debug(b...)
 	}
