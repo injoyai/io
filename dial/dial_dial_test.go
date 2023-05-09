@@ -1,14 +1,14 @@
 package dial
 
 import (
-	"context"
 	"fmt"
 	"github.com/injoyai/io"
+	"github.com/injoyai/logs"
 	"testing"
 	"time"
 )
 
-func TestNewWebsocket(t *testing.T) {
+func TestRedialWebsocket(t *testing.T) {
 	url := "ws://192.168.10.24:10001/api/user/notice/ws"
 	//"ws://192.168.10.3:1880/node-red/comms"
 	url = "ws://192.168.10.24:10001/api/ai/info/runtime/ws?id=83"
@@ -16,7 +16,7 @@ func TestNewWebsocket(t *testing.T) {
 	//url += "?token=jbYKl72cbOGvbVRwIqM4r6eoirw8f1JRD44+4D5E/URRY4L6TTZYYb/9yhedvd2Ii2GtLo9MieBy5FBeUhugK5jHvppFjExz3B5DVFPqsomF5wezKDFc8a2hZSQ9IDHTS/C+j/3ESSRdbkVHPFxbzQ=="
 	//url = strings.ReplaceAll(url, "+", "%2B")
 	t.Log(url)
-	RedialWebsocket(url, nil, io.WithClientDebug(), func(ctx context.Context, c *io.Client) {
+	RedialWebsocket(url, nil, io.WithClientDebug(), func(c *io.Client) {
 		c.GoTimerWriter(time.Second*10, func(w *io.IWriter) error {
 			_, err := w.WriteString("83")
 			return err
@@ -25,22 +25,22 @@ func TestNewWebsocket(t *testing.T) {
 	select {}
 }
 
-func TestNewTCP(t *testing.T) {
+func TestRedialTCP(t *testing.T) {
 	//"ws://192.168.10.3:1880/node-red/comms"
-	RedialTCP(":1082", func(ctx context.Context, c *io.Client) {
+	RedialTCP(":1082", func(c *io.Client) {
 		c.Debug()
 		c.WriteAny("666")
 	})
 	select {}
 }
 
-func TestRtsp(t *testing.T) {
+func TestRedialRtsp(t *testing.T) {
 	RedialTCP("34.227.104.115:554", io.WithClientDebug())
 	select {}
 }
 
-func TestRedialTCP(t *testing.T) {
-	RedialTCP("192.168.10.24:10086", io.WithClientDebug(), func(ctx context.Context, c *io.Client) {
+func TestRedialHTTP(t *testing.T) {
+	RedialTCP("192.168.10.24:10086", io.WithClientDebug(), func(c *io.Client) {
 		c.WriteString("GET /sn/BFEBFBFF000906ED HTTP/1.1\r\n\r\n")
 	})
 	select {}
@@ -55,7 +55,7 @@ func TestRedialSSH(t *testing.T) {
 		Addr:     "192.168.10.40:22",
 		User:     "qinalang",
 		Password: "ql1123",
-	}, func(ctx context.Context, c *io.Client) {
+	}, func(c *io.Client) {
 		c.Debug()
 		go func() {
 			for {
@@ -64,6 +64,33 @@ func TestRedialSSH(t *testing.T) {
 				c.WriteString(msg)
 			}
 		}()
+	})
+	select {}
+}
+
+func TestRedialSerial(t *testing.T) {
+	portNames, err := GetSerialPortList()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	logs.Debug("串口列表:", portNames)
+
+	RedialSerial(&SerialConfig{
+		Address:  "COM3",
+		BaudRate: 9600,
+		DataBits: 8,
+		StopBits: 1,
+		Parity:   SerialParityNone,
+		Timeout:  0,
+	}, func(c *io.Client) {
+		c.Debug()
+		c.SetPrintWithHEX()
+		c.GoTimerWriter(time.Second*3, func(w *io.IWriter) error {
+			_, err := w.WriteString("666")
+			logs.Debug(666)
+			return err
+		})
 	})
 	select {}
 }

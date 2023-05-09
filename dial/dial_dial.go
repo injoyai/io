@@ -2,7 +2,6 @@ package dial
 
 import (
 	"bytes"
-	"context"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/goburrow/serial"
 	"github.com/gorilla/websocket"
@@ -39,7 +38,7 @@ func NewTCP(addr string) (*io.Client, error) {
 
 // RedialTCP 一直连接TCP服务端,并重连
 func RedialTCP(addr string, options ...io.OptionClient) *io.Client {
-	return io.Redial(TCPFunc(addr), func(ctx context.Context, c *io.Client) {
+	return io.Redial(TCPFunc(addr), func(c *io.Client) {
 		c.SetKey(addr).SetOptions(options...)
 	})
 }
@@ -66,7 +65,7 @@ func NewUDP(addr string) (*io.Client, error) {
 
 // RedialUDP 一直连接UDP服务端,并重连
 func RedialUDP(addr string, options ...io.OptionClient) *io.Client {
-	return io.Redial(UDPFunc(addr), func(ctx context.Context, c *io.Client) {
+	return io.Redial(UDPFunc(addr), func(c *io.Client) {
 		c.SetKey(addr).SetOptions(options...)
 	})
 }
@@ -147,7 +146,7 @@ func NewSerial(cfg *SerialConfig) (*io.Client, error) {
 }
 
 func RedialSerial(cfg *SerialConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(SerialFunc(cfg), func(ctx context.Context, c *io.Client) {
+	return io.Redial(SerialFunc(cfg), func(c *io.Client) {
 		c.SetKey(cfg.Address).SetOptions(options...)
 	})
 }
@@ -190,11 +189,11 @@ func NewMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (*io.Client, err
 	return c, err
 }
 
-func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return io.Redial(MQTTFunc(clientID, topic, qos, cfg.SetAutoReconnect(true)), func(ctx context.Context, c *io.Client) {
+func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, fn ...io.OptionClient) *io.Client {
+	return io.Redial(MQTTFunc(clientID, topic, qos, cfg.SetAutoReconnect(true)), func(c *io.Client) {
 		c.SetKey(topic)
 		for _, v := range fn {
-			v(ctx, c)
+			v(c)
 		}
 	})
 }
@@ -259,8 +258,8 @@ func NewWebsocket(url string, header http.Header) (*io.Client, error) {
 	return c, err
 }
 
-func RedialWebsocket(url string, header http.Header, options ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return io.Redial(WebsocketFunc(url, header), func(ctx context.Context, c *io.Client) {
+func RedialWebsocket(url string, header http.Header, options ...io.OptionClient) *io.Client {
+	return io.Redial(WebsocketFunc(url, header), func(c *io.Client) {
 		c.SetKey(func() string {
 			if u, err := gourl.Parse(url); err == nil {
 				return u.Path
@@ -268,7 +267,7 @@ func RedialWebsocket(url string, header http.Header, options ...func(ctx context
 			return url
 		}())
 		for _, v := range options {
-			v(ctx, c)
+			v(c)
 		}
 	})
 }
@@ -407,7 +406,7 @@ func NewSSH(cfg *SSHConfig, options ...io.OptionClient) (*io.Client, error) {
 }
 
 func RedialSSH(cfg *SSHConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(SSHFunc(cfg), func(ctx context.Context, c *io.Client) {
+	return io.Redial(SSHFunc(cfg), func(c *io.Client) {
 		c.SetKey(cfg.Addr).SetOptions(options...)
 	})
 }

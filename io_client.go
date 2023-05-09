@@ -175,7 +175,7 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 // SetOptions 设置选项
 func (this *Client) SetOptions(options ...OptionClient) *Client {
 	for _, v := range options {
-		v(this.Ctx(), this)
+		v(this)
 	}
 	return this
 }

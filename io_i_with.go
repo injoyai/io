@@ -1,19 +1,24 @@
 package io
 
-import "context"
-
 func WithServerDebug(b ...bool) OptionServer {
 	return func(s *Server) { s.Debug(b...) }
 }
 
 func WithClientDebug() OptionClient {
-	return func(ctx context.Context, c *Client) { c.Debug() }
+	return func(c *Client) { c.Debug() }
 }
 
 func WithClientPrintBase(b ...bool) OptionClient {
-	return func(ctx context.Context, c *Client) {
+	return func(c *Client) {
 		c.Debug(b...)
 		c.SetPrintWithBase()
+	}
+}
+
+func WithClientPrintErr(b ...bool) OptionClient {
+	return func(c *Client) {
+		c.Debug(b...)
+		c.SetPrintWithErr()
 	}
 }
 
@@ -24,12 +29,19 @@ func WithServerPrintBase(b ...bool) OptionServer {
 	}
 }
 
+func WithServerPrintErr(b ...bool) OptionServer {
+	return func(s *Server) {
+		s.Debug(b...)
+		s.SetPrintWithErr()
+	}
+}
+
 func WithClientSetKey(key string) OptionClient {
-	return func(ctx context.Context, c *Client) { c.SetKey(key) }
+	return func(c *Client) { c.SetKey(key) }
 }
 
 func WithClientReadWritePkg() OptionClient {
-	return func(ctx context.Context, c *Client) {
+	return func(c *Client) {
 		c.SetReadWriteWithPkg()
 	}
 }

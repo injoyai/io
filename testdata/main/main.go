@@ -1,18 +1,38 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/conv/cfg"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/proxy"
 	"github.com/injoyai/io/testdata"
 	"github.com/injoyai/logs"
+	"os"
 	"runtime"
 )
 
 func main() {
+	reader := bufio.NewReader(os.Stdin)
+	dial.RedialSSH(&dial.SSHConfig{
+		Addr:     "192.168.10.40:22",
+		User:     "qinalang",
+		Password: "ql1123",
+	}, func(ctx context.Context, c *io.Client) {
+		c.Debug()
+		go func() {
+
+			for {
+				msg, _ := reader.ReadString('\n')
+				c.WriteString(msg)
+			}
+		}()
+	})
+	select {}
+
 	logs.PrintErr(NewPortForwardingServer())
 	return
 	NewPortForwardingClient()
