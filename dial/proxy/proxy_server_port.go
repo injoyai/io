@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"context"
 	"fmt"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/conv"
@@ -12,10 +11,10 @@ import (
 	"strings"
 )
 
-func NewPortForwardingClient(addr, sn string, options ...func(ctx context.Context, c *io.Client, e *Entity)) *io.Client {
-	return NewTCPClient(addr, func(ctx context.Context, c *io.Client, e *Entity) {
+func NewPortForwardingClient(addr, sn string, options ...func(c *io.Client, e *Entity)) *io.Client {
+	return NewTCPClient(addr, func(c *io.Client, e *Entity) {
 		for _, v := range options {
-			v(ctx, c, e)
+			v(c, e)
 		}
 		//注册
 		c.Write(NewRegisterMessage(sn, sn).Bytes())
