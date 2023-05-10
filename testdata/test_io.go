@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"context"
 	"fmt"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
@@ -18,7 +17,7 @@ func Example() {
 }
 
 func NewClient(addr string) error {
-	c := io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
+	c := io.Redial(dial.TCPFunc(addr), func(c *io.Client) {
 		logs.Debug("重连...")
 		c.Debug()
 	})
@@ -51,7 +50,7 @@ func CloseAll(port int) error {
 		logs.Err("服务端:", s.Run())
 	}()
 
-	c := dial.RedialTCP(fmt.Sprintf(":%d", port), func(ctx context.Context, c *io.Client) {
+	c := dial.RedialTCP(fmt.Sprintf(":%d", port), func(c *io.Client) {
 		c.Debug()
 	})
 
@@ -72,7 +71,7 @@ func CloseAll(port int) error {
 }
 
 func ClientRun(addr string) *io.Client {
-	return io.Redial(dial.TCPFunc(addr), func(ctx context.Context, c *io.Client) {
+	return io.Redial(dial.TCPFunc(addr), func(c *io.Client) {
 		c.Debug()
 		c.SetPrintWithASCII()
 		c.SetKey("test")
@@ -87,7 +86,7 @@ func ClientRun(addr string) *io.Client {
 // TimeoutClient 测试客户端超时
 func TimeoutClient(port int, timeout time.Duration) error {
 	go dial.RedialTCP(fmt.Sprintf(":%d", port),
-		func(ctx context.Context, c *io.Client) {
+		func(c *io.Client) {
 			c.Debug()
 			c.SetTimeout(timeout)
 		})
@@ -102,7 +101,7 @@ func TimeoutClient(port int, timeout time.Duration) error {
 // TimeoutServer 测试服务端超时
 func TimeoutServer(port int, timeout time.Duration) error {
 	go io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
-		func(ctx context.Context, c *io.Client) {
+		func(c *io.Client) {
 			c.Debug()
 		})
 	s, err := io.NewServer(dial.TCPListenFunc(port))
@@ -122,7 +121,7 @@ func GoFor(port int) error {
 	if err != nil {
 		return err
 	}
-	c := dial.RedialTCP(fmt.Sprintf(":%d", port), func(ctx context.Context, c *io.Client) {
+	c := dial.RedialTCP(fmt.Sprintf(":%d", port), func(c *io.Client) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")
@@ -148,7 +147,7 @@ func ServerMaxClient(port int) error {
 		return err
 	}
 	for i := 0; i < 2; i++ {
-		dial.RedialTCP(fmt.Sprintf(":%d", port), func(ctx context.Context, c *io.Client) {
+		dial.RedialTCP(fmt.Sprintf(":%d", port), func(c *io.Client) {
 			c.Debug()
 			c.SetKeepAlive(time.Second)
 		})
@@ -165,7 +164,7 @@ func ClientCtxParent(port int) error {
 	<-time.After(time.Second * 5)
 	go s.Run()
 	c := io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
-		func(ctx context.Context, c *io.Client) {
+		func(c *io.Client) {
 			c.Debug()
 			c.GoTimerWriter(time.Second, func(c *io.IWriter) error {
 				_, err := c.WriteString("666")
@@ -197,7 +196,7 @@ func Pool(port int) error {
 	if err != nil {
 		return err
 	}
-	io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), 10, func(ctx context.Context, c *io.Client) {
+	io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), 10, func(c *io.Client) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")
@@ -214,7 +213,7 @@ func PoolWrite(port int) (*io.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), 10, func(ctx context.Context, c *io.Client) {
+	p := io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), 10, func(c *io.Client) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")

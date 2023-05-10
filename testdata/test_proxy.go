@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/injoyai/base/chans"
@@ -18,7 +17,7 @@ func TestClient(addr string) {
 		log.Println(http.ListenAndServe(fmt.Sprintf(":%d", 6067), nil))
 	}()
 	for range chans.Count(1000, time.Millisecond*10) {
-		dial.RedialTCP(addr, func(ctx context.Context, c *io.Client) {
+		dial.RedialTCP(addr, func(c *io.Client) {
 			c.Debug()
 			c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
 				_, err := c.WriteString(time.Now().String())
@@ -31,7 +30,7 @@ func TestClient(addr string) {
 
 func TestProxy() error {
 
-	go proxy.NewTCPClient(":10089", func(ctx context.Context, c *io.Client, e *proxy.Entity) {
+	go proxy.NewTCPClient(":10089", func(c *io.Client, e *proxy.Entity) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
 			e.AddMessage(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
@@ -69,7 +68,7 @@ func VPNClient(tcpPort, udpPort int, clientAddr string) error {
 	// 通道客户端,用于连接数据转发服务端,进行数据的封装
 	// 所有数据都经过这个连接
 	var pipeClient *io.Client
-	go dial.RedialPipe(clientAddr, func(ctx context.Context, c *io.Client) {
+	go dial.RedialPipe(clientAddr, func(c *io.Client) {
 		pipeClient = c
 		//c.Debug()
 		c.SetDealWithWriter(vpnClient)
