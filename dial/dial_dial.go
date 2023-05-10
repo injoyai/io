@@ -2,6 +2,7 @@ package dial
 
 import (
 	"bytes"
+	"errors"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/goburrow/serial"
 	"github.com/gorilla/websocket"
@@ -158,7 +159,9 @@ type MQTTConfig = mqtt.ClientOptions
 func MQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser, error) {
 	c := mqtt.NewClient(cfg)
 	token := c.Connect()
-	token.Wait()
+	if !token.WaitTimeout(cfg.WriteTimeout) {
+		return nil, errors.New("连接超时")
+	}
 	if token.Error() != nil {
 		return nil, token.Error()
 	}
