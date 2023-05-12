@@ -27,18 +27,19 @@ func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClie
 }
 
 // NewDial 尝试连接,返回*Client和错误
-func NewDial(dial DialFunc) (*Client, error) {
-	return NewDialWithContext(context.Background(), dial)
+func NewDial(dial DialFunc, options ...OptionClient) (*Client, error) {
+	return NewDialWithContext(context.Background(), dial, options...)
 }
 
 // NewDialWithContext 尝试连接,返回*Client和错误,需要输入上下文
-func NewDialWithContext(ctx context.Context, dial DialFunc) (*Client, error) {
+func NewDialWithContext(ctx context.Context, dial DialFunc, options ...OptionClient) (*Client, error) {
 	c, err := dial()
 	if err != nil {
 		return nil, err
 	}
 	cli := NewClientWithContext(ctx, c)
 	cli.SetRedialFunc(dial)
+	cli.SetOptions(options...)
 	return cli, nil
 }
 

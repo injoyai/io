@@ -64,8 +64,8 @@ func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
 	return this
 }
 
-// SetTimeout 设置超时时间,需要在Run之前设置
-func (this *IReadCloser) SetTimeout(timeout time.Duration) *IReadCloser {
+// SetReadIntervalTimeout 设置读取间隔超时时间,需要在Run之前设置
+func (this *IReadCloser) SetReadIntervalTimeout(timeout time.Duration) *IReadCloser {
 	this.timeout = timeout
 	return this
 }

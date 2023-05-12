@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"errors"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/goburrow/serial"
 	"github.com/gorilla/websocket"
 	"github.com/injoyai/io"
-	serial2 "go.bug.st/serial"
 	"golang.org/x/crypto/ssh"
 	"net"
 	"net/http"
@@ -107,49 +105,6 @@ type _memory struct {
 func (this *_memory) Close() error {
 	this.Reset()
 	return nil
-}
-
-//================================SerialDial================================
-
-const (
-	SerialParityNone = "N" //无校验
-	SerialParityEven = "E" //奇校验
-	SerialParityOdd  = "O" //偶校验
-)
-
-var (
-	GetSerialPortList = serial2.GetPortsList
-)
-
-type (
-	SerialConfig      = serial.Config
-	SerialRS485Config = serial.RS485Config
-)
-
-// Serial 打开串口
-func Serial(cfg *SerialConfig) (io.ReadWriteCloser, error) {
-	return serial.Open(cfg)
-}
-
-// SerialFunc 打开串口函数
-func SerialFunc(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
-	return func() (io.ReadWriteCloser, error) {
-		return serial.Open(cfg)
-	}
-}
-
-func NewSerial(cfg *SerialConfig) (*io.Client, error) {
-	c, err := io.NewDial(SerialFunc(cfg))
-	if err == nil {
-		c.SetKey(cfg.Address)
-	}
-	return c, err
-}
-
-func RedialSerial(cfg *SerialConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(SerialFunc(cfg), func(c *io.Client) {
-		c.SetKey(cfg.Address).SetOptions(options...)
-	})
 }
 
 //================================MQTTDial================================

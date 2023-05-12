@@ -88,7 +88,7 @@ func TimeoutClient(port int, timeout time.Duration) error {
 	go dial.RedialTCP(fmt.Sprintf(":%d", port),
 		func(c *io.Client) {
 			c.Debug()
-			c.SetTimeout(timeout)
+			c.SetReadIntervalTimeout(timeout)
 		})
 	s, err := io.NewServer(dial.TCPListenFunc(port))
 	if err != nil {
