@@ -6,7 +6,7 @@ import (
 )
 
 func TestScanSerialWithTimeout(t *testing.T) {
-	t.Log(ScanSerial("COM9", time.Millisecond*100, []byte("+++")))
+	t.Log(ScanSerial("COM9", time.Millisecond*50, []byte("ping")))
 }
 
 func TestNewSerial(t *testing.T) {
