@@ -107,8 +107,8 @@ func (this *ICloser) timer(ctx context.Context, dealErr func(error) error, inter
 	}
 }
 
-// ForInterval 循环执行
-func (this *ICloser) ForInterval(fn func() error) (err error) {
+// For 循环执行
+func (this *ICloser) For(fn func() error) (err error) {
 	for {
 		select {
 		case <-this.Done():
@@ -127,12 +127,12 @@ func (this *ICloser) ForInterval(fn func() error) (err error) {
 }
 
 // ForSignal 通过信号执行
-func (this *ICloser) ForSignal(sign chan struct{}, fn func() error) (err error) {
+func (this *ICloser) ForSignal(fn func() error, signal chan struct{}) (err error) {
 	for {
 		select {
 		case <-this.Done():
 			return this.Err()
-		case <-sign:
+		case <-signal:
 			_ = this.CloseWithErr(func() (err error) {
 				defer func() {
 					if e := recover(); e != nil {

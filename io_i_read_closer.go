@@ -163,9 +163,9 @@ func (this *IReadCloser) Run(ch ...chan struct{}) error {
 	}
 
 	if len(ch) > 0 && ch[0] != nil {
-		return this.ForSignal(ch[0], readFunc)
+		return this.ForSignal(readFunc, ch[0])
 	}
 
-	return this.ForInterval(readFunc)
+	return this.For(readFunc)
 
 }

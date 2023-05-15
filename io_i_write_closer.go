@@ -69,7 +69,7 @@ func (this *IWriteCloser) runQueue() {
 		this.queue = this.NewWriteQueue(this.Ctx())
 	}
 	if atomic.SwapUint32(&this.running, 1) == 0 {
-		go this.ForInterval(func() error {
+		go this.For(func() error {
 			_, err := this.Write(<-this.queue)
 			return err
 		})
