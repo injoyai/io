@@ -1,6 +1,9 @@
 package dial
 
 import (
+	"github.com/injoyai/io"
+	"github.com/injoyai/logs"
+	"go.bug.st/serial"
 	"testing"
 	"time"
 )
@@ -16,16 +19,55 @@ func TestNewSerial(t *testing.T) {
 		DataBits: 8,
 		StopBits: 1,
 		Parity:   SerialParityNone,
-		Timeout:  time.Millisecond * 100,
+		Timeout:  time.Second * 10,
 	})
 	if err != nil {
 		t.Error(err)
 		return
 	}
+	defer c.Close()
 
 	c.Debug()
-	c.Write([]byte("+++"))
-	go c.Run()
+	//go func() {
+	//	for {
+	//		_, err = c.Write([]byte("+++"))
+	//		logs.PrintErr(err)
+	//		<-time.After(time.Second)
+	//	}
+	//}()
 
-	select {}
+	_, err = c.Write([]byte("+++"))
+	go c.Run()
+	logs.PrintErr(err)
+	go func() {
+		<-time.After(time.Second * 2)
+		_, err = c.Write([]byte("++++"))
+		logs.PrintErr(err)
+	}()
+
+	<-time.After(time.Second * 20)
+}
+
+func TestRedialSerial(t *testing.T) {
+	portNames, err := serial.GetPortsList()
+	if err != nil {
+		logs.Err(err)
+		return
+	}
+	logs.Debug("串口列表:", portNames)
+
+	c := RedialSerial(&SerialConfig{
+		Address:  "COM9",
+		BaudRate: 115200,
+		DataBits: 8,
+		StopBits: 1,
+		Parity:   SerialParityNone,
+		Timeout:  time.Second * 10,
+	}, func(c *io.Client) {
+		c.Debug()
+		c.SetPrintWithASCII()
+		c.GoTimerWriteASCII(time.Second*1, "+++")
+	})
+	defer c.CloseAll()
+	<-time.After(time.Second * 100)
 }

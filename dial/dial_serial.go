@@ -37,6 +37,7 @@ func NewSerial(cfg *SerialConfig) (*io.Client, error) {
 	c, err := io.NewDial(SerialFunc(cfg))
 	if err == nil {
 		c.SetKey(cfg.Address)
+		c.SetHalfDuplex(time.Millisecond * 30) //半双工
 	}
 	return c, err
 }
@@ -44,6 +45,7 @@ func NewSerial(cfg *SerialConfig) (*io.Client, error) {
 func RedialSerial(cfg *SerialConfig, options ...io.OptionClient) *io.Client {
 	return io.Redial(SerialFunc(cfg), func(c *io.Client) {
 		c.SetKey(cfg.Address).SetOptions(options...)
+		c.SetHalfDuplex(time.Millisecond * 30) //半双工
 	})
 }
 

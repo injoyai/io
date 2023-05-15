@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+const (
+	writeQueueKey = "_write_queue"
+)
+
 // NewIWriter 新建写
 func NewIWriter(writer Writer) *IWriter {
 	if c, ok := writer.(*IWriter); ok && c != nil {
@@ -24,10 +28,11 @@ func NewIWriter(writer Writer) *IWriter {
 
 // IWriter 写
 type IWriter struct {
-	*printer            //打印
-	writer    Writer    //io.Writer
-	writeFunc WriteFunc //写入函数
-	lastTime  time.Time //最后写入时间
+	*printer                             //打印
+	writer     Writer                    //io.Writer
+	writeFunc  WriteFunc                 //写入函数
+	writeAfter func(p []byte, err error) //
+	lastTime   time.Time                 //最后写入时间
 }
 
 //================================Nature================================
@@ -39,6 +44,11 @@ func (this *IWriter) LastTime() time.Time {
 
 // Write 写入字节,实现io.Writer
 func (this *IWriter) Write(p []byte) (n int, err error) {
+	defer func() {
+		if this.writeAfter != nil {
+			this.writeAfter(p, err)
+		}
+	}()
 	this.Print(p, TagWrite, this.GetKey())
 	if this.writeFunc != nil {
 		p, err = this.writeFunc(p)
@@ -117,9 +127,21 @@ func (this *IWriter) WriteChan(c chan interface{}) (int64, error) {
 
 //================================WriteFunc================================
 
-// SetWriteFunc 设置写入函数,封装数据包
+// SetWriteFunc 设置写入函数,封装数据包,same SetWriteBeforeFunc
 func (this *IWriter) SetWriteFunc(fn func(p []byte) ([]byte, error)) *IWriter {
 	this.writeFunc = fn
+	return this
+}
+
+// SetWriteBeforeFunc 设置写入前函数,封装数据包
+func (this *IWriter) SetWriteBeforeFunc(fn func(p []byte) ([]byte, error)) *IWriter {
+	this.writeFunc = fn
+	return this
+}
+
+// SetWriteAfterFunc 写入后函数调用
+func (this *IWriter) SetWriteAfterFunc(fn func(p []byte, err error)) *IWriter {
+	this.writeAfter = fn
 	return this
 }
 
@@ -139,8 +161,8 @@ func (this *IWriter) SetWriteWithStartEnd(start, end []byte) *IWriter {
 }
 
 // NewWriteQueue 新建写入队列
-func (this *IWriter) NewWriteQueue(ctx context.Context) chan []byte {
-	queue := make(chan []byte, 100)
+func (this *IWriter) NewWriteQueue(ctx context.Context, length ...int) chan []byte {
+	queue := make(chan []byte, conv.GetDefaultInt(100, length...))
 	go func(ctx context.Context) {
 		//defer close(queue) 自动回收
 		for {

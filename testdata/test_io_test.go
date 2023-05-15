@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"context"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"testing"
@@ -9,7 +8,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	dial.RedialTCP(":10089", func(ctx context.Context, c *io.Client) {
+	dial.RedialTCP(":10089", func(c *io.Client) {
 		c.Debug()
 		c.SetPrintWithASCII()
 		c.SetKey("test")

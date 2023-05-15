@@ -80,3 +80,9 @@ type OptionClient func(c *Client)
 
 // OptionServer 服务端选项
 type OptionServer func(s *Server)
+
+const (
+	Simplex    = "Simplex"    //单工
+	HalfDuplex = "HalfDuplex" //半双工
+	FullDuplex = "FullDuplex" //全双工
+)
