@@ -107,13 +107,32 @@ func (this *ICloser) timer(ctx context.Context, dealErr func(error) error, inter
 	}
 }
 
-// For 循环执行
-func (this *ICloser) For(fn func() error) (err error) {
+// ForInterval 循环执行
+func (this *ICloser) ForInterval(fn func() error) (err error) {
 	for {
 		select {
 		case <-this.Done():
 			return this.Err()
 		default:
+			_ = this.CloseWithErr(func() (err error) {
+				defer func() {
+					if e := recover(); e != nil {
+						err = fmt.Errorf("%v", e)
+					}
+				}()
+				return fn()
+			}())
+		}
+	}
+}
+
+// ForSignal 通过信号执行
+func (this *ICloser) ForSignal(sign chan struct{}, fn func() error) (err error) {
+	for {
+		select {
+		case <-this.Done():
+			return this.Err()
+		case <-sign:
 			_ = this.CloseWithErr(func() (err error) {
 				defer func() {
 					if e := recover(); e != nil {

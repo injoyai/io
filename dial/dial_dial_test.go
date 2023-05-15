@@ -3,7 +3,6 @@ package dial
 import (
 	"fmt"
 	"github.com/injoyai/io"
-	"github.com/injoyai/logs"
 	"testing"
 	"time"
 )
@@ -64,33 +63,6 @@ func TestRedialSSH(t *testing.T) {
 				c.WriteString(msg)
 			}
 		}()
-	})
-	select {}
-}
-
-func TestRedialSerial(t *testing.T) {
-	portNames, err := GetSerialPortList()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	logs.Debug("串口列表:", portNames)
-
-	RedialSerial(&SerialConfig{
-		Address:  "COM3",
-		BaudRate: 9600,
-		DataBits: 8,
-		StopBits: 1,
-		Parity:   SerialParityNone,
-		Timeout:  0,
-	}, func(c *io.Client) {
-		c.Debug()
-		c.SetPrintWithHEX()
-		c.GoTimerWriter(time.Second*3, func(w *io.IWriter) error {
-			_, err := w.WriteString("666")
-			logs.Debug(666)
-			return err
-		})
 	})
 	select {}
 }
