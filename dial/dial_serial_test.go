@@ -66,7 +66,11 @@ func TestRedialSerial(t *testing.T) {
 	}, func(c *io.Client) {
 		c.Debug()
 		c.SetPrintWithASCII()
-		c.GoTimerWriteASCII(time.Second*1, "+++")
+		go func() {
+			t.Log(c.WriteRead([]byte("+++")))
+			t.Log(c.WriteRead([]byte("+++")))
+			t.Log(c.WriteRead([]byte("AT+VER?\n")))
+		}()
 	})
 	defer c.CloseAll()
 	<-time.After(time.Second * 100)

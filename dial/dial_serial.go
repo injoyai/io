@@ -33,19 +33,19 @@ func SerialFunc(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
 	}
 }
 
-func NewSerial(cfg *SerialConfig) (*io.Client, error) {
-	c, err := io.NewDial(SerialFunc(cfg))
-	if err == nil {
+func NewSerial(cfg *SerialConfig, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(SerialFunc(cfg), func(c *io.Client) {
 		c.SetKey(cfg.Address)
-		c.SetHalfDuplex(time.Millisecond * 30) //半双工
-	}
-	return c, err
+		c.SetHalfDuplex(time.Millisecond * 100) //半双工
+		c.SetOptions(options...)
+	})
 }
 
 func RedialSerial(cfg *SerialConfig, options ...io.OptionClient) *io.Client {
 	return io.Redial(SerialFunc(cfg), func(c *io.Client) {
-		c.SetKey(cfg.Address).SetOptions(options...)
-		c.SetHalfDuplex(time.Millisecond * 30) //半双工
+		c.SetKey(cfg.Address)
+		c.SetHalfDuplex(time.Millisecond * 100) //半双工
+		c.SetOptions(options...)
 	})
 }
 

@@ -27,18 +27,18 @@ func TCPFunc(addr string) func() (io.ReadWriteCloser, error) {
 }
 
 // NewTCP 新建TCP连接
-func NewTCP(addr string) (*io.Client, error) {
-	c, err := io.NewDial(TCPFunc(addr))
-	if err == nil {
+func NewTCP(addr string, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(TCPFunc(addr), func(c *io.Client) {
 		c.SetKey(addr)
-	}
-	return c, err
+		c.SetOptions(options...)
+	})
 }
 
 // RedialTCP 一直连接TCP服务端,并重连
 func RedialTCP(addr string, options ...io.OptionClient) *io.Client {
 	return io.Redial(TCPFunc(addr), func(c *io.Client) {
-		c.SetKey(addr).SetOptions(options...)
+		c.SetKey(addr)
+		c.SetOptions(options...)
 	})
 }
 
@@ -54,18 +54,18 @@ func UDPFunc(addr string) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) { return UDP(addr) }
 }
 
-func NewUDP(addr string) (*io.Client, error) {
-	c, err := io.NewDial(UDPFunc(addr))
-	if err == nil {
+func NewUDP(addr string, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(UDPFunc(addr), func(c *io.Client) {
 		c.SetKey(addr)
-	}
-	return c, err
+		c.SetOptions(options...)
+	})
 }
 
 // RedialUDP 一直连接UDP服务端,并重连
 func RedialUDP(addr string, options ...io.OptionClient) *io.Client {
 	return io.Redial(UDPFunc(addr), func(c *io.Client) {
-		c.SetKey(addr).SetOptions(options...)
+		c.SetKey(addr)
+		c.SetOptions(options...)
 	})
 }
 
@@ -83,8 +83,11 @@ func FileFunc(path string) func() (io.ReadWriteCloser, error) {
 	}
 }
 
-func NewFile(path string) (*io.Client, error) {
-	return io.NewDial(FileFunc(path))
+func NewFile(path string, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(FileFunc(path), func(c *io.Client) {
+		c.SetKey(path)
+		c.SetOptions(options...)
+	})
 }
 
 //================================WebsocketDial================================
@@ -94,8 +97,11 @@ func Memory() (io.ReadWriteCloser, error) {
 	return &_memory{Buffer: bytes.NewBuffer(nil)}, nil
 }
 
-func NewMemory() (*io.Client, error) {
-	return io.NewDial(Memory)
+func NewMemory(options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(Memory, func(c *io.Client) {
+		c.SetKey("memory")
+		c.SetOptions(options...)
+	})
 }
 
 type _memory struct {
@@ -147,12 +153,10 @@ func NewMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (*io.Client, err
 	return c, err
 }
 
-func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, fn ...io.OptionClient) *io.Client {
+func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, options ...io.OptionClient) *io.Client {
 	return io.Redial(MQTTFunc(clientID, topic, qos, cfg.SetAutoReconnect(true)), func(c *io.Client) {
 		c.SetKey(topic)
-		for _, v := range fn {
-			v(c)
-		}
+		c.SetOptions(options...)
 	})
 }
 
