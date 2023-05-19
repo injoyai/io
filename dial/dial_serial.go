@@ -23,13 +23,31 @@ type (
 
 // Serial 打开串口
 func Serial(cfg *SerialConfig) (io.ReadWriteCloser, error) {
+	if cfg == nil {
+		cfg = &SerialConfig{}
+	}
+	if cfg.Address == "" {
+		cfg.Address = "COM3"
+	}
+	if cfg.BaudRate == 0 {
+		cfg.BaudRate = 115200
+	}
+	if cfg.DataBits == 0 {
+		cfg.DataBits = 8
+	}
+	if cfg.StopBits == 0 {
+		cfg.StopBits = 1
+	}
+	if len(cfg.Parity) == 0 {
+		cfg.Parity = SerialParityNone
+	}
 	return serial.Open(cfg)
 }
 
 // SerialFunc 打开串口函数
 func SerialFunc(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) {
-		return serial.Open(cfg)
+		return Serial(cfg)
 	}
 }
 

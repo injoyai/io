@@ -57,7 +57,7 @@ func TestRedialSerial(t *testing.T) {
 	logs.Debug("串口列表:", portNames)
 
 	c := RedialSerial(&SerialConfig{
-		Address:  "COM9",
+		Address:  "COM7",
 		BaudRate: 115200,
 		DataBits: 8,
 		StopBits: 1,
