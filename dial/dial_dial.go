@@ -154,7 +154,7 @@ func NewMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (*io.Client, err
 }
 
 func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(MQTTFunc(clientID, topic, qos, cfg.SetAutoReconnect(true)), func(c *io.Client) {
+	return io.Redial(MQTTFunc(clientID, topic, qos, cfg.SetAutoReconnect(false)), func(c *io.Client) {
 		c.SetKey(topic)
 		c.SetOptions(options...)
 	})
