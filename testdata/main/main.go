@@ -1,18 +1,43 @@
 package main
 
 import (
-	"context"
+	"bufio"
 	"fmt"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/conv/cfg"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/proxy"
 	"github.com/injoyai/io/testdata"
 	"github.com/injoyai/logs"
+	"os"
 	"runtime"
 )
 
 func main() {
+	reader := bufio.NewReader(os.Stdin)
+	dial.RedialWebsocket("ws://192.168.10.24:8300/v1/chat/ws", nil, func(c *io.Client) {
+		c.Debug()
+		c.SetPrintFunc(func(msg io.Message, tag ...string) {
+			if len(tag) > 0 {
+				switch tag[0] {
+				case io.TagRead:
+					fmt.Printf("[客服] %s\n", conv.NewMap(msg).GetString("data"))
+				case io.TagWrite:
+				default:
+					fmt.Printf("[%s] %s\n", tag[0], msg)
+				}
+			}
+		})
+		go func() {
+			for {
+				msg, _ := reader.ReadString('\n')
+				c.WriteString(msg)
+			}
+		}()
+	})
+	select {}
+
 	logs.PrintErr(NewPortForwardingServer())
 	return
 	NewPortForwardingClient()
@@ -52,7 +77,7 @@ func NewPortForwardingClient() {
 		fmt.Scanln(&proxyAddr)
 	}
 
-	c := proxy.NewPortForwardingClient(serverAddr, sn, func(ctx context.Context, c *io.Client, e *proxy.Entity) {
+	c := proxy.NewPortForwardingClient(serverAddr, sn, func(c *io.Client, e *proxy.Entity) {
 		c.SetPrintWithBase()
 		c.Debug()
 		if len(proxyAddr) > 0 {

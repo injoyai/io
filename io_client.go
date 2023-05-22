@@ -27,18 +27,19 @@ func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClie
 }
 
 // NewDial 尝试连接,返回*Client和错误
-func NewDial(dial DialFunc) (*Client, error) {
-	return NewDialWithContext(context.Background(), dial)
+func NewDial(dial DialFunc, options ...OptionClient) (*Client, error) {
+	return NewDialWithContext(context.Background(), dial, options...)
 }
 
 // NewDialWithContext 尝试连接,返回*Client和错误,需要输入上下文
-func NewDialWithContext(ctx context.Context, dial DialFunc) (*Client, error) {
+func NewDialWithContext(ctx context.Context, dial DialFunc, options ...OptionClient) (*Client, error) {
 	c, err := dial()
 	if err != nil {
 		return nil, err
 	}
 	cli := NewClientWithContext(ctx, c)
 	cli.SetRedialFunc(dial)
+	cli.SetOptions(options...)
 	return cli, nil
 }
 
@@ -59,6 +60,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		i:           i,
 		tag:         maps.NewSafe(),
 		createTime:  time.Now(),
+		duplex:      FullDuplex,
 	}
 	c.SetKey(fmt.Sprintf("%p", i))
 	return c
@@ -76,6 +78,8 @@ type Client struct {
 	i          ReadWriteCloser //接口,实例,传入的原始参数
 	tag        *maps.Safe      //标签,用于记录连接的一些信息
 	createTime time.Time       //创建时间
+	duplex     string          //双工模式
+	duplexSign chan struct{}   //
 }
 
 //================================Nature================================
@@ -121,7 +125,7 @@ func (this *Client) Debug(b ...bool) *Client {
 
 // WriteQueue 按队列写入
 func (this *Client) WriteQueue(p []byte) *Client {
-	queue, _ := this.Tag().GetOrSetByHandler("_write_queue", func() (interface{}, error) {
+	queue, _ := this.Tag().GetOrSetByHandler(writeQueueKey, func() (interface{}, error) {
 		return this.IWriter.NewWriteQueue(this.Ctx()), nil
 	})
 	queue.(chan []byte) <- p
@@ -130,7 +134,7 @@ func (this *Client) WriteQueue(p []byte) *Client {
 
 // TryWriteQueue 尝试按队列写入,加入不了会丢弃
 func (this *Client) TryWriteQueue(p []byte) *Client {
-	queue, _ := this.Tag().GetOrSetByHandler("_write_queue", func() (interface{}, error) {
+	queue, _ := this.Tag().GetOrSetByHandler(writeQueueKey, func() (interface{}, error) {
 		return this.IWriter.NewWriteQueue(this.Ctx()), nil
 	})
 	select {
@@ -154,9 +158,25 @@ func (this *Client) WriteRead(request []byte) (response []byte, err error) {
 }
 
 // GoTimerWriter 协程,定时写入数据,生命周期(一次链接,单次连接断开)
-func (this *Client) GoTimerWriter(interval time.Duration, write func(c *IWriter) error) {
+func (this *Client) GoTimerWriter(interval time.Duration, write func(w *IWriter) error) {
 	go this.ICloser.Timer(interval, func() error {
 		return write(this.IWriter)
+	})
+}
+
+// GoTimerWriteBytes 协程,定时写入字节数据
+func (this *Client) GoTimerWriteBytes(interval time.Duration, p []byte) {
+	this.GoTimerWriter(interval, func(w *IWriter) error {
+		_, err := w.Write(p)
+		return err
+	})
+}
+
+// GoTimerWriteASCII 协程,定时写入字符数据
+func (this *Client) GoTimerWriteASCII(interval time.Duration, s string) {
+	this.GoTimerWriter(interval, func(w *IWriter) error {
+		_, err := w.WriteASCII(s)
+		return err
 	})
 }
 
@@ -175,7 +195,7 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 // SetOptions 设置选项
 func (this *Client) SetOptions(options ...OptionClient) *Client {
 	for _, v := range options {
-		v(this.Ctx(), this)
+		v(this)
 	}
 	return this
 }
@@ -241,13 +261,32 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 	return this
 }
 
+// SetHalfDuplex 设置半双工模式,delay延迟时间,等待数据响应
+func (this *Client) SetHalfDuplex(delay ...time.Duration) *Client {
+	this.duplex = HalfDuplex
+	this.duplexSign = make(chan struct{})
+	this.SetWriteAfterFunc(func(p []byte, err error) {
+		<-time.After(conv.GetDefaultDuration(0, delay...))
+		this.duplexSign <- struct{}{}
+	})
+	return this
+}
+
+// SetFullDuplex 设置全双工模式,默认是该模式
+func (this *Client) SetFullDuplex() *Client {
+	this.duplex = FullDuplex
+	return this
+}
+
 // Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
 func (this *Client) Redial(options ...OptionClient) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *IMessage) {
 		<-time.After(time.Second)
 		readWriteCloser := this.IReadCloser.Redial(ctx)
 		if readWriteCloser == nil {
-			this.ICloser.Print(NewMessageFormat(" 连接断开(%v),未设置重连或主动关闭", this.ICloser.Err()), TagErr, this.GetKey())
+			if this.ICloser.Err() != ErrHandClose {
+				this.ICloser.Print(NewMessageFormat("连接断开(%v),未设置重连函数", this.ICloser.Err()), TagErr, this.GetKey())
+			}
 			return
 		}
 		this.ICloser.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagInfo, this.GetKey())
@@ -274,4 +313,12 @@ func (this *Client) Swap(i ReadWriteCloser) {
 // SwapClient IO数据交换
 func (this *Client) SwapClient(c *Client) {
 	SwapClient(this, c)
+}
+
+func (this *Client) Run() error {
+	switch this.duplex {
+	case HalfDuplex:
+		return this.IReadCloser.Run(this.duplexSign)
+	}
+	return this.IReadCloser.Run()
 }

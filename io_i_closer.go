@@ -126,6 +126,25 @@ func (this *ICloser) For(fn func() error) (err error) {
 	}
 }
 
+// ForSignal 通过信号执行
+func (this *ICloser) ForSignal(fn func() error, signal chan struct{}) (err error) {
+	for {
+		select {
+		case <-this.Done():
+			return this.Err()
+		case <-signal:
+			_ = this.CloseWithErr(func() (err error) {
+				defer func() {
+					if e := recover(); e != nil {
+						err = fmt.Errorf("%v", e)
+					}
+				}()
+				return fn()
+			}())
+		}
+	}
+}
+
 //================================RunTime================================
 
 // CtxAll 父级上下文,生命周期(客户端)

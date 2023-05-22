@@ -2,9 +2,8 @@ package dial
 
 import (
 	"bytes"
-	"context"
+	"errors"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/goburrow/serial"
 	"github.com/gorilla/websocket"
 	"github.com/injoyai/io"
 	"golang.org/x/crypto/ssh"
@@ -28,18 +27,18 @@ func TCPFunc(addr string) func() (io.ReadWriteCloser, error) {
 }
 
 // NewTCP 新建TCP连接
-func NewTCP(addr string) (*io.Client, error) {
-	c, err := io.NewDial(TCPFunc(addr))
-	if err == nil {
+func NewTCP(addr string, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(TCPFunc(addr), func(c *io.Client) {
 		c.SetKey(addr)
-	}
-	return c, err
+		c.SetOptions(options...)
+	})
 }
 
 // RedialTCP 一直连接TCP服务端,并重连
 func RedialTCP(addr string, options ...io.OptionClient) *io.Client {
-	return io.Redial(TCPFunc(addr), func(ctx context.Context, c *io.Client) {
-		c.SetKey(addr).SetOptions(options...)
+	return io.Redial(TCPFunc(addr), func(c *io.Client) {
+		c.SetKey(addr)
+		c.SetOptions(options...)
 	})
 }
 
@@ -55,18 +54,18 @@ func UDPFunc(addr string) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) { return UDP(addr) }
 }
 
-func NewUDP(addr string) (*io.Client, error) {
-	c, err := io.NewDial(UDPFunc(addr))
-	if err == nil {
+func NewUDP(addr string, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(UDPFunc(addr), func(c *io.Client) {
 		c.SetKey(addr)
-	}
-	return c, err
+		c.SetOptions(options...)
+	})
 }
 
 // RedialUDP 一直连接UDP服务端,并重连
 func RedialUDP(addr string, options ...io.OptionClient) *io.Client {
-	return io.Redial(UDPFunc(addr), func(ctx context.Context, c *io.Client) {
-		c.SetKey(addr).SetOptions(options...)
+	return io.Redial(UDPFunc(addr), func(c *io.Client) {
+		c.SetKey(addr)
+		c.SetOptions(options...)
 	})
 }
 
@@ -84,8 +83,11 @@ func FileFunc(path string) func() (io.ReadWriteCloser, error) {
 	}
 }
 
-func NewFile(path string) (*io.Client, error) {
-	return io.NewDial(FileFunc(path))
+func NewFile(path string, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(FileFunc(path), func(c *io.Client) {
+		c.SetKey(path)
+		c.SetOptions(options...)
+	})
 }
 
 //================================WebsocketDial================================
@@ -95,8 +97,11 @@ func Memory() (io.ReadWriteCloser, error) {
 	return &_memory{Buffer: bytes.NewBuffer(nil)}, nil
 }
 
-func NewMemory() (*io.Client, error) {
-	return io.NewDial(Memory)
+func NewMemory(options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(Memory, func(c *io.Client) {
+		c.SetKey("memory")
+		c.SetOptions(options...)
+	})
 }
 
 type _memory struct {
@@ -108,36 +113,6 @@ func (this *_memory) Close() error {
 	return nil
 }
 
-//================================SerialDial================================
-
-type SerialConfig = serial.Config
-
-// Serial 打开串口
-func Serial(cfg *SerialConfig) (io.ReadWriteCloser, error) {
-	return serial.Open(cfg)
-}
-
-// SerialFunc 打开串口函数
-func SerialFunc(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
-	return func() (io.ReadWriteCloser, error) {
-		return serial.Open(cfg)
-	}
-}
-
-func NewSerial(cfg *SerialConfig) (*io.Client, error) {
-	c, err := io.NewDial(SerialFunc(cfg))
-	if err == nil {
-		c.SetKey(cfg.Address)
-	}
-	return c, err
-}
-
-func RedialSerial(cfg *SerialConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(SerialFunc(cfg), func(ctx context.Context, c *io.Client) {
-		c.SetKey(cfg.Address).SetOptions(options...)
-	})
-}
-
 //================================MQTTDial================================
 
 type MQTTConfig = mqtt.ClientOptions
@@ -145,7 +120,9 @@ type MQTTConfig = mqtt.ClientOptions
 func MQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser, error) {
 	c := mqtt.NewClient(cfg)
 	token := c.Connect()
-	token.Wait()
+	if !token.WaitTimeout(cfg.WriteTimeout) {
+		return nil, errors.New("连接超时")
+	}
 	if token.Error() != nil {
 		return nil, token.Error()
 	}
@@ -176,12 +153,10 @@ func NewMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (*io.Client, err
 	return c, err
 }
 
-func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, fn ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return io.Redial(MQTTFunc(clientID, topic, qos, cfg.SetAutoReconnect(true)), func(ctx context.Context, c *io.Client) {
+func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, options ...io.OptionClient) *io.Client {
+	return io.Redial(MQTTFunc(clientID, topic, qos, cfg.SetAutoReconnect(true)), func(c *io.Client) {
 		c.SetKey(topic)
-		for _, v := range fn {
-			v(ctx, c)
-		}
+		c.SetOptions(options...)
 	})
 }
 
@@ -245,8 +220,8 @@ func NewWebsocket(url string, header http.Header) (*io.Client, error) {
 	return c, err
 }
 
-func RedialWebsocket(url string, header http.Header, options ...func(ctx context.Context, c *io.Client)) *io.Client {
-	return io.Redial(WebsocketFunc(url, header), func(ctx context.Context, c *io.Client) {
+func RedialWebsocket(url string, header http.Header, options ...io.OptionClient) *io.Client {
+	return io.Redial(WebsocketFunc(url, header), func(c *io.Client) {
 		c.SetKey(func() string {
 			if u, err := gourl.Parse(url); err == nil {
 				return u.Path
@@ -254,7 +229,7 @@ func RedialWebsocket(url string, header http.Header, options ...func(ctx context
 			return url
 		}())
 		for _, v := range options {
-			v(ctx, c)
+			v(c)
 		}
 	})
 }
@@ -285,15 +260,15 @@ func (this *_websocket) Close() error {
 //================================SSH================================
 
 type SSHConfig struct {
-	Addr        string
-	User        string
-	Password    string //类型为password
-	Type        string //password 或者 key
-	Timeout     time.Duration
-	key         string //类型为key
-	keyPassword string //类型为key
-	High        int    //高
-	Wide        int    //宽
+	Addr     string
+	User     string
+	Password string //类型为password
+	Timeout  time.Duration
+	High     int //高
+	Wide     int //宽
+	//Type        string //password 或者 key
+	//key         string //类型为key
+	//keyPassword string //类型为key
 }
 
 func (this *SSHConfig) new() *SSHConfig {
@@ -319,6 +294,10 @@ type Client struct {
 	err io.Reader
 }
 
+func (this *Client) Write(p []byte) (int, error) {
+	return this.Writer.Write(append(p, '\n'))
+}
+
 func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 	cfg.new()
 	config := &ssh.ClientConfig{
@@ -327,14 +306,14 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Auth:            []ssh.AuthMethod{ssh.Password(cfg.Password)},
 	}
-	switch cfg.Type {
-	case "key":
-		signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(cfg.key), []byte(cfg.keyPassword))
-		if err != nil {
-			return nil, err
-		}
-		config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
-	}
+	//switch cfg.Type {
+	//case "key":
+	//	signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(cfg.key), []byte(cfg.keyPassword))
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	//}
 	sshClient, err := ssh.Dial("tcp", cfg.Addr, config)
 	if err != nil {
 		return nil, err
@@ -344,7 +323,7 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 		return nil, err
 	}
 	modes := ssh.TerminalModes{
-		ssh.ECHO:          1,     // 禁用回显（0禁用，1启动）
+		ssh.ECHO:          0,     // 禁用回显（0禁用，1启动）
 		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
 		ssh.TTY_OP_OSPEED: 14400, //output speed = 14.4kbaud
 	}
@@ -360,7 +339,7 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := session.RequestPty("xterm", cfg.High, cfg.Wide, modes); err != nil {
+	if err := session.RequestPty("xterm-256color", cfg.High, cfg.Wide, modes); err != nil {
 		return nil, err
 	}
 	if err := session.Shell(); err != nil {
@@ -389,7 +368,7 @@ func NewSSH(cfg *SSHConfig, options ...io.OptionClient) (*io.Client, error) {
 }
 
 func RedialSSH(cfg *SSHConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(SSHFunc(cfg), func(ctx context.Context, c *io.Client) {
+	return io.Redial(SSHFunc(cfg), func(c *io.Client) {
 		c.SetKey(cfg.Addr).SetOptions(options...)
 	})
 }

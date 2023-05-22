@@ -64,8 +64,8 @@ func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
 	return this
 }
 
-// SetTimeout 设置超时时间,需要在Run之前设置
-func (this *IReadCloser) SetTimeout(timeout time.Duration) *IReadCloser {
+// SetReadIntervalTimeout 设置读取间隔超时时间,需要在Run之前设置
+func (this *IReadCloser) SetReadIntervalTimeout(timeout time.Duration) *IReadCloser {
 	this.timeout = timeout
 	return this
 }
@@ -122,7 +122,7 @@ func (this *IReadCloser) Running() bool {
 }
 
 // Run 开始运行数据读取
-func (this *IReadCloser) Run() error {
+func (this *IReadCloser) Run(ch ...chan struct{}) error {
 
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
@@ -144,7 +144,7 @@ func (this *IReadCloser) Run() error {
 		}()
 	}
 
-	return this.For(func() (err error) {
+	readFunc := func() (err error) {
 		//读取数据
 		bs, err := this.ReadMessage()
 		if err != nil || len(bs) == 0 {
@@ -160,6 +160,12 @@ func (this *IReadCloser) Run() error {
 			this.dealFunc(bs)
 		}
 		return nil
-	})
+	}
+
+	if len(ch) > 0 && ch[0] != nil {
+		return this.ForSignal(readFunc, ch[0])
+	}
+
+	return this.For(readFunc)
 
 }
