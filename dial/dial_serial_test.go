@@ -48,7 +48,7 @@ func TestNewSerial(t *testing.T) {
 	<-time.After(time.Second * 20)
 }
 
-func TestRedialSerial(t *testing.T) {
+func TestRedialSerialF8L10T(t *testing.T) {
 	portNames, err := serial.GetPortsList()
 	if err != nil {
 		logs.Err(err)
@@ -74,4 +74,23 @@ func TestRedialSerial(t *testing.T) {
 	})
 	defer c.CloseAll()
 	<-time.After(time.Second * 100)
+}
+
+func TestRedialSerialSL101(t *testing.T) {
+	portNames, err := serial.GetPortsList()
+	if err != nil {
+		logs.Err(err)
+		return
+	}
+	logs.Debug("串口列表:", portNames)
+
+	c := RedialSerial(&SerialConfig{
+		Address: "COM10",
+		Timeout: time.Second * 10,
+	}, func(c *io.Client) {
+		c.Debug()
+		c.SetPrintWithASCII()
+	})
+	defer c.CloseAll()
+	select {}
 }

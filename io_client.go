@@ -153,8 +153,8 @@ func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) 
 }
 
 // WriteRead 同步写读,不超时
-func (this *Client) WriteRead(request []byte) (response []byte, err error) {
-	return this.WriteReadWithTimeout(request, 0)
+func (this *Client) WriteRead(request []byte, timeout ...time.Duration) (response []byte, err error) {
+	return this.WriteReadWithTimeout(request, conv.GetDefaultDuration(0, timeout...))
 }
 
 // GoTimerWriter 协程,定时写入数据,生命周期(一次链接,单次连接断开)
