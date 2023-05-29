@@ -61,6 +61,9 @@ var (
 	// Parallel calls to Read and parallel calls to Write are also safe:
 	// the individual calls will be gated sequentially.
 	Pipe = io.Pipe
+
+	// ReadAll 一次性读取全部
+	ReadAll = io.ReadAll
 )
 
 const (
