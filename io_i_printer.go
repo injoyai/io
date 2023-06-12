@@ -74,6 +74,7 @@ func PrintWithHEX(msg Message, tag ...string) {
 	log.Print(PrintfWithHEX(msg, tag...))
 }
 
+// PrintWithASCII todo [13 10 69 82 82 79 82 13 10]用log.Print打印不出来
 func PrintWithASCII(msg Message, tag ...string) {
 	log.Print(PrintfWithASCII(msg, tag...))
 }

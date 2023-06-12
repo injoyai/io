@@ -30,7 +30,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		Tag:        maps.NewSafe(),
 		listener:   listener,
 		clientMap:  make(map[string]*Client),
-		timeout:    DefaultTimeout * 3,
+		timeout:    DefaultKeepAlive * 3,
 		readFunc:   buf.ReadWithAll,
 		dealFunc:   nil,
 		dealQueue:  chans.NewEntityWithContext(ctx, 1, 1000),

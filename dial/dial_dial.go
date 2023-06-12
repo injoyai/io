@@ -228,9 +228,7 @@ func RedialWebsocket(url string, header http.Header, options ...io.OptionClient)
 			}
 			return url
 		}())
-		for _, v := range options {
-			v(c)
-		}
+		c.SetOptions(options...)
 	})
 }
 
@@ -369,7 +367,8 @@ func NewSSH(cfg *SSHConfig, options ...io.OptionClient) (*io.Client, error) {
 
 func RedialSSH(cfg *SSHConfig, options ...io.OptionClient) *io.Client {
 	return io.Redial(SSHFunc(cfg), func(c *io.Client) {
-		c.SetKey(cfg.Addr).SetOptions(options...)
+		c.SetKey(cfg.Addr)
+		c.SetOptions(options...)
 	})
 }
 
