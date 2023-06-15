@@ -47,6 +47,11 @@ func Serial(cfg *SerialConfig) (io.ReadWriteCloser, error) {
 
 // SerialFunc 打开串口函数
 func SerialFunc(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
+	return WithSerial(cfg)
+}
+
+// WithSerial 打开串口函数
+func WithSerial(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) {
 		return Serial(cfg)
 	}

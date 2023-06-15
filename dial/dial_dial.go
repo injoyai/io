@@ -23,6 +23,11 @@ func TCP(addr string) (io.ReadWriteCloser, error) {
 
 // TCPFunc 连接函数
 func TCPFunc(addr string) func() (io.ReadWriteCloser, error) {
+	return WithTCP(addr)
+}
+
+// WithTCP 连接函数
+func WithTCP(addr string) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) { return TCP(addr) }
 }
 
@@ -51,6 +56,11 @@ func UDP(addr string) (io.ReadWriteCloser, error) {
 
 // UDPFunc 连接函数
 func UDPFunc(addr string) func() (io.ReadWriteCloser, error) {
+	return WithUDP(addr)
+}
+
+// WithUDP 连接函数
+func WithUDP(addr string) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) { return UDP(addr) }
 }
 
@@ -78,6 +88,11 @@ func File(path string) (io.ReadWriteCloser, error) {
 
 // FileFunc 打开文件函数
 func FileFunc(path string) func() (io.ReadWriteCloser, error) {
+	return WithFile(path)
+}
+
+// WithFile 打开文件函数
+func WithFile(path string) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) {
 		return os.Open(path)
 	}
@@ -95,6 +110,10 @@ func NewFile(path string, options ...io.OptionClient) (*io.Client, error) {
 // Memory 内存
 func Memory() (io.ReadWriteCloser, error) {
 	return &_memory{Buffer: bytes.NewBuffer(nil)}, nil
+}
+
+func WithMemory() func() (io.ReadWriteCloser, error) {
+	return Memory
 }
 
 func NewMemory(options ...io.OptionClient) (*io.Client, error) {
@@ -140,6 +159,10 @@ func MQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser
 }
 
 func MQTTFunc(clientID, topic string, qos byte, cfg *MQTTConfig) func() (io.ReadWriteCloser, error) {
+	return WithMQTT(clientID, topic, qos, cfg)
+}
+
+func WithMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) func() (io.ReadWriteCloser, error) {
 	return func() (closer io.ReadWriteCloser, err error) {
 		return MQTT(clientID, topic, qos, cfg)
 	}
@@ -201,6 +224,10 @@ func Websocket(url string, header http.Header) (io.MessageReadWriteCloser, error
 }
 
 func WebsocketFunc(url string, header http.Header) func() (io.ReadWriteCloser, error) {
+	return WithWebsocket(url, header)
+}
+
+func WithWebsocket(url string, header http.Header) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) {
 		c, _, err := websocket.DefaultDialer.Dial(url, header)
 		return &_websocket{Conn: c}, err
@@ -352,6 +379,10 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 }
 
 func SSHFunc(cfg *SSHConfig) func() (io.ReadWriteCloser, error) {
+	return WithSSH(cfg)
+}
+
+func WithSSH(cfg *SSHConfig) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) {
 		return SSH(cfg)
 	}
