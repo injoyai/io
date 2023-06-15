@@ -3,25 +3,24 @@ package dial
 import (
 	"fmt"
 	"github.com/injoyai/io"
+	"github.com/injoyai/logs"
 	"testing"
-	"time"
 )
 
 func TestRedialWebsocket(t *testing.T) {
-	url := "ws://192.168.10.24:10001/api/user/notice/ws"
+	url := "ws://127.0.0.1:10001/api/user/notice/ws"
 	//"ws://192.168.10.3:1880/node-red/comms"
-	url = "ws://192.168.10.24:10001/api/ai/info/runtime/ws?id=83"
+	//url = "ws://192.168.10.24:10001/api/ai/info/runtime/ws?id=83"
+	//url = "ws://192.168.10.38:80/api/ai/photo/ws?key=0.0"
 	//url := "ws://192.168.10.24:10001/api/user/notice/ws"
 	//url += "?token=jbYKl72cbOGvbVRwIqM4r6eoirw8f1JRD44+4D5E/URRY4L6TTZYYb/9yhedvd2Ii2GtLo9MieBy5FBeUhugK5jHvppFjExz3B5DVFPqsomF5wezKDFc8a2hZSQ9IDHTS/C+j/3ESSRdbkVHPFxbzQ=="
 	//url = strings.ReplaceAll(url, "+", "%2B")
-	t.Log(url)
-	RedialWebsocket(url, nil, io.WithClientDebug(), func(c *io.Client) {
-		c.GoTimerWriter(time.Second*10, func(w *io.IWriter) error {
-			_, err := w.WriteString("83")
-			return err
-		})
+	logs.Debug(url)
+	c := RedialWebsocket(url, nil, func(c *io.Client) {
+		c.Debug()
+		//c.GoTimerWriteASCII(time.Second, "666")
 	})
-	select {}
+	<-c.DoneAll()
 }
 
 func TestRedialTCP(t *testing.T) {

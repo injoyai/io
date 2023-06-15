@@ -14,38 +14,56 @@ func TestScanSerialWithTimeout(t *testing.T) {
 
 func TestNewSerial(t *testing.T) {
 	c, err := NewSerial(&SerialConfig{
-		Address:  "COM9",
+		Address:  "COM6",
 		BaudRate: 115200,
-		DataBits: 8,
-		StopBits: 1,
-		Parity:   SerialParityNone,
-		Timeout:  time.Second * 10,
+		Timeout:  0,
 	})
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	defer c.Close()
-
 	c.Debug()
-	//go func() {
-	//	for {
-	//		_, err = c.Write([]byte("+++"))
-	//		logs.PrintErr(err)
-	//		<-time.After(time.Second)
-	//	}
-	//}()
+	c.SetPrintFunc(func(msg io.Message, tag ...string) {
+		logs.Debug(tag, msg)
+	})
+	c.SetReadWithAll()
+	t.Log(c.Run())
 
-	_, err = c.Write([]byte("+++"))
+	select {}
+}
+
+func TestNewSerial2(t *testing.T) {
+	c, err := NewSerial(&SerialConfig{
+		Address:  "COM7",
+		BaudRate: 115200,
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer c.Close()
+	c.Debug()
+	c.SetPrintFunc(func(msg io.Message, tag ...string) {
+		logs.Debug(tag, msg)
+	})
+	c.SetReadWithAll()
 	go c.Run()
-	logs.PrintErr(err)
+
+	//_, err = c.Write([]byte("+++"))
+
+	//logs.PrintErr(err)
 	go func() {
-		<-time.After(time.Second * 2)
-		_, err = c.Write([]byte("++++"))
-		logs.PrintErr(err)
+		for {
+			<-time.After(time.Second * 5)
+			_, err = c.Write([]byte("777"))
+			logs.PrintErr(err)
+		}
 	}()
 
-	<-time.After(time.Second * 20)
+	//<-time.After(time.Second * 20)
+
+	select {}
 }
 
 func TestRedialSerialF8L10T(t *testing.T) {
@@ -70,10 +88,12 @@ func TestRedialSerialF8L10T(t *testing.T) {
 			t.Log(c.WriteRead([]byte("+++")))
 			t.Log(c.WriteRead([]byte("+++")))
 			t.Log(c.WriteRead([]byte("AT+VER?\n")))
+			t.Log(c.WriteRead([]byte("123")))
+			t.Log(c.Write([]byte("+++")))
 		}()
 	})
 	defer c.CloseAll()
-	<-time.After(time.Second * 100)
+	select {}
 }
 
 func TestRedialSerialSL101(t *testing.T) {

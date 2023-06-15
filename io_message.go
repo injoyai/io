@@ -14,7 +14,8 @@ const (
 	Ping     = "ping"
 	Pong     = "pong"
 
-	DefaultTimeout = time.Minute * 10
+	DefaultKeepAlive       = time.Minute * 10 //默认保持连接时间
+	DefaultResponseTimeout = time.Second * 10 //默认响应超时时间
 )
 
 func NewMessageFormat(format string, v ...interface{}) Message {
