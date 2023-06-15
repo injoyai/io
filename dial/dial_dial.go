@@ -11,6 +11,7 @@ import (
 	"net/http"
 	gourl "net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -297,6 +298,9 @@ type SSHConfig struct {
 }
 
 func (this *SSHConfig) new() *SSHConfig {
+	if !strings.Contains(this.Addr, ":") {
+		this.Addr += ":22"
+	}
 	if len(this.User) == 0 {
 		this.User = "root"
 	}
