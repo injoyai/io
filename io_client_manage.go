@@ -30,7 +30,14 @@ func NewClientManage(ctx context.Context) *ClientManage {
 	})
 	//设置默认处理数据函数
 	e.SetDealFunc(func(msg *IMessage) { e.readChan <- msg })
-
+	//设置前置函数
+	e.SetBeforeFunc(func(c *Client) error {
+		//默认连接打印信息
+		if e.printer != nil {
+			e.printer.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
+		}
+		return nil
+	})
 	//执行超时机制
 	go func() {
 		for {
@@ -73,6 +80,12 @@ type ClientManage struct {
 
 	timeout         time.Duration //超时时间,小于0是不超时
 	timeoutInterval time.Duration //超时检测间隔
+	*printer
+}
+
+// setPrinter 设置打印实例
+func (this *ClientManage) setPrinter(p *printer) {
+	this.printer = p
 }
 
 // SetReadFunc 设置数据读取
@@ -195,6 +208,7 @@ func (this *ClientManage) SetClient(c *Client) {
 	c.SetCloseFunc(this._closeFunc) //连接关闭方法
 	c.SetReadFunc(this.readFunc)    //读取数据方法
 	c.SetWriteFunc(this.writeFunc)  //设置发送函数
+	c.setPrinter(this.printer)      //设置打印实例
 
 	// 协程执行,等待连接的后续数据,来决定后续操作
 	go func(c *Client) {

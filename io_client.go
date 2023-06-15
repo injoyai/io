@@ -220,6 +220,10 @@ func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *IMessage)) {
 	})
 }
 
+func (this *Client) setPrinter(p *printer) {
+	//this.printer = p
+}
+
 // SetPrintFunc 设置打印函数
 func (this *Client) SetPrintFunc(fn PrintFunc) *Client {
 	this.IWriter.SetPrintFunc(fn)

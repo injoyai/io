@@ -37,12 +37,12 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		//关闭已连接的客户端,关闭listener后,客户端还能正常通讯
 		s.ClientManage.CloseClientAll()
 	})
-	//设置前置函数
-	s.ClientManage.SetBeforeFunc(func(c *Client) error {
-		//默认连接打印信息
-		s.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
-		return nil
-	})
+	////设置前置函数
+	//s.ClientManage.SetBeforeFunc(func(c *Client) error {
+	//	//默认连接打印信息
+	//	s.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
+	//	return nil
+	//})
 	//预设服务处理
 	s.SetOptions(options...)
 	return s, nil
