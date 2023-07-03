@@ -20,8 +20,8 @@ func NewClientManage(ctx context.Context) *ClientManage {
 		readChan:        make(chan *IMessage, 100),
 		readFunc:        buf.ReadWithAll,
 		writeFunc:       nil,
-		timeout:         DefaultTimeout * 3,
-		timeoutInterval: DefaultTimeout,
+		timeout:         DefaultKeepAlive * 3,
+		timeoutInterval: DefaultKeepAlive,
 	}
 	e.dealQueue.SetHandler(func(ctx context.Context, no, count int, data interface{}) {
 		if e.dealFunc != nil {
