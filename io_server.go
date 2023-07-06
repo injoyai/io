@@ -26,8 +26,6 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		Tag:          maps.NewSafe(),
 		listener:     listener,
 	}
-	//设置默认打印函数,打印基础信息
-	//s.SetPrintWithBase()
 	//开启基础信息打印
 	s.Debug()
 	//设置关闭函数
@@ -37,12 +35,6 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		//关闭已连接的客户端,关闭listener后,客户端还能正常通讯
 		s.ClientManage.CloseClientAll()
 	})
-	////设置前置函数
-	//s.ClientManage.SetBeforeFunc(func(c *Client) error {
-	//	//默认连接打印信息
-	//	s.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
-	//	return nil
-	//})
 	//预设服务处理
 	s.SetOptions(options...)
 	return s, nil
@@ -67,33 +59,6 @@ func (this *Server) SetOptions(options ...OptionServer) *Server {
 		v(this)
 	}
 	return this
-}
-
-// SetPrintFunc 设置打印方式
-func (this *Server) SetPrintFunc(fn PrintFunc) *Server {
-	this.printer.SetPrintFunc(fn)
-	this.printFunc = fn
-	return this
-}
-
-// SetPrintWithHEX 设置打印方式HEX
-func (this *Server) SetPrintWithHEX() *Server {
-	return this.SetPrintFunc(PrintWithHEX)
-}
-
-// SetPrintWithASCII 设置打印方式ASCII
-func (this *Server) SetPrintWithASCII() *Server {
-	return this.SetPrintFunc(PrintWithASCII)
-}
-
-// SetPrintWithBase 设置打印方式ASCII,打印基础信息
-func (this *Server) SetPrintWithBase() *Server {
-	return this.SetPrintFunc(PrintWithBase)
-}
-
-// SetPrintWithErr 设置打印方式ASCII,打印错误信息
-func (this *Server) SetPrintWithErr() *Server {
-	return this.SetPrintFunc(PrintWithErr)
 }
 
 // Timer 定时执行
@@ -127,13 +92,6 @@ func (this *Server) SwapClient(c *Client) *Server {
 	go c.Run()
 	return this
 }
-
-//// SwapServer 和另一个服务交换数据,客户端都的话存在数据重复发送客户端和速度瓶颈
-//func (this *Server) SwapServer(s *Server) *Server {
-//	this.SetDealWithWriter(s)
-//	s.SetDealWithWriter(this)
-//	return this
-//}
 
 //================================RunTime================================
 
@@ -175,5 +133,3 @@ func (this *Server) Run() error {
 
 	}
 }
-
-//================================Inside================================
