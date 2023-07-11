@@ -29,7 +29,7 @@ func dealErr(err error) error {
 	if err != nil {
 		s := err.Error()
 		if err == io.EOF {
-			return ErrRemoteClose
+			//return ErrRemoteClose
 		} else if strings.Contains(s, "An existing connection was forcibly closed by the remote host") {
 			return ErrRemoteCloseUnusual
 		} else if strings.Contains(s, "use of closed network connection") {
