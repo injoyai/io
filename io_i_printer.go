@@ -42,12 +42,23 @@ func (this *printer) GetPrintFunc() PrintFunc {
 
 // SetPrintWithHEX 设置打印HEX
 func (this *printer) SetPrintWithHEX() {
-	this.printFunc = PrintWithHEX
+	this.SetPrintFunc(PrintWithHEX)
 }
 
 // SetPrintWithASCII 设置打印ASCII
 func (this *printer) SetPrintWithASCII() {
+	this.SetPrintFunc(PrintWithASCII)
 	this.printFunc = PrintWithASCII
+}
+
+// SetPrintWithBase 设置打印方式ASCII,打印基础信息
+func (this *printer) SetPrintWithBase() {
+	this.SetPrintFunc(PrintWithBase)
+}
+
+// SetPrintWithErr 设置打印方式ASCII,打印错误信息
+func (this *printer) SetPrintWithErr() {
+	this.SetPrintFunc(PrintWithErr)
 }
 
 // Print 打印输出

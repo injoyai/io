@@ -47,6 +47,11 @@ func Serial(cfg *SerialConfig) (io.ReadWriteCloser, error) {
 
 // SerialFunc 打开串口函数
 func SerialFunc(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
+	return WithSerial(cfg)
+}
+
+// WithSerial 打开串口函数
+func WithSerial(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) {
 		return Serial(cfg)
 	}
@@ -55,7 +60,7 @@ func SerialFunc(cfg *SerialConfig) func() (io.ReadWriteCloser, error) {
 func NewSerial(cfg *SerialConfig, options ...io.OptionClient) (*io.Client, error) {
 	return io.NewDial(SerialFunc(cfg), func(c *io.Client) {
 		c.SetKey(cfg.Address)
-		//c.SetHalfDuplex(time.Millisecond * 100) //半双工
+		c.SetHalfDuplex(time.Millisecond * 100) //半双工
 		c.SetOptions(options...)
 		oss.ListenExit(func() { c.CloseAll() })
 	})
@@ -64,7 +69,7 @@ func NewSerial(cfg *SerialConfig, options ...io.OptionClient) (*io.Client, error
 func RedialSerial(cfg *SerialConfig, options ...io.OptionClient) *io.Client {
 	return io.Redial(SerialFunc(cfg), func(c *io.Client) {
 		c.SetKey(cfg.Address)
-		//c.SetHalfDuplex(time.Millisecond * 100) //半双工
+		c.SetHalfDuplex(time.Millisecond * 100) //半双工
 		c.SetOptions(options...)
 		oss.ListenExit(func() { c.CloseAll() })
 	})

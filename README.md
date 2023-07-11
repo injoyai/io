@@ -3,7 +3,8 @@
 
 ### 如何使用
 
-```
+#### 如何连接TCP
+```go
 
     import (
         "github.com/injoyai/io"
@@ -27,4 +28,44 @@
         <-c.DoneAll()
     }
 		
+```
+
+#### 如何连接SSH
+
+```go
+
+import (
+    "github.com/injoyai/io"
+    "github.com/injoyai/io/dial"
+)
+
+
+func main () {
+	c, err := dial.RedialSSH(&SSHConfig{
+		Addr:     os.Args[1],
+		User:     os.Args[2],
+		Password: os.Args[3],
+	})
+	if err != nil {
+		logs.Err(err)
+		return
+	}
+	c.Debug(false)
+	c.SetDealFunc(func(msg *io.IMessage) {
+		fmt.Print(msg.String())
+	})
+	go c.Run()
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		select {
+		case <-c.DoneAll():
+			return
+		default:
+			bs, _, _ := reader.ReadLine()
+			c.Write(bs)
+		}
+	}
+}
+
+
 ```

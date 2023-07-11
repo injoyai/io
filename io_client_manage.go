@@ -21,7 +21,7 @@ func NewClientManage(ctx context.Context) *ClientManage {
 		readFunc:        buf.ReadWithAll,
 		writeFunc:       nil,
 		timeout:         DefaultKeepAlive * 3,
-		timeoutInterval: DefaultKeepAlive,
+		timeoutInterval: DefaultTimeoutInterval,
 	}
 	e.dealQueue.SetHandler(func(ctx context.Context, no, count int, data interface{}) {
 		if e.dealFunc != nil {
