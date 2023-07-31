@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/injoyai/base/maps"
+	"github.com/injoyai/logs"
 	"sync/atomic"
 	"time"
 )
@@ -106,9 +107,9 @@ func (this *Server) Run() error {
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
 	}
-
+	logs.Debug(9)
 	this.Print(NewMessage("开启服务成功..."), TagInfo, this.GetKey())
-
+	logs.Debug(10)
 	//执行监听连接
 	for {
 		select {

@@ -108,7 +108,7 @@ func PrintfWithHEX(msg Message, tag ...string) string {
 		t = "[" + t + "]"
 	}
 	if strings.Contains(t, TagRead) || strings.Contains(t, TagWrite) {
-		return fmt.Sprintf("%s %s", t, msg.HEX())
+		return fmt.Sprintf("%s %s", t, strings.ToUpper(msg.HEX()))
 	}
 	return fmt.Sprintf("%s %s\n", t, msg.ASCII())
 }

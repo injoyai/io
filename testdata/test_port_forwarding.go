@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial/proxy"
 	"github.com/injoyai/logs"
 )
@@ -12,11 +13,13 @@ func NewPortForwardingClient(addr string) error {
 
 // NewPortForwardingServer 端口转发服务端
 func NewPortForwardingServer(port int, proxyPort int, proxyAddr string) error {
-	s, err := proxy.NewPortForwardingServer(port)
+	s, err := proxy.NewPortForwardingServer(port, func(s *io.Server) {
+		s.Debug()
+		s.SetPrintWithHEX()
+	})
 	if err != nil {
 		return err
 	}
-	s.Debug(true)
 	logs.PrintErr(s.Listen(proxyPort, "sn", proxyAddr))
 	return s.Run()
 }

@@ -214,7 +214,9 @@ func NewSwapTCPServer(port int, options ...io.OptionServer) error {
 func WithClientDebug(b ...bool) func(c *io.Client, e *Entity) {
 	return func(c *io.Client, e *Entity) {
 		c.Debug(b...)
+		c.SetPrintWithHEX()
 		e.Debug(b...)
+		e.SetPrintFunc(io.PrintWithHEX)
 	}
 }
 
