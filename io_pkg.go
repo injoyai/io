@@ -216,7 +216,7 @@ func WriteWithPkg(req []byte) ([]byte, error) {
 
 func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 
-	bs := make([]byte, 4090)
+	var bs []byte
 	for {
 
 		bs = make([]byte, 2)

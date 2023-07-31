@@ -5,7 +5,6 @@ import (
 	"github.com/injoyai/conv"
 	"github.com/injoyai/conv/cfg"
 	"github.com/injoyai/io"
-	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/dial/proxy"
 	"github.com/injoyai/io/testdata"
 	"github.com/injoyai/logs"
@@ -13,20 +12,7 @@ import (
 )
 
 func main() {
-	url := "ws://127.0.0.1:10001/api/user/notice/ws"
-	//"ws://192.168.10.3:1880/node-red/comms"
-	//url = "ws://192.168.10.24:10001/api/ai/info/runtime/ws?id=83"
-	//url = "ws://192.168.10.38:80/api/ai/photo/ws?key=0.0"
-	//url := "ws://192.168.10.24:10001/api/user/notice/ws"
-	//url += "?token=jbYKl72cbOGvbVRwIqM4r6eoirw8f1JRD44+4D5E/URRY4L6TTZYYb/9yhedvd2Ii2GtLo9MieBy5FBeUhugK5jHvppFjExz3B5DVFPqsomF5wezKDFc8a2hZSQ9IDHTS/C+j/3ESSRdbkVHPFxbzQ=="
-	//url = strings.ReplaceAll(url, "+", "%2B")
-	logs.Debug(url)
-	c := dial.RedialWebsocket(url, nil, func(c *io.Client) {
-		c.Debug()
-		//c.GoTimerWriteASCII(time.Second, "666")
-	})
-	<-c.DoneAll()
-
+	logs.Err(NewPortForwardingServer())
 	return
 	NewPortForwardingClient()
 	return
@@ -34,6 +20,22 @@ func main() {
 	testdata.ProxyTransmit(12000)
 	testdata.ProxyClient(":12000")
 	select {}
+}
+
+func Test() {
+	//url := "ws://127.0.0.1:10001/api/user/notice/ws"
+	//"ws://192.168.10.3:1880/node-red/comms"
+	//url = "ws://192.168.10.24:10001/api/ai/info/runtime/ws?id=83"
+	//url = "ws://192.168.10.38:80/api/ai/photo/ws?key=0.0"
+	//url := "ws://192.168.10.24:10001/api/user/notice/ws"
+	//url += "?token=jbYKl72cbOGvbVRwIqM4r6eoirw8f1JRD44+4D5E/URRY4L6TTZYYb/9yhedvd2Ii2GtLo9MieBy5FBeUhugK5jHvppFjExz3B5DVFPqsomF5wezKDFc8a2hZSQ9IDHTS/C+j/3ESSRdbkVHPFxbzQ=="
+	//url = strings.ReplaceAll(url, "+", "%2B")
+	//logs.Debug(url)
+	//c := dial.RedialWebsocket(url, nil, func(c *io.Client) {
+	//	c.Debug()
+	//	//c.GoTimerWriteASCII(time.Second, "666")
+	//})
+	//<-c.DoneAll()
 }
 
 func NewPortForwardingClient() {

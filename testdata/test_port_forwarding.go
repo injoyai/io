@@ -7,16 +7,16 @@ import (
 
 // NewPortForwardingClient 端口转发客户端
 func NewPortForwardingClient(addr string) error {
-	return proxy.NewPortForwardingClient(addr, "sn", proxy.WithClientDebug(false)).Run()
+	return proxy.NewPortForwardingClient(addr, "sn", proxy.WithClientDebug(true)).Run()
 }
 
 // NewPortForwardingServer 端口转发服务端
-func NewPortForwardingServer(port int) error {
+func NewPortForwardingServer(port int, proxyPort int, proxyAddr string) error {
 	s, err := proxy.NewPortForwardingServer(port)
 	if err != nil {
 		return err
 	}
-	s.Debug(false)
-	logs.PrintErr(s.Listen(10000, "sn", "192.168.10.24:10001"))
+	s.Debug(true)
+	logs.PrintErr(s.Listen(proxyPort, "sn", proxyAddr))
 	return s.Run()
 }

@@ -64,6 +64,9 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
 // NewPortForwardingServer 端口转发服务端
 func NewPortForwardingServer(port int, options ...io.OptionServer) (*PortForwardingServer, error) {
 	pipeServer, err := dial.NewPipeServer(port, options...)
+	if err != nil {
+		return nil, err
+	}
 	ser := &PortForwardingServer{Server: pipeServer, listen: maps.NewSafe()}
 	pipeServer.SetCloseFunc(func(msg *io.IMessage) {
 		//通道断开连接,则关闭所有代理连接
@@ -112,5 +115,5 @@ func NewPortForwardingServer(port int, options ...io.OptionServer) (*PortForward
 			}
 		}
 	})
-	return ser, err
+	return ser, nil
 }
