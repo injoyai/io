@@ -20,11 +20,7 @@ const (
 )
 
 func NewMessageFormat(format string, v ...interface{}) Message {
-	return NewMessage(fmt.Sprintf(format, v...))
-}
-
-func NewMessage(s string) Message {
-	return []byte(s)
+	return Message(fmt.Sprintf(format, v...))
 }
 
 type Message = bytes.Entity

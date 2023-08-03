@@ -24,7 +24,7 @@ func TCPListenFunc(port int) io.ListenFunc {
 func NewTCPServer(port int, options ...io.OptionServer) (*io.Server, error) {
 	s, err := io.NewServer(TCPListenFunc(port), options...)
 	if err == nil {
-		s.SetKey(fmt.Sprintf(":%d", port))
+		s.ClientManage.SetKey(fmt.Sprintf(":%d", port))
 	}
 	return s, err
 }

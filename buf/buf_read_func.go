@@ -13,8 +13,8 @@ type (
 
 // ReadWithAll 默认读取函数,读取全部数据
 func ReadWithAll(buf *bufio.Reader) (bytes []byte, err error) {
-	//read 1 KB
-	num := 1 << 10
+	//read,单次读取大小不影响速度
+	num := 4096
 	for {
 		data := make([]byte, num)
 		length, err := buf.Read(data)

@@ -5,6 +5,7 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/logs"
 	"testing"
+	"time"
 )
 
 func TestRedialWebsocket(t *testing.T) {
@@ -33,12 +34,15 @@ func TestRedialTCP(t *testing.T) {
 }
 
 func TestRedialRtsp(t *testing.T) {
-	RedialTCP("34.227.104.115:554", io.WithClientDebug())
+	RedialTCP("34.227.104.115:554", func(c *io.Client) {
+		c.Debug()
+	})
 	select {}
 }
 
 func TestRedialHTTP(t *testing.T) {
-	RedialTCP("192.168.10.24:10086", io.WithClientDebug(), func(c *io.Client) {
+	RedialTCP("192.168.10.24:10086", func(c *io.Client) {
+		c.Debug()
 		c.WriteString("GET /sn/BFEBFBFF000906ED HTTP/1.1\r\n\r\n")
 	})
 	select {}
@@ -50,9 +54,9 @@ func TestRedialMQTT(t *testing.T) {
 
 func TestRedialSSH(t *testing.T) {
 	RedialSSH(&SSHConfig{
-		Addr:     "192.168.10.40:22",
-		User:     "qinalang",
-		Password: "ql1123",
+		Addr:     "injoy:10022",
+		User:     "root",
+		Password: "root",
 	}, func(c *io.Client) {
 		c.Debug()
 		go func() {
@@ -64,4 +68,26 @@ func TestRedialSSH(t *testing.T) {
 		}()
 	})
 	select {}
+}
+
+// 测试传输速度
+func TestIOSpeed(t *testing.T) {
+	start := time.Now() //当前时间
+	length := 20        //传输的数据大小
+	go RunTCPServer(10086, func(s *io.Server) {
+		s.SetPrintWithHEX()
+		s.SetDealFunc(func(msg *io.IMessage) {
+			t.Log("数据长度: ", msg.Len())
+			t.Log("传输耗时: ", time.Now().Sub(start))
+		})
+	})
+	<-RedialTCP(":10086", func(c *io.Client) {
+		c.SetPrintWithHEX()
+		data := make([]byte, length)
+		start = time.Now()
+		c.Write(data)
+		c.SetDealFunc(func(msg *io.IMessage) {
+			t.Log(msg)
+		})
+	}).DoneAll()
 }

@@ -12,6 +12,22 @@ import (
 )
 
 func main() {
+
+	s, err := proxy.NewPortForwardingServer(10089, func(s *io.Server) {
+		s.Debug(false)
+		s.SetPrintWithHEX()
+	})
+	if err != nil {
+		logs.Err(err)
+		return
+	}
+	logs.PrintErr(s.Listen(10000, "sn", "192.168.3.128:8080", func(s *io.Server) {
+		s.Debug(false)
+		s.SetPrintWithHEX()
+	}))
+	s.Run()
+	return
+
 	logs.Err(NewPortForwardingServer())
 	return
 	NewPortForwardingClient()

@@ -31,7 +31,7 @@ type IWriter struct {
 	*printer                             //打印
 	writer     Writer                    //io.Writer
 	writeFunc  WriteFunc                 //写入函数
-	writeAfter func(p []byte, err error) //
+	writeAfter func(p []byte, err error) //写结束后
 	lastTime   time.Time                 //最后写入时间
 }
 

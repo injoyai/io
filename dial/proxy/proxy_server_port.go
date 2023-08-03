@@ -27,7 +27,7 @@ type PortForwardingServer struct {
 }
 
 // Listen 监听
-func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
+func (this *PortForwardingServer) Listen(port int, sn, addr string, options ...io.OptionServer) error {
 	s, err := dial.NewTCPServer(port, func(s *io.Server) {
 		s.Tag.Set("sn", sn)
 		s.Tag.Set("addr", addr)
@@ -56,6 +56,7 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string) error {
 	if err != nil {
 		return err
 	}
+	s.SetOptions(options...)
 	this.listen.Set(conv.String(port), s)
 	go s.Run()
 	return nil

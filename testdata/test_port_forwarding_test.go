@@ -10,5 +10,5 @@ func TestNewPortForwardingClient(t *testing.T) {
 }
 
 func TestNewPortForwardingServer(t *testing.T) {
-	t.Error(NewPortForwardingServer(10089, 10000, "www.baidu.com"))
+	t.Error(NewPortForwardingServer(10089, 10000, "192.168.3.113:10001"))
 }

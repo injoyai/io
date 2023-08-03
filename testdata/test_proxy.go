@@ -38,7 +38,9 @@ func TestProxy() error {
 		})
 	})
 
-	return proxy.NewSwapTCPServer(10089, io.WithServerDebug())
+	return proxy.NewSwapTCPServer(10089, func(s *io.Server) {
+		s.Debug()
+	})
 
 	return nil
 }

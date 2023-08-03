@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func NewClientManage(ctx context.Context) *ClientManage {
+func NewClientManage(ctx context.Context, key string) *ClientManage {
 	e := &ClientManage{
 		m:               make(map[string]*Client),
 		mu:              sync.RWMutex{},
@@ -22,6 +22,7 @@ func NewClientManage(ctx context.Context) *ClientManage {
 		writeFunc:       nil,
 		timeout:         DefaultKeepAlive * 3,
 		timeoutInterval: DefaultTimeoutInterval,
+		printer:         newPrinter(key),
 	}
 	e.dealQueue.SetHandler(func(ctx context.Context, no, count int, data interface{}) {
 		if e.dealFunc != nil {
@@ -34,7 +35,7 @@ func NewClientManage(ctx context.Context) *ClientManage {
 	e.SetBeforeFunc(func(c *Client) error {
 		//默认连接打印信息
 		if e.printer != nil {
-			e.printer.Print(NewMessage("新的客户端连接..."), TagInfo, c.GetKey())
+			e.printer.Print(Message("新的客户端连接..."), TagInfo, c.GetKey())
 		}
 		return nil
 	})
@@ -81,11 +82,6 @@ type ClientManage struct {
 	timeout         time.Duration //超时时间,小于0是不超时
 	timeoutInterval time.Duration //超时检测间隔
 	*printer
-}
-
-// setPrinter 设置打印实例
-func (this *ClientManage) setPrinter(p *printer) {
-	this.printer = p
 }
 
 // SetReadFunc 设置数据读取
@@ -208,7 +204,8 @@ func (this *ClientManage) SetClient(c *Client) {
 	c.SetCloseFunc(this._closeFunc) //连接关闭方法
 	c.SetReadFunc(this.readFunc)    //读取数据方法
 	c.SetWriteFunc(this.writeFunc)  //设置发送函数
-	c.setPrinter(this.printer)      //设置打印实例
+	c.Debug(this.debug)             //设置debug模式
+	c.SetPrintFunc(this.printFunc)  //设置打印实例
 
 	// 协程执行,等待连接的后续数据,来决定后续操作
 	go func(c *Client) {
@@ -234,6 +231,7 @@ func (this *ClientManage) SetClient(c *Client) {
 		this.m[c.GetKey()] = c
 		this.mu.Unlock()
 		c.Run()
+
 	}(c)
 
 }

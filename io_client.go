@@ -63,6 +63,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 		duplex:      FullDuplex,
 	}
 	c.SetKey(fmt.Sprintf("%p", i))
+	c.Debug()
 	return c
 }
 
@@ -220,10 +221,6 @@ func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *IMessage)) {
 	})
 }
 
-func (this *Client) setPrinter(p *printer) {
-	//this.printer = p
-}
-
 // SetPrintFunc 设置打印函数
 func (this *Client) SetPrintFunc(fn PrintFunc) *Client {
 	this.IWriter.SetPrintFunc(fn)
@@ -279,6 +276,7 @@ func (this *Client) SetHalfDuplex(delay ...time.Duration) *Client {
 // SetFullDuplex 设置全双工模式,默认是该模式
 func (this *Client) SetFullDuplex() *Client {
 	this.duplex = FullDuplex
+	this.SetWriteAfterFunc(nil)
 	return this
 }
 
@@ -304,7 +302,7 @@ func (this *Client) Redial(options ...OptionClient) *Client {
 	})
 	this.SetOptions(options...)
 	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
-	this.Print(NewMessage("连接服务端成功..."), TagInfo, this.GetKey())
+	this.Print(Message("连接服务端成功..."), TagInfo, this.GetKey())
 	go this.Run()
 	return this
 }

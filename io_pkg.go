@@ -8,6 +8,7 @@ import (
 	"github.com/injoyai/conv"
 	"github.com/injoyai/logs"
 	"hash/crc32"
+	"time"
 )
 
 /*
@@ -215,6 +216,10 @@ func WriteWithPkg(req []byte) ([]byte, error) {
 }
 
 func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
+	start := time.Now()
+	defer func() {
+		logs.Debugf("耗时: %s	长度: %d", time.Now().Sub(start), len(result))
+	}()
 
 	var bs []byte
 	for {

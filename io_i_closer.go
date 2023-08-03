@@ -108,7 +108,7 @@ func (this *ICloser) timer(ctx context.Context, dealErr func(error) error, inter
 }
 
 // For 循环执行
-func (this *ICloser) For(fn func() error) (err error) {
+func (this *ICloser) For(fn func(ctx context.Context) error) (err error) {
 	for {
 		select {
 		case <-this.Done():
@@ -120,14 +120,14 @@ func (this *ICloser) For(fn func() error) (err error) {
 						err = fmt.Errorf("%v", e)
 					}
 				}()
-				return fn()
+				return fn(this.Ctx())
 			}())
 		}
 	}
 }
 
 // ForSignal 通过信号执行
-func (this *ICloser) ForSignal(fn func() error, signal chan struct{}) (err error) {
+func (this *ICloser) ForSignal(fn func(ctx context.Context) error, signal chan struct{}) (err error) {
 	for {
 		select {
 		case <-this.Done():
@@ -139,7 +139,7 @@ func (this *ICloser) ForSignal(fn func() error, signal chan struct{}) (err error
 						err = fmt.Errorf("%v", e)
 					}
 				}()
-				return fn()
+				return fn(this.Ctx())
 			}())
 		}
 	}
@@ -239,7 +239,7 @@ func (this *ICloser) closeWithErr(closeErr error, fn ...func(Closer) error) (err
 			}
 		}
 		//生成错误信息
-		msg := NewMessage(this.closeErr.Error())
+		msg := Message(this.closeErr.Error())
 		//打印错误信息
 		this.printer.Print(msg, TagErr, this.GetKey())
 		//执行用户设置的错误函数

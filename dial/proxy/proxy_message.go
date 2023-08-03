@@ -6,7 +6,6 @@ import (
 	"github.com/injoyai/base/bytes"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
-	"github.com/injoyai/logs"
 	"strings"
 )
 
@@ -188,8 +187,6 @@ func DecodeMessage(bytes []byte) (*Message, error) {
 	m.Addr = string(bytes[4+keyLen : 4+keyLen+addrLen])
 	dataLen := conv.Int(bytes[4+keyLen+addrLen : 8+keyLen+addrLen])
 	if length != 8+keyLen+addrLen+dataLen {
-		logs.Debug(bytes[4+keyLen+addrLen : 8+keyLen+addrLen])
-		logs.Debug(bytes[:8+keyLen+addrLen])
 		return nil, fmt.Errorf("数据长度错误:data长度错误,预期(%d),得到(%d)", 8+keyLen+addrLen+dataLen, length)
 	}
 	m.Data = string(bytes[8+keyLen+addrLen:])

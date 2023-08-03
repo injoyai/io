@@ -69,9 +69,14 @@ func (this *IWriteCloser) runQueue() {
 		this.queue = this.NewWriteQueue(this.Ctx())
 	}
 	if atomic.SwapUint32(&this.running, 1) == 0 {
-		go this.For(func() error {
-			_, err := this.Write(<-this.queue)
-			return err
+		go this.For(func(ctx context.Context) error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case p := <-this.queue:
+				_, err := this.Write(p)
+				return err
+			}
 		})
 	}
 }

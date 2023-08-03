@@ -144,7 +144,7 @@ func (this *IReadCloser) Run(ch ...chan struct{}) error {
 		}()
 	}
 
-	readFunc := func() (err error) {
+	readFunc := func(ctx context.Context) (err error) {
 		//读取数据
 		bs, err := this.ReadMessage()
 		if err != nil || len(bs) == 0 {

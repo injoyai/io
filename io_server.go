@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/injoyai/base/maps"
-	"github.com/injoyai/logs"
 	"sync/atomic"
 	"time"
 )
@@ -23,10 +22,12 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	s := &Server{
 		printer:      newPrinter(fmt.Sprintf("%p", listener)),
 		ICloser:      NewICloserWithContext(ctx, listener),
-		ClientManage: NewClientManage(ctx),
+		ClientManage: NewClientManage(ctx, fmt.Sprintf("%p", listener)),
 		Tag:          maps.NewSafe(),
 		listener:     listener,
 	}
+	s.ICloser.printer = s.printer
+	s.ClientManage.printer = s.printer
 	//开启基础信息打印
 	s.Debug()
 	//设置关闭函数
@@ -107,9 +108,9 @@ func (this *Server) Run() error {
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
 	}
-	logs.Debug(9)
-	this.Print(NewMessage("开启服务成功..."), TagInfo, this.GetKey())
-	logs.Debug(10)
+
+	this.Print(Message("开启服务成功..."), TagInfo, this.GetKey())
+
 	//执行监听连接
 	for {
 		select {
@@ -126,9 +127,7 @@ func (this *Server) Run() error {
 
 		//新建客户端,并配置
 		x := NewClientWithContext(this.Ctx(), c)
-		x.SetKey(key)                               //设置唯一标识符
-		x.Debug(this.GetDebug())                    //调试模式
-		x.SetPrintFunc(this.printer.GetPrintFunc()) //设置打印函数
+		x.SetKey(key) //设置唯一标识符
 
 		this.ClientManage.SetClient(x)
 

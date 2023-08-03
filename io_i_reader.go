@@ -17,7 +17,7 @@ func NewIReader(r Reader) *IReader {
 	if v, ok := r.(MessageReader); ok {
 		i.mReader = v
 	} else {
-		i.buf = bufio.NewReader(r)
+		i.buf = bufio.NewReaderSize(r, 1<<20)
 	}
 	i.SetReadFunc(buf.ReadWithAll)
 	return i

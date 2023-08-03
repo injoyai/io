@@ -4,11 +4,17 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial/proxy"
 	"github.com/injoyai/logs"
+	"time"
 )
 
 // NewPortForwardingClient 端口转发客户端
 func NewPortForwardingClient(addr string) error {
-	return proxy.NewPortForwardingClient(addr, "sn", proxy.WithClientDebug(true)).Run()
+	return proxy.NewPortForwardingClient(addr, "sn", func(c *io.Client, e *proxy.Entity) {
+		c.SetRedialMaxTime(time.Second * 3)
+		c.SetPrintWithASCII()
+		c.Debug()
+		e.Debug()
+	}).Run()
 }
 
 // NewPortForwardingServer 端口转发服务端
