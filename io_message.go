@@ -36,3 +36,7 @@ type IMessage struct {
 	*Client
 	Message
 }
+
+func (this *IMessage) Error() string {
+	return this.Message.String()
+}

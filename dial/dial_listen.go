@@ -1,6 +1,7 @@
 package dial
 
 import (
+	"context"
 	"fmt"
 	"github.com/injoyai/io"
 	"net"
@@ -31,6 +32,35 @@ func NewTCPServer(port int, options ...io.OptionServer) (*io.Server, error) {
 
 func RunTCPServer(port int, options ...io.OptionServer) error {
 	s, err := NewTCPServer(port, options...)
+	if err != nil {
+		return err
+	}
+	return s.Run()
+}
+
+func NewTCPSwapServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
+	return NewTCPServer(port, func(s *io.Server) {
+		s.SetOptions(options...)
+		s.SetReadWithKB(4)
+		s.SetBeforeFunc(func(client *io.Client) error {
+			s.Print(io.Message("新的客户端连接..."), io.TagInfo)
+			_, err := NewTCP(addr, func(c *io.Client) {
+				c.Debug(false)
+				c.SetReadWithKB(4)
+				c.SetDealWithWriter(client)
+				c.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
+					client.CloseWithErr(msg)
+				})
+				go c.Run()
+				client.SetReadWithWriter(c)
+			})
+			return err
+		})
+	})
+}
+
+func RunTCPSwapServer(port int, addr string, options ...io.OptionServer) error {
+	s, err := NewTCPSwapServer(port, addr, options...)
 	if err != nil {
 		return err
 	}

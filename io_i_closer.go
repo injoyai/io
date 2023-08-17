@@ -251,8 +251,8 @@ func (this *ICloser) closeWithErr(closeErr error, fn ...func(Closer) error) (err
 	return
 }
 
-// Redial 无限重连,返回nil,或者成功数据
-func (this *ICloser) Redial(ctx context.Context) ReadWriteCloser {
+// MustDial 无限重连,返回nil,或者成功数据
+func (this *ICloser) MustDial(ctx context.Context) ReadWriteCloser {
 	t := time.Second
 	timer := time.NewTimer(0)
 	defer timer.Stop()

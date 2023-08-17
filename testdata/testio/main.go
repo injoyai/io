@@ -84,7 +84,7 @@ func Test(n int) {
 			})
 		})
 		<-time.After(time.Second)
-		<-dial.RedialTCP("192.168.3.113:10086", func(c *io.Client) {
+		<-dial.RedialTCP("127.0.0.1:10086", func(c *io.Client) {
 			c.SetPrintWithBase()
 			data := make([]byte, length)
 			start = time.Now()

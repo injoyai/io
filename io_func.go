@@ -1,22 +1,37 @@
 package io
 
 import (
+	"bufio"
 	"github.com/injoyai/io/buf"
+	"io"
 )
 
-// multiCloser
-// 合并多个Closer , 变成1个Closer
-type multiCloser struct {
-	closer []Closer
+// CopyFunc 复制数据,每次固定4KB,并提供函数监听
+func CopyFunc(w Writer, r Reader, fn func(buf []byte)) (int, error) {
+	return CopyNFunc(w, r, DefaultBufferSize, fn)
 }
 
-func (this *multiCloser) Close() (err error) {
-	for _, v := range this.closer {
-		if er := v.Close(); er != nil {
-			err = er
+// CopyNFunc 复制数据,每次固定大小,并提供函数监听
+func CopyNFunc(w Writer, r Reader, n int64, fn func(buf []byte)) (int, error) {
+	buff := bufio.NewReader(r)
+	length := 0
+	for {
+		buf := make([]byte, n)
+		n, err := buff.Read(buf)
+		if err != nil && err != io.EOF {
+			return length, err
+		}
+		length += n
+		if _, err := w.Write(buf[:n]); err != nil {
+			return length, err
+		}
+		if fn != nil {
+			fn(buf[:n])
+		}
+		if err == io.EOF {
+			return length, nil
 		}
 	}
-	return
 }
 
 // MultiCloser 多个关闭合并
@@ -24,19 +39,13 @@ func MultiCloser(closer ...Closer) Closer {
 	return &multiCloser{closer: closer}
 }
 
-type publishToWriter struct {
-	topic string
-	Publisher
-}
-
-func (this *publishToWriter) Write(p []byte) (int, error) {
-	err := this.Publisher.Publish(this.topic, p)
-	return len(p), err
-}
-
 // PublisherToWriter Publisher to Writer
 func PublisherToWriter(p Publisher, topic string) Writer {
 	return &publishToWriter{topic: topic, Publisher: p}
+}
+
+func NewReadWriter(r Reader, w Writer) ReadWriteCloser {
+	return &readWrite{Reader: r, Writer: w}
 }
 
 // SwapClient 数据交换交换
@@ -58,9 +67,56 @@ func SwapWithReadFunc(i1, i2 ReadWriteCloser, readFunc buf.ReadFunc) {
 
 // Swap same two Copy IO数据交换
 func Swap(i1, i2 ReadWriteCloser) {
-	c1 := NewClient(i1)
-	c1.SetReadWithAll()
-	c2 := NewClient(i2)
-	c2.SetReadWithAll()
-	SwapClient(c1, c2)
+	go Copy(i1, i2)
+	Copy(i2, i1)
+}
+
+/*
+
+
+
+ */
+
+// multiCloser
+// 合并多个Closer , 变成1个Closer
+type multiCloser struct {
+	closer []Closer
+}
+
+func (this *multiCloser) Close() (err error) {
+	for _, v := range this.closer {
+		if er := v.Close(); er != nil {
+			err = er
+		}
+	}
+	return
+}
+
+type publishToWriter struct {
+	topic string
+	Publisher
+}
+
+func (this *publishToWriter) Write(p []byte) (int, error) {
+	err := this.Publisher.Publish(this.topic, p)
+	return len(p), err
+}
+
+type readWrite struct {
+	Reader
+	Writer
+}
+
+func (this *readWrite) Close() error { return nil }
+
+type Read func(p []byte) (int, error)
+
+func (this Read) Read(p []byte) (int, error) {
+	return this(p)
+}
+
+type Write func(p []byte) (int, error)
+
+func (this Write) Write(p []byte) (int, error) {
+	return this(p)
 }

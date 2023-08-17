@@ -20,10 +20,11 @@ func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClie
 	x.Debug()
 	x.SetRedialFunc(dial)
 	x.SetKey(conv.String(dial))
-	c := NewClientWithContext(ctx, x.Redial(ctx))
-	c.SetRedialFunc(dial)
-	c.Redial(options...)
-	return c
+
+	return NewClientWithContext(ctx, x.MustDial(ctx), func(c *Client) {
+		c.SetRedialFunc(dial)
+		c.Redial(options...)
+	})
 }
 
 // NewDial 尝试连接,返回*Client和错误
@@ -37,20 +38,21 @@ func NewDialWithContext(ctx context.Context, dial DialFunc, options ...OptionCli
 	if err != nil {
 		return nil, err
 	}
-	cli := NewClientWithContext(ctx, c)
-	cli.SetRedialFunc(dial)
-	cli.SetOptions(options...)
+	cli := NewClientWithContext(ctx, c, func(c *Client) {
+		c.SetRedialFunc(dial)
+		c.SetOptions(options...)
+	})
 	return cli, nil
 }
 
 // NewClient 标准库io.ReadWriterCloser转*Client
 // 和隐性的MessageReadWriteCloser转*Client,后续1.18之后改成泛型
-func NewClient(i ReadWriteCloser) *Client {
-	return NewClientWithContext(context.Background(), i)
+func NewClient(i ReadWriteCloser, options ...OptionClient) *Client {
+	return NewClientWithContext(context.Background(), i, options...)
 }
 
 // NewClientWithContext 标准库io.ReadWriterCloser转*Client,需要输入上下文
-func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
+func NewClientWithContext(ctx context.Context, i ReadWriteCloser, options ...OptionClient) *Client {
 	if c, ok := i.(*Client); ok && c != nil {
 		return c
 	}
@@ -64,6 +66,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser) *Client {
 	}
 	c.SetKey(fmt.Sprintf("%p", i))
 	c.Debug()
+	c.SetOptions(options...)
 	return c
 }
 
@@ -284,7 +287,7 @@ func (this *Client) SetFullDuplex() *Client {
 func (this *Client) Redial(options ...OptionClient) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *IMessage) {
 		<-time.After(time.Second)
-		readWriteCloser := this.IReadCloser.Redial(ctx)
+		readWriteCloser := this.IReadCloser.MustDial(ctx)
 		if readWriteCloser == nil {
 			if this.ICloser.Err() != ErrHandClose {
 				this.ICloser.Print(NewMessageFormat("连接断开(%v),未设置重连函数", this.ICloser.Err()), TagErr, this.GetKey())

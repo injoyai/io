@@ -126,8 +126,7 @@ func (this *Server) Run() error {
 		}
 
 		//新建客户端,并配置
-		x := NewClientWithContext(this.Ctx(), c)
-		x.SetKey(key) //设置唯一标识符
+		x := NewClientWithContext(this.Ctx(), c).SetKey(key)
 
 		this.ClientManage.SetClient(x)
 

@@ -89,6 +89,11 @@ func (this *ClientManage) SetReadFunc(fn func(buf *bufio.Reader) (bytes []byte, 
 	this.readFunc = fn
 }
 
+// SetReadWithKB 设置读取固定字节长度
+func (this *ClientManage) SetReadWithKB(n uint) {
+	this.SetReadFunc(buf.NewReadWithKB(n))
+}
+
 // SetReadWithAll 设置客户端读取函数:读取全部
 func (this *ClientManage) SetReadWithAll() {
 	this.SetReadFunc(buf.ReadWithAll)

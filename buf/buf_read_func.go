@@ -41,6 +41,14 @@ func ReadWithLine(buf *bufio.Reader) (bytes []byte, err error) {
 
  */
 
+func NewReadWithKB(n uint) func(buf *bufio.Reader) ([]byte, error) {
+	return func(buf *bufio.Reader) ([]byte, error) {
+		bytes := make([]byte, n<<10)
+		length, err := buf.Read(bytes)
+		return bytes[:length], err
+	}
+}
+
 // NewReadWithWriter 新建读取到数据立马写入到io.writer
 func NewReadWithWriter(write io.Writer) ReadFunc {
 	return func(buf *bufio.Reader) (bytes []byte, err error) {
