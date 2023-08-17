@@ -43,7 +43,6 @@ func NewTCPProxyServer(port int, addr string, options ...io.OptionServer) (*io.S
 		s.SetOptions(options...)
 		s.SetReadWithKB(4)
 		s.SetBeforeFunc(func(client *io.Client) error {
-			s.Print(io.Message("新的客户端连接..."), io.TagInfo)
 			_, err := NewTCP(addr, func(c *io.Client) {
 				c.Debug(false)
 				c.SetReadWithKB(4)
