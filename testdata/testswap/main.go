@@ -8,7 +8,7 @@ import (
 
 func main() {
 
-	s, err := dial.NewTCPSwapServer(22, "192.168.10.26:22", func(s *io.Server) {
+	s, err := dial.NewTCPProxyServer(22, "192.168.10.26:22", func(s *io.Server) {
 		s.Debug(true)
 		s.SetPrintWithBase()
 	})

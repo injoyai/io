@@ -38,7 +38,7 @@ func RunTCPServer(port int, options ...io.OptionServer) error {
 	return s.Run()
 }
 
-func NewTCPSwapServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
+func NewTCPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
 	return NewTCPServer(port, func(s *io.Server) {
 		s.SetOptions(options...)
 		s.SetReadWithKB(4)
@@ -59,8 +59,8 @@ func NewTCPSwapServer(port int, addr string, options ...io.OptionServer) (*io.Se
 	})
 }
 
-func RunTCPSwapServer(port int, addr string, options ...io.OptionServer) error {
-	s, err := NewTCPSwapServer(port, addr, options...)
+func RunTCPProxyServer(port int, addr string, options ...io.OptionServer) error {
+	s, err := NewTCPProxyServer(port, addr, options...)
 	if err != nil {
 		return err
 	}

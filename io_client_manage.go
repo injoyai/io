@@ -31,14 +31,6 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 	})
 	//设置默认处理数据函数
 	e.SetDealFunc(func(msg *IMessage) { e.readChan <- msg })
-	//设置前置函数
-	e.SetBeforeFunc(func(c *Client) error {
-		//默认连接打印信息
-		if e.printer != nil {
-			e.printer.Print(Message("新的客户端连接..."), TagInfo, c.GetKey())
-		}
-		return nil
-	})
 	//执行超时机制
 	go func() {
 		for {
@@ -216,9 +208,12 @@ func (this *ClientManage) SetClient(c *Client) {
 	go func(c *Client) {
 
 		//前置操作,例如等待注册数据,不符合的返回错误则关闭连接
-		if this.beforeFunc != nil && this.beforeFunc(c) != nil {
-			_ = c.Close()
-			return
+		if this.beforeFunc != nil {
+			if err := this.beforeFunc(c); err != nil {
+				this.Print(Message(err.Error()), TagErr)
+				_ = c.Close()
+				return
+			}
 		}
 
 		this.mu.RLock()
