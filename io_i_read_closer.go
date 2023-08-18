@@ -122,7 +122,7 @@ func (this *IReadCloser) Running() bool {
 }
 
 // Run 开始运行数据读取
-func (this *IReadCloser) Run(ch ...chan struct{}) error {
+func (this *IReadCloser) Run() error {
 
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
@@ -160,10 +160,6 @@ func (this *IReadCloser) Run(ch ...chan struct{}) error {
 			this.dealFunc(bs)
 		}
 		return nil
-	}
-
-	if len(ch) > 0 && ch[0] != nil {
-		return this.ForSignal(readFunc, ch[0])
 	}
 
 	return this.For(readFunc)
