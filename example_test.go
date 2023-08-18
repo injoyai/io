@@ -19,7 +19,6 @@ func ExampleRedial() {
 				})
 			})
 		<-c.DoneAll()
-
 	*/
 
 }

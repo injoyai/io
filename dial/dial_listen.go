@@ -1,11 +1,13 @@
 package dial
 
 import (
-	"context"
+	"bytes"
 	"fmt"
+	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"net"
 	"sync"
+	"time"
 )
 
 //================================TCPListen================================
@@ -23,47 +25,22 @@ func TCPListenFunc(port int) io.ListenFunc {
 }
 
 func NewTCPServer(port int, options ...io.OptionServer) (*io.Server, error) {
-	s, err := io.NewServer(TCPListenFunc(port), options...)
-	if err == nil {
-		s.ClientManage.SetKey(fmt.Sprintf(":%d", port))
-	}
-	return s, err
-}
-
-func RunTCPServer(port int, options ...io.OptionServer) error {
-	s, err := NewTCPServer(port, options...)
-	if err != nil {
-		return err
-	}
-	return s.Run()
-}
-
-func NewTCPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
-	return NewTCPServer(port, func(s *io.Server) {
+	return io.NewServer(TCPListenFunc(port), func(s *io.Server) {
 		s.SetOptions(options...)
-		s.SetReadWithKB(4)
-		s.SetBeforeFunc(func(client *io.Client) error {
-			_, err := NewTCP(addr, func(c *io.Client) {
-				c.Debug(false)
-				c.SetReadWithKB(4)
-				c.SetDealWithWriter(client)
-				c.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
-					client.CloseWithErr(msg)
-				})
-				go c.Run()
-				client.SetReadWithWriter(c)
-			})
-			return err
-		})
+		s.SetKey(fmt.Sprintf(":%d", port))
 	})
 }
 
+func RunTCPServer(port int, options ...io.OptionServer) error {
+	return RunServer(NewTCPServer(port, options...))
+}
+
+func NewTCPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
+	return NewProxyServer(TCPListenFunc(port), TCPFunc(addr), options...)
+}
+
 func RunTCPProxyServer(port int, addr string, options ...io.OptionServer) error {
-	s, err := NewTCPProxyServer(port, addr, options...)
-	if err != nil {
-		return err
-	}
-	return s.Run()
+	return RunProxyServer(TCPListenFunc(port), TCPFunc(addr), options...)
 }
 
 type _tcpServer struct {
@@ -99,7 +76,22 @@ func UDPListenFunc(port int) io.ListenFunc {
 }
 
 func NewUDPServer(port int, options ...io.OptionServer) (*io.Server, error) {
-	return io.NewServer(UDPListenFunc(port), options...)
+	return io.NewServer(UDPListenFunc(port), func(s *io.Server) {
+		s.SetOptions(options...)
+		s.SetKey(fmt.Sprintf(":%d", port))
+	})
+}
+
+func RunUDPServer(port int, options ...io.OptionServer) error {
+	return RunServer(NewUDPServer(port, options...))
+}
+
+func NewUDPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
+	return NewProxyServer(UDPListenFunc(port), TCPFunc(addr), options...)
+}
+
+func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error {
+	return RunProxyServer(UDPListenFunc(port), TCPFunc(addr), options...)
 }
 
 type _udp struct {
@@ -171,4 +163,71 @@ func (this *_udpServer) Accept() (io.ReadWriteCloser, string, error) {
 
 func (this *_udpServer) Addr() string {
 	return this.UDPConn.RemoteAddr().String()
+}
+
+//================================MemoryListen================================
+
+func MemoryListener(key string) (io.Listener, error) {
+	s, _ := memoryServerManage.GetOrSetByHandler(key, func() (interface{}, error) {
+		return &_memoryServer{
+			key: key,
+			ch:  make(chan io.ReadWriteCloser, 1000),
+		}, nil
+	})
+	return s.(*_memoryServer), nil
+}
+
+func MemoryListenFunc(key string) io.ListenFunc {
+	return func() (io.Listener, error) {
+		return MemoryListener(key)
+	}
+}
+
+func NewMemoryServer(key string, options ...io.OptionServer) (*io.Server, error) {
+	return io.NewServer(MemoryListenFunc(key), options...)
+}
+
+func RunMemoryServer(key string, options ...io.OptionServer) error {
+	return io.RunServer(MemoryListenFunc(key), options...)
+}
+
+var memoryServerManage = maps.NewSafe()
+
+type _memory struct {
+	*bytes.Buffer
+}
+
+func (this *_memory) Close() error {
+	this.Reset()
+	return nil
+}
+
+// _memoryServer 虚拟服务,为了实现接口
+type _memoryServer struct {
+	key string
+	ch  chan io.ReadWriteCloser
+}
+
+func (this *_memoryServer) connect() (io.ReadWriteCloser, error) {
+	c := &_memory{Buffer: bytes.NewBuffer(nil)}
+	select {
+	case this.ch <- c:
+	case <-time.After(time.Second * 3):
+		return nil, io.ErrWithTimeout
+	}
+	return c, nil
+}
+
+func (this *_memoryServer) Accept() (io.ReadWriteCloser, string, error) {
+	c := <-this.ch
+	return c, fmt.Sprintf("%p", c), nil
+}
+
+func (this *_memoryServer) Close() error {
+	memoryServerManage.Del(this.key)
+	return nil
+}
+
+func (this *_memoryServer) Addr() string {
+	return fmt.Sprintf("%p", this)
 }

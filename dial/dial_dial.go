@@ -1,7 +1,6 @@
 package dial
 
 import (
-	"bytes"
 	"errors"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/websocket"
@@ -109,28 +108,25 @@ func NewFile(path string, options ...io.OptionClient) (*io.Client, error) {
 //================================WebsocketDial================================
 
 // Memory 内存
-func Memory() (io.ReadWriteCloser, error) {
-	return &_memory{Buffer: bytes.NewBuffer(nil)}, nil
+func Memory(key string) (io.ReadWriteCloser, error) {
+	s := memoryServerManage.MustGet(key)
+	if s == nil {
+		return nil, errors.New("服务不存在")
+	}
+	return s.(*_memoryServer).connect()
 }
 
-func WithMemory() func() (io.ReadWriteCloser, error) {
-	return Memory
+func WithMemory(key string) func() (io.ReadWriteCloser, error) {
+	return func() (io.ReadWriteCloser, error) {
+		return Memory(key)
+	}
 }
 
-func NewMemory(options ...io.OptionClient) (*io.Client, error) {
-	return io.NewDial(Memory, func(c *io.Client) {
+func NewMemory(key string, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(WithMemory(key), func(c *io.Client) {
 		c.SetKey("memory")
 		c.SetOptions(options...)
 	})
-}
-
-type _memory struct {
-	*bytes.Buffer
-}
-
-func (this *_memory) Close() error {
-	this.Reset()
-	return nil
 }
 
 //================================MQTTDial================================

@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+func RunServer(newListen ListenFunc, options ...OptionServer) error {
+	s, err := NewServer(newListen, options...)
+	if err != nil {
+		return err
+	}
+	return s.Run()
+}
+
 func NewServer(newListen ListenFunc, options ...OptionServer) (*Server, error) {
 	return NewServerWithContext(context.Background(), newListen, options...)
 }
