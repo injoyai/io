@@ -193,11 +193,11 @@ func RunMemoryServer(key string, options ...io.OptionServer) error {
 
 var memoryServerManage = maps.NewSafe()
 
-type _memory struct {
+type _memoryClient struct {
 	*bytes.Buffer
 }
 
-func (this *_memory) Close() error {
+func (this *_memoryClient) Close() error {
 	this.Reset()
 	return nil
 }
@@ -209,10 +209,10 @@ type _memoryServer struct {
 }
 
 func (this *_memoryServer) connect() (io.ReadWriteCloser, error) {
-	c := &_memory{Buffer: bytes.NewBuffer(nil)}
+	c := &_memoryClient{Buffer: bytes.NewBuffer(nil)}
 	select {
 	case this.ch <- c:
-	case <-time.After(time.Second * 3):
+	case <-time.After(io.DefaultConnectTimeout):
 		return nil, io.ErrWithTimeout
 	}
 	return c, nil
