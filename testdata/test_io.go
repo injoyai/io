@@ -196,7 +196,7 @@ func Pool(port int) error {
 	if err != nil {
 		return err
 	}
-	io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), 10, func(c *io.Client) {
+	io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), func(c *io.Client) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")
@@ -213,7 +213,7 @@ func PoolWrite(port int) (*io.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), 10, func(c *io.Client) {
+	p := io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), func(c *io.Client) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")

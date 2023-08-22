@@ -1,69 +1,65 @@
 package io
 
 import (
-	"errors"
+	"sync"
 )
 
 // NewPool 新建连接池
-func NewPool(dial DialFunc, num int, options ...OptionClient) *Pool {
-	p := &Pool{
-		client: make(map[string]*Client),
+func NewPool(dial DialFunc, options ...OptionClient) *Pool {
+	return &Pool{
+		dial:    dial,
+		options: options,
+		pool:    make(map[string]*Client),
 	}
-	p.IWriter = NewIWriter(p)
-	p.ICloser = NewICloser(p)
-	go func() {
-		for i := 0; i < num; i++ {
-			c := Redial(dial, options...)
-			p.client[c.GetKey()] = c
-		}
-	}()
-	return p
 }
 
 // Pool 简单版连接池
 type Pool struct {
-	*IWriter
-	*ICloser
-	client     map[string]*Client
-	chooseLast *Client
-	chooseFunc func(all map[string]*Client) (*Client, error)
+	dial    DialFunc
+	options []OptionClient
+	pool    map[string]*Client
+	mu      sync.RWMutex
 }
 
-// SetChooseFunc 设置选择客户端规则函数,默认随机
-func (this *Pool) SetChooseFunc(fn func(all map[string]*Client) (*Client, error)) *Pool {
-	this.chooseFunc = fn
-	return this
+func (this *Pool) new() (*Client, error) {
+	return NewDial(this.dial, this.options...)
 }
 
-// 获取一个客户端
-func (this *Pool) choose() (*Client, error) {
-	if this.chooseFunc == nil {
-		this.chooseFunc = func(all map[string]*Client) (*Client, error) {
-			for _, v := range all {
-				if !v.Closed() {
-					return v, nil
-				}
-			}
-			return nil, errors.New("连接失败")
-		}
+// Get 从连接池获取一个客户端
+func (this *Pool) Get() (*Client, error) {
+	this.mu.RLock()
+	for _, v := range this.pool {
+		this.mu.RUnlock()
+		return v, nil
 	}
-	return this.chooseFunc(this.client)
+	this.mu.RUnlock()
+	return this.new()
+}
+
+// Put 放回连接池
+func (this *Pool) Put(c *Client) {
+	if c != nil && !c.Closed() {
+		this.mu.Lock()
+		defer this.mu.Unlock()
+		this.pool[c.GetKey()] = c
+	}
 }
 
 // Write 实现io.Writer接口
 func (this *Pool) Write(p []byte) (int, error) {
-	c, err := this.choose()
+	c, err := this.Get()
 	if err != nil {
 		return 0, err
 	}
+	defer this.Put(c)
 	return c.Write(p)
 }
 
 // Close 实现io.Closer接口
 func (this *Pool) Close() error {
-	for _, v := range this.client {
+	for _, v := range this.pool {
 		v.CloseAll()
 	}
-	this.client = make(map[string]*Client)
+	this.pool = make(map[string]*Client)
 	return nil
 }

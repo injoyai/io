@@ -17,8 +17,8 @@ Client
 
 */
 
-func PipePool(addr string, num int, options ...io.OptionClient) *io.Pool {
-	return io.NewPool(TCPFunc(addr), 20, func(c *io.Client) {
+func PipePool(addr string, options ...io.OptionClient) *io.Pool {
+	return io.NewPool(TCPFunc(addr), func(c *io.Client) {
 		c.SetReadWriteWithPkg()
 		c.SetKeepAlive(io.DefaultKeepAlive)
 		c.SetPrintFunc(func(msg io.Message, tag ...string) {
