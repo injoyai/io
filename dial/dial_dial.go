@@ -124,7 +124,7 @@ func WithMemory(key string) func() (io.ReadWriteCloser, error) {
 
 func NewMemory(key string, options ...io.OptionClient) (*io.Client, error) {
 	return io.NewDial(WithMemory(key), func(c *io.Client) {
-		c.SetKey("memory")
+		c.SetKey(key)
 		c.SetOptions(options...)
 	})
 }

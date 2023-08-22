@@ -17,6 +17,17 @@ Client
 
 */
 
+func PipePool(addr string, num int, options ...io.OptionClient) *io.Pool {
+	return io.NewPool(TCPFunc(addr), 20, func(c *io.Client) {
+		c.SetReadWriteWithPkg()
+		c.SetKeepAlive(io.DefaultKeepAlive)
+		c.SetPrintFunc(func(msg io.Message, tag ...string) {
+			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
+		})
+		c.SetOptions(options...)
+	})
+}
+
 // RedialPipe 通道客户端
 func RedialPipe(addr string, options ...io.OptionClient) *io.Client {
 	return RedialTCP(addr, func(c *io.Client) {

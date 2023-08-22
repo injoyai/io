@@ -33,3 +33,10 @@ func TestRedial(t *testing.T) {
 	})
 	select {}
 }
+
+func TestRunUDPServer(t *testing.T) {
+	RunUDPServer(10003, func(s *io.Server) {
+		s.Debug()
+		s.SetPrintWithHEX()
+	})
+}
