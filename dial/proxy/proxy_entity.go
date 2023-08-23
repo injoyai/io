@@ -8,7 +8,6 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/buf"
 	"github.com/injoyai/io/dial"
-	"github.com/injoyai/logs"
 )
 
 // New 新建代理实例
@@ -185,31 +184,31 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 	return
 }
 
-func NewTCPClient(addr string, options ...func(c *io.Client, e *Entity)) *io.Client {
-	return dial.RedialPipe(addr, func(c *io.Client) {
-		c.SetPrintFunc(PrintWithASCII)
-		e := New()
-		for _, v := range options {
-			v(c, e)
-		}
-		c.Swap(e)
-	})
-}
+//func NewTCPClient(addr string, options ...func(c *io.Client, e *Entity)) *io.Client {
+//	return dial.RedialPipe(addr, func(c *io.Client) {
+//		c.SetPrintFunc(PrintWithASCII)
+//		e := New()
+//		for _, v := range options {
+//			v(c, e)
+//		}
+//		c.Swap(e)
+//	})
+//}
 
-// NewSwapTCPServer 和TCP服务端交换数据,带测试
-func NewSwapTCPServer(port int, options ...io.OptionServer) error {
-	s, err := dial.NewPipeServer(port)
-	if err != nil {
-		return err
-	}
-	s.Swap(New())
-	s.SetPrintFunc(func(msg io.Message, tag ...string) {
-		logs.Debug(io.PrintfWithASCII(msg, append([]string{"PR|S"}, tag...)...))
-	})
-	s.SetOptions(options...)
-	go s.Run()
-	return nil
-}
+//// NewSwapTCPServer 和TCP服务端交换数据,带测试
+//func NewSwapTCPServer(port int, options ...io.OptionServer) error {
+//	s, err := dial.NewTCPServer(port)
+//	if err != nil {
+//		return err
+//	}
+//	s.Swap(New())
+//	s.SetPrintFunc(func(msg io.Message, tag ...string) {
+//		logs.Debug(io.PrintfWithASCII(msg, append([]string{"PR|S"}, tag...)...))
+//	})
+//	s.SetOptions(options...)
+//	go s.Run()
+//	return nil
+//}
 
 func WithClientDebug(b ...bool) func(c *io.Client, e *Entity) {
 	return func(c *io.Client, e *Entity) {

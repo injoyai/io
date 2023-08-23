@@ -19,4 +19,5 @@ const (
 	DefaultKeepAlive       = time.Minute * 10 //默认保持连接时间
 	DefaultTimeoutInterval = time.Minute      //默认离线检查间隔
 	DefaultResponseTimeout = time.Second * 10 //默认响应超时时间
+
 )

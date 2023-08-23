@@ -53,8 +53,14 @@ func (this *ICloser) SetCloseFunc(fn func(ctx context.Context, msg Message)) *IC
 
 // SetCloseWithNil 设置无关闭函数
 func (this *ICloser) SetCloseWithNil() *ICloser {
-	this.SetCloseFunc(nil)
-	return this
+	return this.SetCloseFunc(nil)
+}
+
+// SetCloseWithCloser 设置关闭函数关闭Closer
+func (this *ICloser) SetCloseWithCloser(c Closer) *ICloser {
+	return this.SetCloseFunc(func(ctx context.Context, msg Message) {
+		c.Close()
+	})
 }
 
 // SetRedialMaxTime 设置退避重试时间,默认32秒,需要连接成功的后续重连生效

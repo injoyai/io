@@ -202,7 +202,7 @@ func (this *Client) SetOptions(options ...OptionClient) *Client {
 }
 
 // SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
-func (this *Client) SetDealFunc(fn func(msg *IMessage)) {
+func (this *Client) SetDealFunc(fn func(msg *IMessage)) *Client {
 	this.IReadCloser.SetDealFunc(func(msg Message) {
 		switch msg.String() {
 		case Ping:
@@ -212,13 +212,15 @@ func (this *Client) SetDealFunc(fn func(msg *IMessage)) {
 			fn(NewIMessage(this, msg))
 		}
 	})
+	return this
 }
 
 // SetCloseFunc 设置关闭函数
-func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *IMessage)) {
+func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *IMessage)) *Client {
 	this.IReadCloser.SetCloseFunc(func(ctx context.Context, msg Message) {
 		fn(ctx, NewIMessage(this, msg))
 	})
+	return this
 }
 
 // SetPrintFunc 设置打印函数
@@ -229,23 +231,23 @@ func (this *Client) SetPrintFunc(fn PrintFunc) *Client {
 }
 
 // SetPrintWithHEX 设置打印HEX
-func (this *Client) SetPrintWithHEX() {
-	this.SetPrintFunc(PrintWithHEX)
+func (this *Client) SetPrintWithHEX() *Client {
+	return this.SetPrintFunc(PrintWithHEX)
 }
 
 // SetPrintWithASCII 设置打印ASCII
-func (this *Client) SetPrintWithASCII() {
-	this.SetPrintFunc(PrintWithASCII)
+func (this *Client) SetPrintWithASCII() *Client {
+	return this.SetPrintFunc(PrintWithASCII)
 }
 
 // SetPrintWithBase 设置打印ASCII,基础信息
-func (this *Client) SetPrintWithBase() {
-	this.SetPrintFunc(PrintWithBase)
+func (this *Client) SetPrintWithBase() *Client {
+	return this.SetPrintFunc(PrintWithBase)
 }
 
 // SetPrintWithErr 设置打印ASCII,错误信息
-func (this *Client) SetPrintWithErr() {
-	this.SetPrintFunc(PrintWithErr)
+func (this *Client) SetPrintWithErr() *Client {
+	return this.SetPrintFunc(PrintWithErr)
 }
 
 // SetReadWriteWithPkg 设置读写为默认分包方式

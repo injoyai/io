@@ -9,23 +9,23 @@ import (
 	"time"
 )
 
-func TestTestProxy(t *testing.T) {
-	t.Log(TestProxy())
-	select {}
-}
-
-func TestProxyTransmit(t *testing.T) {
-	t.Log(ProxyTransmit(12000))
-}
-
-func TestProxyClient(t *testing.T) {
-	ProxyClient(":12000")
-	select {}
-}
-
-func TestVPNClient(t *testing.T) {
-	t.Log(VPNClient(1081, 1090, ":12000"))
-}
+//func TestTestProxy(t *testing.T) {
+//	t.Log(TestProxy())
+//	select {}
+//}
+//
+//func TestProxyTransmit(t *testing.T) {
+//	t.Log(ProxyTransmit(12000))
+//}
+//
+//func TestProxyClient(t *testing.T) {
+//	ProxyClient(":12000")
+//	select {}
+//}
+//
+//func TestVPNClient(t *testing.T) {
+//	t.Log(VPNClient(1081, 1090, ":12000"))
+//}
 
 func TestVPNHTTP(t *testing.T) {
 	c, err := dial.NewTCP(":1081")

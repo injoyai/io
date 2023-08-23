@@ -129,15 +129,15 @@ func (this *ClientManage) SetDealFunc(fn func(msg *IMessage)) {
 }
 
 // SetDealWithWriter 读取到的数据写入到writer
-func (this *ClientManage) SetDealWithWriter(writer Writer) {
+func (this *ClientManage) SetDealWithWriter(w Writer) {
 	this.SetDealFunc(func(msg *IMessage) {
-		writer.Write(msg.Bytes())
+		w.Write(msg.Bytes())
 	})
 }
 
 // SetBeforeFunc 设置连接前置方法
 // 如果返回错误则关闭该连接,需要主动读取数据
-func (this *ClientManage) SetBeforeFunc(fn func(*Client) error) {
+func (this *ClientManage) SetBeforeFunc(fn func(c *Client) error) {
 	this.beforeFunc = fn
 }
 

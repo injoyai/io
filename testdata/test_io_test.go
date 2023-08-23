@@ -62,14 +62,14 @@ func TestPool(t *testing.T) {
 	t.Log(Pool(10089))
 }
 
-func TestPoolWrite(t *testing.T) {
-	p, err := PoolWrite(10089)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	for {
-		<-time.After(time.Second)
-		p.WriteString("666")
-	}
-}
+//func TestPoolWrite(t *testing.T) {
+//	p, err := PoolWrite(10089)
+//	if err != nil {
+//		t.Error(err)
+//		return
+//	}
+//	for {
+//		<-time.After(time.Second)
+//		p.WriteString("666")
+//	}
+//}

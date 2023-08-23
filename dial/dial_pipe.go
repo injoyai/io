@@ -1,6 +1,9 @@
 package dial
 
 import (
+	"context"
+	"errors"
+	"github.com/injoyai/base/g"
 	"github.com/injoyai/io"
 )
 
@@ -14,17 +17,162 @@ Client
 
 提供io.Reader io.Writer接口
 写入数据会封装一层(封装连接信息,动作,数据)
-
+mod
 */
 
-func PipePool(addr string, options ...io.OptionClient) *io.Pool {
-	return io.NewPool(TCPFunc(addr), func(c *io.Client) {
-		c.SetReadWriteWithPkg()
-		c.SetKeepAlive(io.DefaultKeepAlive)
-		c.SetPrintFunc(func(msg io.Message, tag ...string) {
-			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
+const (
+	TypeConnect = 0x01
+	TypeWrite   = 0x02
+	TypeClose   = 0x03
+)
+
+func decodeTunnelMessage(bs []byte) (*TunnelMessage, error) {
+	if len(bs) < 2 {
+		return nil, errors.New("数据异常")
+	}
+	return &TunnelMessage{
+		Type:  bs[0],
+		Model: bs[1],
+		Data:  bs[2:],
+	}, nil
+}
+
+type TunnelMessage struct {
+	Type  uint8  //类型
+	Model uint8  //模式
+	Data  []byte //数据
+}
+
+func (this *TunnelMessage) Bytes() g.Bytes {
+	data := []byte(nil)
+	data = append(data, this.Type, this.Model)
+	data = append(data, this.Data...)
+	return data
+}
+
+func newTunnelMessageBytes(Type, model uint8, data []byte) []byte {
+	return io.NewPkg(0, (&TunnelMessage{
+		Type:  TypeWrite,
+		Model: model,
+		Data:  data,
+	}).Bytes()).Bytes()
+}
+
+func NewTunnelClient(listen io.ListenFunc, dial io.DialFunc, options ...io.OptionServer) (*io.Server, error) {
+	pool := io.NewPool(dial, func(c *io.Client) { c.Debug(false) })
+	return io.NewServer(listen, func(s *io.Server) {
+		s.Debug(false)
+		s.SetOptions(options...)
+		s.SetReadWithAll()
+		s.SetBeforeFunc(func(client *io.Client) error {
+			tun, err := pool.Get()
+			if err != nil {
+				return err
+			}
+
+			{
+				tun.SetReadWithAll()
+				tun.SetCloseWithCloser(client)
+				tun.SetDealFunc(func(msg *io.IMessage) {
+					p, err := io.DecodePkg(msg.Bytes())
+					if err == nil {
+						m, err := decodeTunnelMessage(p.Data)
+						if err == nil {
+							switch m.Type {
+							case TypeConnect:
+								switch m.Model {
+								default:
+									//无效
+								}
+							case TypeWrite:
+								//写入数据
+								client.Write(m.Data)
+							case TypeClose:
+								//关闭连接
+								client.Close()
+							}
+						}
+					}
+				})
+
+				//发送连接信息
+				tun.WriteRead(newTunnelMessageBytes(TypeConnect, 0, nil), io.DefaultConnectTimeout)
+			}
+
+			{
+				client.SetReadWithAll()
+				client.SetDealFunc(func(msg *io.IMessage) {
+					//写入数据
+					tun.Write(newTunnelMessageBytes(TypeWrite, 0, msg.Bytes()))
+				})
+				client.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
+					//发送关闭信息
+					tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, msg.Bytes()), io.DefaultResponseTimeout)
+					//放回连接池
+					pool.Put(tun)
+				})
+			}
+
+			return nil
 		})
-		c.SetOptions(options...)
+	})
+}
+
+func NewTunnelServer(listen io.ListenFunc, options ...io.OptionServer) (*io.Server, error) {
+	return io.NewServer(listen, func(s *io.Server) {
+		s.Debug(false)
+		s.SetOptions(options...)
+		s.SetBeforeFunc(func(tun *io.Client) error {
+			tun.Debug(false)
+			tun.SetReadWithPkg()
+			tun.SetDealFunc(func(msg *io.IMessage) {
+				var c *io.Client
+				p, err := io.DecodePkg(msg.Bytes())
+				if err == nil {
+					m, err := decodeTunnelMessage(p.Data)
+					if err == nil {
+						switch m.Type {
+						case TypeConnect:
+							switch m.Model {
+							default:
+								c, err = NewTCP(string(m.Data), func(c *io.Client) {
+									c.Debug(false)
+									c.SetReadWithAll()
+									c.SetDealFunc(func(msg *io.IMessage) {
+										//写入数据
+										tun.Write(newTunnelMessageBytes(TypeWrite, 0, msg.Bytes()))
+									})
+									c.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
+										//发送关闭信息
+										tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, msg.Bytes()), io.DefaultResponseTimeout)
+									})
+									tun.SetCloseWithCloser(c)
+								})
+								if err != nil {
+									//发送关闭信息
+									tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, []byte("建立连接失败")), io.DefaultResponseTimeout)
+								}
+							}
+						case TypeWrite:
+							//写入数据
+							if c != nil && !c.Closed() {
+								c.Write(m.Data)
+							} else {
+								//发送关闭信息
+								tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, []byte("无连接")), io.DefaultResponseTimeout)
+							}
+						case TypeClose:
+							//关闭连接
+							if c != nil && !c.Closed() {
+								c.Close()
+							}
+
+						}
+					}
+				}
+			})
+			return nil
+		})
 	})
 }
 
@@ -40,38 +188,38 @@ func RedialPipe(addr string, options ...io.OptionClient) *io.Client {
 	})
 }
 
-// NewPipeServer 通道服务端
-func NewPipeServer(port int, options ...io.OptionServer) (*io.Server, error) {
-	return NewTCPServer(port, func(s *io.Server) {
-		s.SetReadWriteWithPkg()
-		s.SetPrintFunc(func(msg io.Message, tag ...string) {
-			io.PrintWithASCII(msg, append([]string{"PI|S"}, tag...)...)
-		})
-		s.SetOptions(options...)
-	})
-}
+//// NewPipeServer 通道服务端
+//func NewPipeServer(port int, options ...io.OptionServer) (*io.Server, error) {
+//	return NewTCPServer(port, func(s *io.Server) {
+//		s.SetReadWriteWithPkg()
+//		s.SetPrintFunc(func(msg io.Message, tag ...string) {
+//			io.PrintWithASCII(msg, append([]string{"PI|S"}, tag...)...)
+//		})
+//		s.SetOptions(options...)
+//	})
+//}
 
-// NewPipeTransmit 通过客户端数据转发,例如客户端1的数据会广播其他所有客户端
-func NewPipeTransmit(port int, options ...io.OptionServer) (*io.Server, error) {
-	return NewPipeServer(port, func(s *io.Server) {
-		s.SetPrintFunc(func(msg io.Message, tag ...string) {
-			if len(tag) > 0 {
-				switch tag[0] {
-				case io.TagWrite, io.TagRead:
-				default:
-					io.PrintWithASCII(msg, append([]string{"PI|T"}, tag...)...)
-				}
-			}
-		})
-		s.SetDealFunc(func(msg *io.IMessage) {
-			//当另一端代理未开启时,无法转发数据
-			for _, v := range s.GetClientMap() {
-				if v.GetKey() != msg.GetKey() {
-					//队列执行,避免阻塞其他
-					v.WriteQueue(msg.Bytes())
-				}
-			}
-		})
-		s.SetOptions(options...)
-	})
-}
+//// NewPipeTransmit 通过客户端数据转发,例如客户端1的数据会广播其他所有客户端
+//func NewPipeTransmit(port int, options ...io.OptionServer) (*io.Server, error) {
+//	return NewPipeServer(port, func(s *io.Server) {
+//		s.SetPrintFunc(func(msg io.Message, tag ...string) {
+//			if len(tag) > 0 {
+//				switch tag[0] {
+//				case io.TagWrite, io.TagRead:
+//				default:
+//					io.PrintWithASCII(msg, append([]string{"PI|T"}, tag...)...)
+//				}
+//			}
+//		})
+//		s.SetDealFunc(func(msg *io.IMessage) {
+//			//当另一端代理未开启时,无法转发数据
+//			for _, v := range s.GetClientMap() {
+//				if v.GetKey() != msg.GetKey() {
+//					//队列执行,避免阻塞其他
+//					v.WriteQueue(msg.Bytes())
+//				}
+//			}
+//		})
+//		s.SetOptions(options...)
+//	})
+//}
