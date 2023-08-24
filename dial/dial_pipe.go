@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/injoyai/base/g"
 	"github.com/injoyai/io"
+	"github.com/injoyai/logs"
 )
 
 /*
@@ -58,135 +59,135 @@ func newTunnelMessageBytes(Type, model uint8, data []byte) []byte {
 	}).Bytes()).Bytes()
 }
 
-func NewTunnelClient(listen io.ListenFunc, dial io.DialFunc, options ...io.OptionServer) (*io.Server, error) {
-	pool := io.NewPool(dial, func(c *io.Client) { c.Debug(false) })
-	return io.NewServer(listen, func(s *io.Server) {
-		s.Debug(false)
-		s.SetOptions(options...)
-		s.SetReadWithAll()
-		s.SetBeforeFunc(func(client *io.Client) error {
-			tun, err := pool.Get()
-			if err != nil {
-				return err
-			}
+func NewTunnelClient(s *io.Server, dial io.DialFunc, options ...io.OptionClient) {
+	pool := io.NewPool(dial, func(c *io.Client) { c.SetOptions(options...) })
+	s.SetBeforeFunc(func(client *io.Client) error {
+		tun, err := pool.Get()
+		if err != nil {
+			logs.Err(err)
+			return err
+		}
 
-			{
-				tun.SetReadWithAll()
-				tun.SetCloseWithCloser(client)
-				tun.SetDealFunc(func(msg *io.IMessage) {
-					p, err := io.DecodePkg(msg.Bytes())
-					if err == nil {
-						m, err := decodeTunnelMessage(p.Data)
-						if err == nil {
-							switch m.Type {
-							case TypeConnect:
-								switch m.Model {
-								default:
-									//无效
-								}
-							case TypeWrite:
-								//写入数据
-								client.Write(m.Data)
-							case TypeClose:
-								//关闭连接
-								client.Close()
-							}
-						}
-					}
-				})
-
-				//发送连接信息
-				tun.WriteRead(newTunnelMessageBytes(TypeConnect, 0, nil), io.DefaultConnectTimeout)
-			}
-
-			{
-				client.SetReadWithAll()
-				client.SetDealFunc(func(msg *io.IMessage) {
-					//写入数据
-					tun.Write(newTunnelMessageBytes(TypeWrite, 0, msg.Bytes()))
-				})
-				client.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
-					//发送关闭信息
-					tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, msg.Bytes()), io.DefaultResponseTimeout)
-					//放回连接池
-					pool.Put(tun)
-				})
-			}
-
-			return nil
-		})
-	})
-}
-
-func NewTunnelServer(listen io.ListenFunc, options ...io.OptionServer) (*io.Server, error) {
-	return io.NewServer(listen, func(s *io.Server) {
-		s.Debug(false)
-		s.SetOptions(options...)
-		s.SetBeforeFunc(func(tun *io.Client) error {
-			tun.Debug(false)
-			tun.SetReadWithPkg()
+		{
+			tun.SetReadWithAll()
+			tun.SetCloseWithCloser(client)
 			tun.SetDealFunc(func(msg *io.IMessage) {
-				var c *io.Client
 				p, err := io.DecodePkg(msg.Bytes())
 				if err == nil {
 					m, err := decodeTunnelMessage(p.Data)
+					logs.Debug(m)
 					if err == nil {
 						switch m.Type {
 						case TypeConnect:
 							switch m.Model {
 							default:
-								c, err = NewTCP(string(m.Data), func(c *io.Client) {
-									c.Debug(false)
-									c.SetReadWithAll()
-									c.SetDealFunc(func(msg *io.IMessage) {
-										//写入数据
-										tun.Write(newTunnelMessageBytes(TypeWrite, 0, msg.Bytes()))
-									})
-									c.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
-										//发送关闭信息
-										tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, msg.Bytes()), io.DefaultResponseTimeout)
-									})
-									tun.SetCloseWithCloser(c)
-								})
-								if err != nil {
-									//发送关闭信息
-									tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, []byte("建立连接失败")), io.DefaultResponseTimeout)
-								}
+								//无效
 							}
 						case TypeWrite:
 							//写入数据
-							if c != nil && !c.Closed() {
-								c.Write(m.Data)
-							} else {
-								//发送关闭信息
-								tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, []byte("无连接")), io.DefaultResponseTimeout)
-							}
+							client.Write(m.Data)
 						case TypeClose:
 							//关闭连接
-							if c != nil && !c.Closed() {
-								c.Close()
-							}
-
+							client.Close()
 						}
 					}
 				}
 			})
-			return nil
-		})
+			logs.Debug(666)
+			//发送连接信息
+			_, err = tun.WriteRead(newTunnelMessageBytes(TypeConnect, 0, nil), io.DefaultConnectTimeout)
+			if err != nil {
+				logs.Debug(err)
+				return err
+			}
+			logs.Debug(667)
+		}
+
+		{
+			client.SetReadWithAll()
+			client.SetDealFunc(func(msg *io.IMessage) {
+				//写入数据
+				tun.Write(newTunnelMessageBytes(TypeWrite, 0, msg.Bytes()))
+			})
+			client.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
+				//发送关闭信息
+				tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, msg.Bytes()), io.DefaultResponseTimeout)
+				//放回连接池
+				pool.Put(tun)
+			})
+		}
+
+		return nil
 	})
 }
 
-// RedialPipe 通道客户端
-func RedialPipe(addr string, options ...io.OptionClient) *io.Client {
-	return RedialTCP(addr, func(c *io.Client) {
-		c.SetReadWriteWithPkg()
-		c.SetKeepAlive(io.DefaultKeepAlive)
-		c.SetPrintFunc(func(msg io.Message, tag ...string) {
-			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
+func NewTunnelServer(s *io.Server) {
+	s.SetBeforeFunc(func(tun *io.Client) error {
+		tun.SetReadWithPkg()
+		tun.SetDealFunc(func(msg *io.IMessage) {
+			logs.Debug(msg.HEX())
+			var c *io.Client
+			p, err := io.DecodePkg(msg.Bytes())
+			if err == nil {
+				m, err := decodeTunnelMessage(p.Data)
+				if err == nil {
+					logs.Debug(m)
+					switch m.Type {
+					case TypeConnect:
+						switch m.Model {
+						default:
+							c, err = NewTCP(string(m.Data), func(c *io.Client) {
+								c.Debug(true)
+								c.SetReadWithAll()
+								c.SetDealFunc(func(msg *io.IMessage) {
+									//写入数据
+									tun.Write(newTunnelMessageBytes(TypeWrite, 0, msg.Bytes()))
+								})
+								c.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
+									//发送关闭信息
+									tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, msg.Bytes()), io.DefaultResponseTimeout)
+								})
+								tun.SetCloseWithCloser(c)
+							})
+							if err != nil {
+								logs.Debug("建立连接失败")
+								//发送关闭信息
+								tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, []byte("建立连接失败")), io.DefaultResponseTimeout)
+							}
+						}
+					case TypeWrite:
+						//写入数据
+						if c != nil && !c.Closed() {
+							c.Write(m.Data)
+						} else {
+							//发送关闭信息
+							tun.WriteRead(newTunnelMessageBytes(TypeClose, 0, []byte("无连接")), io.DefaultResponseTimeout)
+						}
+					case TypeClose:
+						//关闭连接
+						if c != nil && !c.Closed() {
+							c.Close()
+						}
+
+					}
+				}
+			}
 		})
-		c.SetOptions(options...)
+		return nil
 	})
 }
+
+//// RedialPipe 通道客户端
+//func RedialPipe(addr string, options ...io.OptionClient) *io.Client {
+//	return RedialTCP(addr, func(c *io.Client) {
+//		c.SetReadWriteWithPkg()
+//		c.SetKeepAlive(io.DefaultKeepAlive)
+//		c.SetPrintFunc(func(msg io.Message, tag ...string) {
+//			io.PrintWithASCII(msg, append([]string{"PI|C"}, tag...)...)
+//		})
+//		c.SetOptions(options...)
+//	})
+//}
 
 //// NewPipeServer 通道服务端
 //func NewPipeServer(port int, options ...io.OptionServer) (*io.Server, error) {

@@ -10,9 +10,9 @@ func init() {
 	logs.SetWriter(logs.Stdout)
 }
 
-func RunServer(s *io.Server, err error) error {
+func RunServer(s *io.Server, err error, options ...io.OptionServer) error {
 	if err != nil {
 		return err
 	}
-	return s.Run()
+	return s.SetOptions(options...).Run()
 }

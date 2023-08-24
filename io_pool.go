@@ -28,7 +28,7 @@ func (this *Pool) new() (*Client, error) {
 // Get 从连接池获取一个客户端
 func (this *Pool) Get() (c *Client, _ error) {
 	defer func() {
-		if !c.Running() {
+		if c != nil && !c.Running() {
 			go c.Run()
 		}
 	}()
