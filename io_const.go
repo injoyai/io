@@ -15,6 +15,7 @@ const (
 	MB1               = 1 << 20 //1MB
 	DefaultBufferSize = KB4
 
+	DefaultPort            = 10086
 	DefaultConnectTimeout  = time.Second * 2  //默认连接时间
 	DefaultKeepAlive       = time.Minute * 10 //默认保持连接时间
 	DefaultTimeoutInterval = time.Minute      //默认离线检查间隔
