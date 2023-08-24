@@ -21,3 +21,20 @@ const (
 	DefaultResponseTimeout = time.Second * 10 //默认响应超时时间
 
 )
+
+const (
+	TCP       = 0x00 //"TCP"
+	UDP       = 0x01 // "UDP"
+	HTTP      = 0x02 //"HTTP"
+	Websocket = 0x03 // "Websocket"
+	Memory    = 0x04 // "Memory"
+	Serial    = 0x05 // "Serial"
+	SSH       = 0x06 // "SSH"
+	MQTT      = 0x07 // "MQTT"
+)
+
+const (
+	TypeConnect = 0x01 // "connect"
+	TypeWrite   = 0x02 // "write"
+	TypeClose   = 0x03 // "close"
+)
