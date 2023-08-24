@@ -97,7 +97,7 @@ func NewTunnelClient(s *io.Server, dial io.DialFunc, options ...io.OptionClient)
 			//发送连接信息
 			_, err = tun.WriteRead(newTunnelMessageBytes(TypeConnect, 0, nil), io.DefaultConnectTimeout)
 			if err != nil {
-				logs.Debug(err)
+				logs.Debug(err.Error())
 				return err
 			}
 			logs.Debug(667)
