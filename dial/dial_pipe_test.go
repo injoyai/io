@@ -6,9 +6,9 @@ import (
 )
 
 func TestNewTunnelServer(t *testing.T) {
-	s, err := NewTCPServer(10088, func(s *io.Server) {
+	s, err := NewTCPServer(20088, func(s *io.Server) {
 		s.Debug(true)
-		s.SetPrintWithHEX()
+		s.SetPrintWithASCII()
 	})
 	if err != nil {
 		t.Error(err)
@@ -19,7 +19,7 @@ func TestNewTunnelServer(t *testing.T) {
 }
 
 func TestNewTunnelClient(t *testing.T) {
-	s, err := NewTCPServer(10086, func(s *io.Server) {
+	s, err := NewTCPServer(20086, func(s *io.Server) {
 		s.Debug(true)
 		s.SetPrintWithHEX()
 	})
@@ -27,8 +27,8 @@ func TestNewTunnelClient(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	NewTunnelClient(s, WithTCP(":10088"), func(c *io.Client) {
-		c.Debug()
+	NewTunnelClient(s, WithTCP(":20088"), func(c *io.Client) {
+		c.Debug(true)
 		c.SetPrintWithASCII()
 	})
 	t.Log(s.Run())

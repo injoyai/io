@@ -49,13 +49,14 @@ func (this *IWriter) Write(p []byte) (n int, err error) {
 			this.writeAfter(p, err)
 		}
 	}()
-	this.Print(p, TagWrite, this.GetKey())
 	if this.writeFunc != nil {
 		p, err = this.writeFunc(p)
 		if err != nil {
 			return 0, dealErr(err)
 		}
 	}
+	//打印实际发送的数据,方便调试
+	this.Print(p, TagWrite, this.GetKey())
 	n, err = this.writer.Write(p)
 	if err != nil {
 		return 0, dealErr(err)
