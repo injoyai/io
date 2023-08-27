@@ -53,14 +53,6 @@ func (this *TunnelMessage) Bytes() g.Bytes {
 	return data
 }
 
-func newTunnelMessageBytes(Type, model uint8, data []byte) []byte {
-	return io.NewPkg(0, (&TunnelMessage{
-		Type:  Type,
-		Model: model,
-		Data:  data,
-	}).Bytes()).Bytes()
-}
-
 func NewTunnelClient(s *io.Server, dial io.DialFunc, options ...io.OptionClient) {
 	pool := io.NewPool(dial, func(c *io.Client) { c.SetOptions(options...) })
 	s.SetBeforeFunc(func(client *io.Client) error {
@@ -74,35 +66,29 @@ func NewTunnelClient(s *io.Server, dial io.DialFunc, options ...io.OptionClient)
 			tun.SetReadWriteWithPkg()
 			tun.SetCloseWithCloser(client)
 			tun.SetDealFunc(func(msg *io.IMessage) {
-				p, err := io.DecodePkg(msg.Bytes())
-				if err == nil {
-					m, err := decodeTunnelMessage(p.Data)
-					if err == nil {
-						switch m.Type {
-						case TypeConnect:
-							switch m.Model {
-							default:
-								//无效
-							}
-						case TypeWrite:
-							//写入数据
-							client.Write(m.Data)
-						case TypeClose:
-							//关闭连接
-							client.Close()
-						}
-					}
+				m, err := decodeTunnelMessage(msg.Bytes())
+				if err != nil {
+					tun.Write(append([]byte{TypeClose, TypeRequest}, []byte(err.Error())...))
+					client.CloseWithErr(errors.New(err.Error()))
+					return
+				}
+				switch m.Type {
+				case TypeConnect:
+				case TypeWrite:
+					//写入数据
+					logs.Debug(string(m.Data))
+					client.Write(m.Data)
+				default: //TypeClose
+					client.CloseWithErr(errors.New(string(m.Data)))
 				}
 			})
 
-			logs.Debug(666)
 			//发送连接信息
-			_, err = tun.WriteRead(append([]byte{TypeConnect, 0}, []byte("127.0.0.1:10001")...), io.DefaultConnectTimeout)
+			_, err = tun.WriteRead(append([]byte{TypeConnect, 0}, []byte("aiot.qianlangtech.com:8200")...), io.DefaultConnectTimeout)
 			if err != nil {
 				logs.Err(err.Error())
 				return err
 			}
-			logs.Debug(667)
 		}
 
 		{
@@ -115,8 +101,9 @@ func NewTunnelClient(s *io.Server, dial io.DialFunc, options ...io.OptionClient)
 				tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
 			})
 			client.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
+				logs.Debug(777)
 				//发送关闭信息
-				tun.WriteRead(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...), io.DefaultResponseTimeout)
+				tun.Write(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...))
 				//放回连接池
 				pool.Put(tun)
 			})
@@ -128,9 +115,9 @@ func NewTunnelClient(s *io.Server, dial io.DialFunc, options ...io.OptionClient)
 
 func NewTunnelServer(s *io.Server) {
 	s.SetBeforeFunc(func(tun *io.Client) error {
+		var c *io.Client
 		tun.SetReadWriteWithPkg()
 		tun.SetDealFunc(func(msg *io.IMessage) {
-			var c *io.Client
 			m, err := decodeTunnelMessage(msg.Bytes())
 			if err == nil {
 				switch m.Type {
@@ -138,7 +125,7 @@ func NewTunnelServer(s *io.Server) {
 					switch m.Model {
 					default:
 						c, err = NewTCP(string(m.Data), func(c *io.Client) {
-							c.Debug(true)
+							c.Debug(false)
 							c.SetReadWithAll()
 							c.SetDealFunc(func(msg *io.IMessage) {
 								//写入数据
@@ -146,30 +133,29 @@ func NewTunnelServer(s *io.Server) {
 							})
 							c.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
 								//发送关闭信息
-								tun.WriteRead(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...), io.DefaultResponseTimeout)
+								tun.Write(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...))
 							})
 							tun.SetCloseWithCloser(c)
 						})
 						if err != nil {
-							logs.Debug("建立连接失败:", err)
 							//发送关闭信息
-							tun.WriteRead(append([]byte{TypeClose, TypeRequest}, []byte("建立连接失败")...), io.DefaultResponseTimeout)
-						} else {
-							//响应连接成功
-							tun.WriteRead(append([]byte{TypeConnect, TypeResponse}, []byte("succ")...), io.DefaultResponseTimeout)
+							tun.Write(append([]byte{TypeClose, TypeRequest}, []byte(err.Error())...))
+							return
 						}
+						tun.Write(append([]byte{TypeClose, TypeResponse}, []byte("连接成功")...))
+						go c.Run()
 					}
 				case TypeWrite:
-					//写入数据
-					if c != nil && !c.Closed() {
-						c.Write(m.Data)
-					} else {
+					if c == nil || c.Closed() {
 						//发送关闭信息
-						tun.WriteRead(newTunnelMessageBytes(TypeClose, TypeRequest, []byte("无连接")), io.DefaultResponseTimeout)
+						tun.Write(append([]byte{TypeClose, TypeRequest}, []byte("无连接")...))
+						return
 					}
+					//写入数据
+					c.Write(m.Data)
 				case TypeClose:
 					//关闭连接
-					if c != nil && !c.Closed() {
+					if c != nil {
 						c.Close()
 					}
 

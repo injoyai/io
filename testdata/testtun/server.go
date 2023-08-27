@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	s, err := dial.NewTCPServer(20088, func(s *io.Server) {
+	s, err := dial.NewTCPServer(10088, func(s *io.Server) {
 		s.Debug(true)
 		s.SetPrintWithASCII()
 	})

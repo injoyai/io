@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	s, err := dial.NewTCPServer(20086, func(s *io.Server) {
+	s, err := dial.NewTCPServer(10086, func(s *io.Server) {
 		s.Debug(false)
 		s.SetPrintWithASCII()
 	})
@@ -15,7 +15,7 @@ func main() {
 		logs.Error(err)
 		return
 	}
-	dial.NewTunnelClient(s, dial.WithTCP(":20088"), func(c *io.Client) {
+	dial.NewTunnelClient(s, dial.WithTCP(":10088"), func(c *io.Client) {
 		c.Debug(true)
 		c.SetPrintWithASCII()
 	})
