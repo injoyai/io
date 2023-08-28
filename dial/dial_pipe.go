@@ -53,13 +53,27 @@ func (this *TunnelMessage) Bytes() g.Bytes {
 	return data
 }
 
-func NewTunnelClient(s *io.Server, dial io.DialFunc, options ...io.OptionClient) {
-	pool := io.NewPool(dial, func(c *io.Client) { c.SetOptions(options...) })
+func NewTunnelClient(s *io.Server, tunDial io.DialFunc, options ...io.OptionClient) {
+	pool := io.NewPool(tunDial, options...)
 	s.SetBeforeFunc(func(client *io.Client) error {
 		tun, err := pool.Get()
 		if err != nil {
 			logs.Err(err)
 			return err
+		}
+
+		{
+			client.SetReadWithAll()
+			client.SetDealFunc(func(msg *io.IMessage) {
+				//写入数据
+				tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
+			})
+			client.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
+				//发送关闭信息
+				tun.Write(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...))
+				//放回连接池
+				pool.Put(tun)
+			})
 		}
 
 		{
@@ -74,9 +88,9 @@ func NewTunnelClient(s *io.Server, dial io.DialFunc, options ...io.OptionClient)
 				}
 				switch m.Type {
 				case TypeConnect:
+					//连接成功响应
 				case TypeWrite:
 					//写入数据
-					logs.Debug(string(m.Data))
 					client.Write(m.Data)
 				default: //TypeClose
 					client.CloseWithErr(errors.New(string(m.Data)))
@@ -84,29 +98,11 @@ func NewTunnelClient(s *io.Server, dial io.DialFunc, options ...io.OptionClient)
 			})
 
 			//发送连接信息
-			_, err = tun.WriteRead(append([]byte{TypeConnect, 0}, []byte("aiot.qianlangtech.com:8200")...), io.DefaultConnectTimeout)
+			_, err = tun.WriteRead(append([]byte{TypeConnect, TypeRequest}, []byte("aiot.qianlangtech.com:8200")...), io.DefaultConnectTimeout)
 			if err != nil {
 				logs.Err(err.Error())
 				return err
 			}
-		}
-
-		{
-			client.SetReadWithAll()
-			client.SetDealFunc(func(msg *io.IMessage) {
-				if msg.Len() == 0 {
-					return
-				}
-				//写入数据
-				tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
-			})
-			client.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
-				logs.Debug(777)
-				//发送关闭信息
-				tun.Write(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...))
-				//放回连接池
-				pool.Put(tun)
-			})
 		}
 
 		return nil
@@ -142,7 +138,7 @@ func NewTunnelServer(s *io.Server) {
 							tun.Write(append([]byte{TypeClose, TypeRequest}, []byte(err.Error())...))
 							return
 						}
-						tun.Write(append([]byte{TypeClose, TypeResponse}, []byte("连接成功")...))
+						tun.Write(append([]byte{TypeConnect, TypeResponse}, []byte("连接成功")...))
 						go c.Run()
 					}
 				case TypeWrite:

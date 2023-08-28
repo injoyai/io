@@ -45,6 +45,11 @@ type ICloser struct {
 
 //================================CloseFunc================================
 
+// GetCloseFunc 获取关闭函数
+func (this *ICloser) GetCloseFunc() CloseFunc {
+	return this.closeFunc
+}
+
 // SetCloseFunc 设置关闭函数
 func (this *ICloser) SetCloseFunc(fn func(ctx context.Context, msg Message)) *ICloser {
 	this.closeFunc = fn

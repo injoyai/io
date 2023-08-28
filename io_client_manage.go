@@ -197,12 +197,11 @@ func (this *ClientManage) SetClient(c *Client) {
 		return
 	}
 
-	c.SetDealFunc(this._dealFunc)   //数据处理方法
-	c.SetCloseFunc(this._closeFunc) //连接关闭方法
-	c.SetReadFunc(this.readFunc)    //读取数据方法
-	c.SetWriteFunc(this.writeFunc)  //设置发送函数
-	c.Debug(this.debug)             //设置debug模式
-	c.SetPrintFunc(this.printFunc)  //设置打印实例
+	c.SetDealFunc(this._dealFunc)  //数据处理方法
+	c.SetReadFunc(this.readFunc)   //读取数据方法
+	c.SetWriteFunc(this.writeFunc) //设置发送函数
+	c.Debug(this.debug)            //设置debug模式
+	c.SetPrintFunc(this.printFunc) //设置打印实例
 
 	// 协程执行,等待连接的后续数据,来决定后续操作
 	go func(c *Client) {
@@ -224,7 +223,7 @@ func (this *ClientManage) SetClient(c *Client) {
 		}
 
 		//设置连接关闭事件
-		c.SetCloseFunc(this._closeFunc)
+		c.SetCloseFunc(this._closeFunc(c.GetCloseFunc()))
 
 		//加入map 进行管理
 		this.mu.Lock()
@@ -403,18 +402,24 @@ func (this *ClientManage) _dealFunc(msg *IMessage) {
 	}
 }
 
-// _closeFunc 删除连接
-func (this *ClientManage) _closeFunc(ctx context.Context, msg *IMessage) {
-	if this.closeFunc != nil {
-		defer this.closeFunc(msg)
+func (this *ClientManage) _closeFunc(closeFunc ...CloseFunc) func(ctx context.Context, msg *IMessage) {
+	return func(ctx context.Context, msg *IMessage) {
+		defer func() {
+			for _, f := range closeFunc {
+				f(ctx, msg.Message)
+			}
+		}()
+		if this.closeFunc != nil {
+			defer this.closeFunc(msg)
+		}
+		this.mu.Lock()
+		defer this.mu.Unlock()
+		//获取老的连接
+		oldConn := this.m[msg.GetKey()]
+		//存在新连接上来被关闭的情况,判断是否是老的连接
+		if oldConn == nil || oldConn.Pointer() != msg.Pointer() {
+			return
+		}
+		delete(this.m, msg.GetKey())
 	}
-	this.mu.Lock()
-	defer this.mu.Unlock()
-	//获取老的连接
-	oldConn := this.m[msg.GetKey()]
-	//存在新连接上来被关闭的情况,判断是否是老的连接
-	if oldConn == nil || oldConn.Pointer() != msg.Pointer() {
-		return
-	}
-	delete(this.m, msg.GetKey())
 }

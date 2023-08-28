@@ -2,6 +2,7 @@ package io
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 // NewPool 新建连接池
@@ -19,6 +20,20 @@ type Pool struct {
 	options []OptionClient
 	pool    map[string]*Client
 	mu      sync.RWMutex
+	getNum  uint64
+	putNum  uint64
+}
+
+func (this *Pool) Num() int {
+	return len(this.pool)
+}
+
+func (this *Pool) GetNum() uint64 {
+	return this.getNum
+}
+
+func (this *Pool) PutNum() uint64 {
+	return this.putNum
 }
 
 func (this *Pool) new() (*Client, error) {
@@ -28,6 +43,7 @@ func (this *Pool) new() (*Client, error) {
 // Get 从连接池获取一个客户端
 func (this *Pool) Get() (c *Client, _ error) {
 	defer func() {
+		atomic.AddUint64(&this.getNum, 1)
 		if c != nil && !c.Running() {
 			go c.Run()
 		}
@@ -44,6 +60,7 @@ func (this *Pool) Get() (c *Client, _ error) {
 // Put 放回连接池
 func (this *Pool) Put(c *Client) {
 	if c != nil && !c.Closed() {
+		atomic.AddUint64(&this.putNum, 1)
 		this.mu.Lock()
 		defer this.mu.Unlock()
 		this.pool[c.GetKey()] = c
