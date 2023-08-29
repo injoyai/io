@@ -406,7 +406,9 @@ func (this *ClientManage) _closeFunc(closeFunc ...CloseFunc) func(ctx context.Co
 	return func(ctx context.Context, msg *IMessage) {
 		defer func() {
 			for _, f := range closeFunc {
-				f(ctx, msg.Message)
+				if f != nil {
+					f(ctx, msg.Message)
+				}
 			}
 		}()
 		if this.closeFunc != nil {

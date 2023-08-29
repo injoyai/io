@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/injoyai/base/g"
 	"github.com/injoyai/io"
-	"github.com/injoyai/logs"
 )
 
 /*
@@ -53,12 +52,11 @@ func (this *TunnelMessage) Bytes() g.Bytes {
 	return data
 }
 
-func NewTunnelClient(s *io.Server, tunDial io.DialFunc, options ...io.OptionClient) {
+func NewTunnelClient(s *io.Server, tunDial io.DialFunc, proxyAddr string, options ...io.OptionClient) {
 	pool := io.NewPool(tunDial, options...)
 	s.SetBeforeFunc(func(client *io.Client) error {
 		tun, err := pool.Get()
 		if err != nil {
-			logs.Err(err)
 			return err
 		}
 
@@ -77,6 +75,7 @@ func NewTunnelClient(s *io.Server, tunDial io.DialFunc, options ...io.OptionClie
 		}
 
 		{
+			tun.SetKey(client.GetKey())
 			tun.SetReadWriteWithPkg()
 			tun.SetCloseWithCloser(client)
 			tun.SetDealFunc(func(msg *io.IMessage) {
@@ -98,9 +97,8 @@ func NewTunnelClient(s *io.Server, tunDial io.DialFunc, options ...io.OptionClie
 			})
 
 			//发送连接信息
-			_, err = tun.WriteRead(append([]byte{TypeConnect, TypeRequest}, []byte("aiot.qianlangtech.com:8200")...), io.DefaultConnectTimeout)
+			_, err = tun.WriteRead(append([]byte{TypeConnect, TypeRequest}, []byte(proxyAddr)...), io.DefaultConnectTimeout)
 			if err != nil {
-				logs.Err(err.Error())
 				return err
 			}
 		}
