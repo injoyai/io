@@ -271,11 +271,13 @@ func (this *Client) Redial(options ...OptionClient) *Client {
 		readWriteCloser := this.IReadCloser.MustDial(ctx)
 		if readWriteCloser == nil {
 			if this.ICloser.Err() != ErrHandClose {
-				this.ICloser.Print(NewMessageFormat("连接断开(%v),未设置重连函数", this.ICloser.Err()), TagErr, this.GetKey())
+				Log.Errorf("[%s] 连接断开(%v),未设置重连函数", this.GetKey(), this.ICloser.Err())
+				//this.ICloser.Print(NewMessageFormat("连接断开(%v),未设置重连函数", this.ICloser.Err()), TagErr, this.GetKey())
 			}
 			return
 		}
-		this.ICloser.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagInfo, this.GetKey())
+		Log.Infof("[%s] 连接断开(%v),重连成功", this.GetKey(), this.ICloser.Err())
+		//this.ICloser.Print(NewMessageFormat("连接断开(%v),重连成功", this.ICloser.Err()), TagInfo, this.GetKey())
 		redialFunc := this.IReadCloser.redialFunc
 		key := this.GetKey()
 		*this = *NewClient(readWriteCloser)
@@ -286,7 +288,8 @@ func (this *Client) Redial(options ...OptionClient) *Client {
 	})
 	this.SetOptions(options...)
 	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
-	this.Print(Message("连接服务端成功..."), TagInfo, this.GetKey())
+	Log.Infof("[%s] 连接服务端成功...", this.GetKey())
+	//this.Print(Message("连接服务端成功..."), TagInfo, this.GetKey())
 	go this.Run()
 	return this
 }

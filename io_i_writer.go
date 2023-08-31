@@ -56,7 +56,8 @@ func (this *IWriter) Write(p []byte) (n int, err error) {
 		}
 	}
 	//打印实际发送的数据,方便调试
-	this.Print(p, TagWrite, this.GetKey())
+	Log.Writef("["+this.GetKey()+"] %s", string(p))
+	//this.Print(p, TagWrite, this.GetKey())
 	n, err = this.writer.Write(p)
 	if err != nil {
 		return 0, dealErr(err)

@@ -89,7 +89,8 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 		})
 		ser = &Server{s: s, e: New(), dealFunc: func(msg *CMessage) error {
 			m := "未设置处理函数"
-			s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
+			io.Log.Errorf("[PR|S] 未设置处理函数")
+			//s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
 			return errors.New(m)
 		}}
 		s.SetCloseFunc(func(msg *io.IMessage) {

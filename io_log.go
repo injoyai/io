@@ -1,6 +1,8 @@
 package io
 
 import (
+	"encoding/hex"
+	"fmt"
 	"log"
 )
 
@@ -30,48 +32,62 @@ func (this Level) String() string {
 	return "未知"
 }
 
+func (this Level) printf(format string, v ...interface{}) {
+	log.Printf("["+this.String()+"]"+format, fmt.Sprint(v...))
+}
+
 type ILog interface {
 	Level(level Level)
-	Read(v ...interface{})
-	Write(v ...interface{})
-	Info(v ...interface{})
-	Debug(v ...interface{})
-	Error(v ...interface{})
+	Readf(format string, v ...interface{})
+	Writef(format string, v ...interface{})
+	Infof(format string, v ...interface{})
+	Debugf(format string, v ...interface{})
+	Errorf(format string, v ...interface{})
 }
 
 var Log = ILog(&_log{})
 
 type _log struct {
-	level Level
+	level  Level
+	encode string
+}
+
+func (this *_log) WithASCII() {
+	this.encode = "ascii"
+}
+
+func (this *_log) WithHEX() {
+	this.encode = "hex"
 }
 
 func (this *_log) Level(level Level) {
 	this.level = level
 }
 
-func (this *_log) Info(v ...interface{}) {
-	this.print(LevelInfo, v...)
+func (this *_log) Infof(format string, v ...interface{}) {
+	LevelInfo.printf(format, v...)
 }
 
-func (this *_log) Write(v ...interface{}) {
-	this.print(LevelWrite, v...)
-}
-
-func (this *_log) Read(v ...interface{}) {
-	this.print(LevelRead, v...)
-}
-
-func (this *_log) Debug(v ...interface{}) {
-	this.print(LevelDebug, v...)
-}
-
-func (this *_log) Error(v ...interface{}) {
-	this.print(LevelError, v...)
-}
-
-func (this *_log) print(level Level, v ...interface{}) {
-	if this.level > 0 && this.level < level {
-		return
+func (this *_log) Writef(format string, v ...interface{}) {
+	msg := fmt.Sprintf(format, v...)
+	if this.encode == "hex" {
+		msg = hex.EncodeToString([]byte(msg))
 	}
-	log.Println(append([]interface{}{"[" + level.String() + "]"}, v...))
+	LevelWrite.printf(msg)
+}
+
+func (this *_log) Readf(format string, v ...interface{}) {
+	msg := fmt.Sprint(v...)
+	if this.encode == "hex" {
+		msg = hex.EncodeToString([]byte(msg))
+	}
+	LevelRead.printf(format, msg)
+}
+
+func (this *_log) Debugf(format string, v ...interface{}) {
+	LevelDebug.printf(format, v...)
+}
+
+func (this *_log) Errorf(format string, v ...interface{}) {
+	LevelError.printf(format, v...)
 }

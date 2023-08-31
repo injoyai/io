@@ -117,7 +117,8 @@ func (this *Server) Run() error {
 		return nil
 	}
 
-	this.Print(Message("开启服务成功..."), TagInfo, this.GetKey())
+	Log.Infof("[%s] 开启服务成功...", this.GetKey())
+	//this.Print(Message("开启服务成功..."), TagInfo, this.GetKey())
 
 	//执行监听连接
 	for {
@@ -135,7 +136,8 @@ func (this *Server) Run() error {
 
 		//新建客户端,并配置
 		x := NewClientWithContext(this.Ctx(), c).SetKey(key)
-		this.Print(Message("新的客户端连接..."), TagInfo, x.GetKey())
+		Log.Infof("[%s] 新的客户端连接...", this.GetKey())
+		//this.Print(Message("新的客户端连接..."), TagInfo, x.GetKey())
 		this.ClientManage.SetClient(x)
 
 	}

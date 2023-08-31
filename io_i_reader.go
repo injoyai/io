@@ -121,7 +121,8 @@ func (this *IReader) SetReadFunc(fn func(*bufio.Reader) ([]byte, error)) *IReade
 			default:
 			}
 			//打印日志
-			this.Print(bs, TagRead, this.GetKey())
+			Log.Readf("["+this.GetKey()+"] %s", string(bs))
+			//this.Print(bs, TagRead, this.GetKey())
 		}
 		return bs, nil
 	}
