@@ -27,7 +27,7 @@ func TestNewTunnelClient(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	NewTunnelClient(s, WithTCP(":20088"), func(c *io.Client) {
+	NewTunnelClient(s, WithTCP(":20088"), "", func(c *io.Client) {
 		c.Debug(true)
 		c.SetPrintWithASCII()
 	})
