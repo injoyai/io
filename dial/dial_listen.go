@@ -26,8 +26,8 @@ func TCPListenFunc(port int) io.ListenFunc {
 
 func NewTCPServer(port int, options ...io.OptionServer) (*io.Server, error) {
 	return io.NewServer(TCPListenFunc(port), func(s *io.Server) {
-		s.SetOptions(options...)
 		s.SetKey(fmt.Sprintf(":%d", port))
+		s.SetOptions(options...)
 	})
 }
 
@@ -36,11 +36,11 @@ func RunTCPServer(port int, options ...io.OptionServer) error {
 }
 
 func NewTCPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
-	return NewProxyServer(TCPListenFunc(port), TCPFunc(addr), options...)
+	return NewProxyServer(TCPListenFunc(port), WithTCP(addr), options...)
 }
 
 func RunTCPProxyServer(port int, addr string, options ...io.OptionServer) error {
-	return RunProxyServer(TCPListenFunc(port), TCPFunc(addr), options...)
+	return RunProxyServer(TCPListenFunc(port), WithTCP(addr), options...)
 }
 
 type _tcpServer struct {
@@ -77,8 +77,8 @@ func UDPListenFunc(port int) io.ListenFunc {
 
 func NewUDPServer(port int, options ...io.OptionServer) (*io.Server, error) {
 	return io.NewServer(UDPListenFunc(port), func(s *io.Server) {
-		s.SetOptions(options...)
 		s.SetKey(fmt.Sprintf(":%d", port))
+		s.SetOptions(options...)
 	})
 }
 
@@ -87,11 +87,11 @@ func RunUDPServer(port int, options ...io.OptionServer) error {
 }
 
 func NewUDPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
-	return NewProxyServer(UDPListenFunc(port), TCPFunc(addr), options...)
+	return NewProxyServer(UDPListenFunc(port), WithTCP(addr), options...)
 }
 
 func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error {
-	return RunProxyServer(UDPListenFunc(port), TCPFunc(addr), options...)
+	return RunProxyServer(UDPListenFunc(port), WithTCP(addr), options...)
 }
 
 type _udp struct {

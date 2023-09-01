@@ -9,15 +9,15 @@ import (
 )
 
 func Example() {
-	io.Redial(dial.TCPFunc("xxx"))
-	io.Redial(dial.UDPFunc("xxx"))
+	io.Redial(dial.WithTCP("xxx"))
+	io.Redial(dial.WithUDP("xxx"))
 	io.Redial(dial.SerialFunc(nil))
-	io.Redial(dial.FileFunc("./xxx.txt"))
+	io.Redial(dial.WithFile("./xxx.txt"))
 
 }
 
 func NewClient(addr string) error {
-	c := io.Redial(dial.TCPFunc(addr), func(c *io.Client) {
+	c := io.Redial(dial.WithTCP(addr), func(c *io.Client) {
 		logs.Debug("重连...")
 		c.Debug()
 	})
@@ -71,7 +71,7 @@ func CloseAll(port int) error {
 }
 
 func ClientRun(addr string) *io.Client {
-	return io.Redial(dial.TCPFunc(addr), func(c *io.Client) {
+	return io.Redial(dial.WithTCP(addr), func(c *io.Client) {
 		c.Debug()
 		c.SetPrintWithASCII()
 		c.SetKey("test")
@@ -100,7 +100,7 @@ func TimeoutClient(port int, timeout time.Duration) error {
 
 // TimeoutServer 测试服务端超时
 func TimeoutServer(port int, timeout time.Duration) error {
-	go io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
+	go io.Redial(dial.WithTCP(fmt.Sprintf(":%d", port)),
 		func(c *io.Client) {
 			c.Debug()
 		})
@@ -163,7 +163,7 @@ func ClientCtxParent(port int) error {
 	}
 	<-time.After(time.Second * 5)
 	go s.Run()
-	c := io.Redial(dial.TCPFunc(fmt.Sprintf(":%d", port)),
+	c := io.Redial(dial.WithTCP(fmt.Sprintf(":%d", port)),
 		func(c *io.Client) {
 			c.Debug()
 			c.GoTimerWriter(time.Second, func(c *io.IWriter) error {
@@ -196,7 +196,7 @@ func Pool(port int) error {
 	if err != nil {
 		return err
 	}
-	io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), func(c *io.Client) {
+	io.NewPool(dial.WithTCP(fmt.Sprintf(":%d", port)), func(c *io.Client) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")
@@ -213,7 +213,7 @@ func PoolWrite(port int) (*io.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := io.NewPool(dial.TCPFunc(fmt.Sprintf(":%d", port)), func(c *io.Client) {
+	p := io.NewPool(dial.WithTCP(fmt.Sprintf(":%d", port)), func(c *io.Client) {
 		c.Debug()
 		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")

@@ -4,6 +4,7 @@ import (
 	"errors"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/websocket"
+	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"golang.org/x/crypto/ssh"
 	"net"
@@ -21,11 +22,6 @@ func TCP(addr string) (io.ReadWriteCloser, error) {
 	return net.Dial("tcp", addr)
 }
 
-// TCPFunc 连接函数
-func TCPFunc(addr string) func() (io.ReadWriteCloser, error) {
-	return WithTCP(addr)
-}
-
 // WithTCP 连接函数
 func WithTCP(addr string) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) { return TCP(addr) }
@@ -33,7 +29,7 @@ func WithTCP(addr string) func() (io.ReadWriteCloser, error) {
 
 // NewTCP 新建TCP连接
 func NewTCP(addr string, options ...io.OptionClient) (*io.Client, error) {
-	return io.NewDial(TCPFunc(addr), func(c *io.Client) {
+	return io.NewDial(WithTCP(addr), func(c *io.Client) {
 		c.SetKey(addr)
 		c.SetOptions(options...)
 	})
@@ -41,7 +37,7 @@ func NewTCP(addr string, options ...io.OptionClient) (*io.Client, error) {
 
 // RedialTCP 一直连接TCP服务端,并重连
 func RedialTCP(addr string, options ...io.OptionClient) *io.Client {
-	return io.Redial(TCPFunc(addr), func(c *io.Client) {
+	return io.Redial(WithTCP(addr), func(c *io.Client) {
 		c.SetKey(addr)
 		c.SetOptions(options...)
 	})
@@ -54,18 +50,13 @@ func UDP(addr string) (io.ReadWriteCloser, error) {
 	return net.Dial("udp", addr)
 }
 
-// UDPFunc 连接函数
-func UDPFunc(addr string) func() (io.ReadWriteCloser, error) {
-	return WithUDP(addr)
-}
-
 // WithUDP 连接函数
 func WithUDP(addr string) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) { return UDP(addr) }
 }
 
 func NewUDP(addr string, options ...io.OptionClient) (*io.Client, error) {
-	return io.NewDial(UDPFunc(addr), func(c *io.Client) {
+	return io.NewDial(WithUDP(addr), func(c *io.Client) {
 		c.SetKey(addr)
 		c.SetOptions(options...)
 	})
@@ -73,10 +64,30 @@ func NewUDP(addr string, options ...io.OptionClient) (*io.Client, error) {
 
 // RedialUDP 一直连接UDP服务端,并重连
 func RedialUDP(addr string, options ...io.OptionClient) *io.Client {
-	return io.Redial(UDPFunc(addr), func(c *io.Client) {
+	return io.Redial(WithUDP(addr), func(c *io.Client) {
 		c.SetKey(addr)
 		c.SetOptions(options...)
 	})
+}
+
+var udpMap *maps.Safe
+
+func WriteUDP(addr string, p []byte) error {
+	if udpMap == nil {
+		udpMap = maps.NewSafe()
+	}
+	v := udpMap.GetInterface(addr)
+	if v == nil {
+		c, err := net.Dial("udp", addr)
+		if err != nil {
+			return err
+		}
+		udpMap.Set(addr, c)
+		v = c
+	}
+	c := v.(net.Conn)
+	_, err := c.Write(p)
+	return err
 }
 
 //================================FileDial================================
@@ -84,11 +95,6 @@ func RedialUDP(addr string, options ...io.OptionClient) *io.Client {
 // File 打开文件
 func File(path string) (io.ReadWriteCloser, error) {
 	return os.Open(path)
-}
-
-// FileFunc 打开文件函数
-func FileFunc(path string) func() (io.ReadWriteCloser, error) {
-	return WithFile(path)
 }
 
 // WithFile 打开文件函数
@@ -99,7 +105,7 @@ func WithFile(path string) func() (io.ReadWriteCloser, error) {
 }
 
 func NewFile(path string, options ...io.OptionClient) (*io.Client, error) {
-	return io.NewDial(FileFunc(path), func(c *io.Client) {
+	return io.NewDial(WithFile(path), func(c *io.Client) {
 		c.SetKey(path)
 		c.SetOptions(options...)
 	})
@@ -155,10 +161,6 @@ func MQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser
 	return r, token.Error()
 }
 
-func MQTTFunc(clientID, topic string, qos byte, cfg *MQTTConfig) func() (io.ReadWriteCloser, error) {
-	return WithMQTT(clientID, topic, qos, cfg)
-}
-
 func WithMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) func() (io.ReadWriteCloser, error) {
 	return func() (closer io.ReadWriteCloser, err error) {
 		return MQTT(clientID, topic, qos, cfg)
@@ -166,7 +168,7 @@ func WithMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) func() (io.Read
 }
 
 func NewMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (*io.Client, error) {
-	c, err := io.NewDial(MQTTFunc(clientID, topic, qos, cfg))
+	c, err := io.NewDial(WithMQTT(clientID, topic, qos, cfg))
 	if err == nil {
 		c.SetKey(topic)
 	}
@@ -174,7 +176,7 @@ func NewMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (*io.Client, err
 }
 
 func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(MQTTFunc(clientID, topic, qos, cfg.SetAutoReconnect(false)), func(c *io.Client) {
+	return io.Redial(WithMQTT(clientID, topic, qos, cfg.SetAutoReconnect(false)), func(c *io.Client) {
 		c.SetKey(topic)
 		c.SetOptions(options...)
 	})
@@ -220,10 +222,6 @@ func Websocket(url string, header http.Header) (io.MessageReadWriteCloser, error
 	return &_websocket{Conn: c}, err
 }
 
-func WebsocketFunc(url string, header http.Header) func() (io.ReadWriteCloser, error) {
-	return WithWebsocket(url, header)
-}
-
 func WithWebsocket(url string, header http.Header) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) {
 		c, _, err := websocket.DefaultDialer.Dial(url, header)
@@ -232,7 +230,7 @@ func WithWebsocket(url string, header http.Header) func() (io.ReadWriteCloser, e
 }
 
 func NewWebsocket(url string, header http.Header) (*io.Client, error) {
-	c, err := io.NewDial(WebsocketFunc(url, header))
+	c, err := io.NewDial(WithWebsocket(url, header))
 	if err == nil {
 		c.SetKey(func() string {
 			if u, err := gourl.Parse(url); err == nil {
@@ -245,7 +243,7 @@ func NewWebsocket(url string, header http.Header) (*io.Client, error) {
 }
 
 func RedialWebsocket(url string, header http.Header, options ...io.OptionClient) *io.Client {
-	return io.Redial(WebsocketFunc(url, header), func(c *io.Client) {
+	return io.Redial(WithWebsocket(url, header), func(c *io.Client) {
 		c.SetKey(func() string {
 			if u, err := gourl.Parse(url); err == nil {
 				return u.Path
@@ -378,10 +376,6 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 	}, nil
 }
 
-func SSHFunc(cfg *SSHConfig) func() (io.ReadWriteCloser, error) {
-	return WithSSH(cfg)
-}
-
 func WithSSH(cfg *SSHConfig) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) {
 		return SSH(cfg)
@@ -389,7 +383,7 @@ func WithSSH(cfg *SSHConfig) func() (io.ReadWriteCloser, error) {
 }
 
 func NewSSH(cfg *SSHConfig, options ...io.OptionClient) (*io.Client, error) {
-	c, err := io.NewDial(SSHFunc(cfg))
+	c, err := io.NewDial(WithSSH(cfg))
 	if err == nil {
 		c.SetKey(cfg.Addr).SetOptions(options...)
 	}
@@ -397,7 +391,7 @@ func NewSSH(cfg *SSHConfig, options ...io.OptionClient) (*io.Client, error) {
 }
 
 func RedialSSH(cfg *SSHConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(SSHFunc(cfg), func(c *io.Client) {
+	return io.Redial(WithSSH(cfg), func(c *io.Client) {
 		c.SetKey(cfg.Addr)
 		c.SetOptions(options...)
 	})
