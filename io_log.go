@@ -9,8 +9,8 @@ import (
 const (
 	LevelWrite Level = 1 + iota
 	LevelRead
-	LevelInfo
 	LevelDebug
+	LevelInfo
 	LevelError
 )
 
@@ -22,18 +22,20 @@ func (this Level) String() string {
 		return "发送"
 	case LevelRead:
 		return "接收"
-	case LevelInfo:
-		return "信息"
 	case LevelDebug:
 		return "调试"
+	case LevelInfo:
+		return "信息"
 	case LevelError:
 		return "错误"
 	}
 	return "未知"
 }
 
-func (this Level) printf(format string, v ...interface{}) {
-	log.Printf("["+this.String()+"]"+format, fmt.Sprint(v...))
+func (this Level) printf(level Level, format string, v ...interface{}) {
+	if this >= level {
+		log.Printf("["+this.String()+"]"+format, fmt.Sprint(v...))
+	}
 }
 
 type ILog interface {
@@ -65,7 +67,7 @@ func (this *_log) Level(level Level) {
 }
 
 func (this *_log) Infof(format string, v ...interface{}) {
-	LevelInfo.printf(format, v...)
+	LevelInfo.printf(this.level, format, v...)
 }
 
 func (this *_log) Writef(format string, v ...interface{}) {
@@ -73,7 +75,7 @@ func (this *_log) Writef(format string, v ...interface{}) {
 	if this.encode == "hex" {
 		msg = hex.EncodeToString([]byte(msg))
 	}
-	LevelWrite.printf(msg)
+	LevelWrite.printf(this.level, msg)
 }
 
 func (this *_log) Readf(format string, v ...interface{}) {
@@ -81,13 +83,13 @@ func (this *_log) Readf(format string, v ...interface{}) {
 	if this.encode == "hex" {
 		msg = hex.EncodeToString([]byte(msg))
 	}
-	LevelRead.printf(format, msg)
+	LevelRead.printf(this.level, format, msg)
 }
 
 func (this *_log) Debugf(format string, v ...interface{}) {
-	LevelDebug.printf(format, v...)
+	LevelDebug.printf(this.level, format, v...)
 }
 
 func (this *_log) Errorf(format string, v ...interface{}) {
-	LevelError.printf(format, v...)
+	LevelError.printf(this.level, format, v...)
 }
