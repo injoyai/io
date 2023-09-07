@@ -71,6 +71,26 @@ func (this *IWriter) WriteBytes(p []byte) (int, error) {
 	return this.Write(p)
 }
 
+// WriteSplit 写入字节,分片写入,例如udp需要写入字节小于(1500-20-8=1472)
+func (this *IWriter) WriteSplit(p []byte, length int) (int, error) {
+	if length <= 0 {
+		return this.Write(p)
+	}
+	for len(p) > 0 {
+		var data []byte
+		if len(p) >= length {
+			data, p = p[:length], p[length:]
+		} else {
+			data, p = p, p[:0]
+		}
+		_, err := this.Write(data)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return len(p), nil
+}
+
 // WriteString 写入字符串,实现io.StringWriter
 func (this *IWriter) WriteString(s string) (int, error) {
 	return this.Write([]byte(s))
