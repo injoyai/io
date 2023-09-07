@@ -1,6 +1,8 @@
 package p2p
 
 import (
+	"github.com/injoyai/io"
+	"github.com/injoyai/io/dial"
 	"net"
 )
 
@@ -11,9 +13,13 @@ const (
 type Peer interface {
 }
 
-func NewPeer(localPort int, remoteAddr string) (Peer, error) {
+func NewPeer(localPort int, remoteAddr string) (*peer, error) {
 	localAddr := &net.UDPAddr{Port: localPort}
-	s, err := net.ListenUDP("udp", localAddr)
+	//s, err := net.ListenUDP("udp", localAddr)
+	s, err := dial.NewUDPServer(localPort, func(s *io.Server) {
+		s.Debug()
+		s.SetPrintWithASCII()
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -22,12 +28,17 @@ func NewPeer(localPort int, remoteAddr string) (Peer, error) {
 		return nil, err
 	}
 	c, err := net.DialUDP(UDP, localAddr, raddr)
-	return &peer{p: localPort, s: s, c: c}, err
+	if err != nil {
+		return nil, err
+	}
+	go s.Run()
+	return &peer{p: localPort, s: s, c: c}, nil
 }
 
 type peer struct {
-	p    int          //占用的端口
-	s    *net.UDPConn //监听的服务
+	p int        //占用的端口
+	s *io.Server //监听的服务
+	//s    *net.UDPConn //监听的服务
 	c    *net.UDPConn //发起的请求
 	stun net.Conn     //代理的服务器
 }
