@@ -67,10 +67,10 @@ func (this *Server) SetDealFunc(fn func(msg *CMessage) error) {
 	this.dealFunc = fn
 }
 
-// SetPrintFunc 设置打印函数
-func (this *Server) SetPrintFunc(fn func(msg io.Message, tag ...string)) {
-	this.s.SetPrintFunc(fn)
-}
+//// SetPrintFunc 设置打印函数
+//func (this *Server) SetPrintFunc(fn func(msg io.Message, tag ...string)) {
+//	this.s.SetPrintFunc(fn)
+//}
 
 // SetOptions 设置选项
 func (this *Server) SetOptions(options ...func(s *Server)) {
@@ -84,9 +84,9 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 	_, err := io.NewServer(dial, func(s *io.Server) {
 		//读取全部数据
 		s.SetReadWithAll()
-		s.SetPrintFunc(func(msg io.Message, tag ...string) {
-			io.PrintWithASCII(msg.Bytes(), append([]string{"PR|S"}, tag...)...)
-		})
+		//s.SetPrintFunc(func(msg io.Message, tag ...string) {
+		//	io.PrintWithASCII(msg.Bytes(), append([]string{"PR|S"}, tag...)...)
+		//})
 		ser = &Server{s: s, e: New(), dealFunc: func(msg *CMessage) error {
 			m := "未设置处理函数"
 			io.Log.Errorf("[PR|S] 未设置处理函数")

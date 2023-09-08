@@ -35,8 +35,11 @@ func TestRedial(t *testing.T) {
 }
 
 func TestRunUDPServer(t *testing.T) {
-	RunUDPServer(10003, func(s *io.Server) {
+	RunUDPServer(20001, func(s *io.Server) {
 		s.Debug()
 		s.SetPrintWithHEX()
+		s.SetDealFunc(func(msg *io.IMessage) {
+			msg.WriteString("7777")
+		})
 	})
 }

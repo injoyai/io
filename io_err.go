@@ -24,8 +24,16 @@ var (
 	ErrMaxConnect         = errors.New("到达最大连接数")
 )
 
-// dealErr 错误处理,常见整理成中文
+// 错误处理 错误信息处理
 func dealErr(err error) error {
+	if DealErr == nil {
+		return err
+	}
+	return DealErr(err)
+}
+
+// defaultDealErr 错误处理,常见整理成中文
+func defaultDealErr(err error) error {
 	if err != nil {
 		s := err.Error()
 		if err == io.EOF {

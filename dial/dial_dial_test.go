@@ -91,3 +91,7 @@ func TestIOSpeed(t *testing.T) {
 		})
 	}).DoneAll()
 }
+
+func TestRedialUDP(t *testing.T) {
+	RedialUDP("127.0.0.1")
+}

@@ -1,8 +1,6 @@
 package io
 
 import (
-	"encoding/hex"
-	"fmt"
 	"log"
 )
 
@@ -34,7 +32,7 @@ func (this Level) String() string {
 
 func (this Level) printf(level Level, format string, v ...interface{}) {
 	if this >= level {
-		log.Printf("["+this.String()+"]"+format, fmt.Sprint(v...))
+		log.Printf("["+this.String()+"]"+format, v...)
 	}
 }
 
@@ -47,19 +45,8 @@ type ILog interface {
 	Errorf(format string, v ...interface{})
 }
 
-var Log = ILog(&_log{})
-
 type _log struct {
-	level  Level
-	encode string
-}
-
-func (this *_log) WithASCII() {
-	this.encode = "ascii"
-}
-
-func (this *_log) WithHEX() {
-	this.encode = "hex"
+	level Level
 }
 
 func (this *_log) Level(level Level) {
@@ -71,19 +58,11 @@ func (this *_log) Infof(format string, v ...interface{}) {
 }
 
 func (this *_log) Writef(format string, v ...interface{}) {
-	msg := fmt.Sprintf(format, v...)
-	if this.encode == "hex" {
-		msg = hex.EncodeToString([]byte(msg))
-	}
-	LevelWrite.printf(this.level, msg)
+	LevelWrite.printf(this.level, format, v...)
 }
 
 func (this *_log) Readf(format string, v ...interface{}) {
-	msg := fmt.Sprint(v...)
-	if this.encode == "hex" {
-		msg = hex.EncodeToString([]byte(msg))
-	}
-	LevelRead.printf(this.level, format, msg)
+	LevelRead.printf(this.level, format, v...)
 }
 
 func (this *_log) Debugf(format string, v ...interface{}) {

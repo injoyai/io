@@ -5,13 +5,36 @@ import (
 	"io"
 )
 
-// CopyFunc 复制数据,每次固定4KB,并提供函数监听
-func CopyFunc(w Writer, r Reader, fn func(buf []byte)) (int, error) {
-	return CopyNFunc(w, r, DefaultBufferSize, fn)
+func NewMessageReader(r io.Reader, read ReadFunc) MessageReader {
+	return &messageReader{bufio.NewReader(r), read}
 }
 
-// CopyNFunc 复制数据,每次固定大小,并提供函数监听
-func CopyNFunc(w Writer, r Reader, n int64, fn func(buf []byte)) (int, error) {
+func MessageReaderWith(r MessageReader, fn DealFunc) error {
+	for {
+		bs, err := r.ReadMessage()
+		if err != nil {
+			return err
+		}
+		if err = fn(bs); err != nil {
+			return err
+		}
+	}
+}
+
+/*
+
+
+
+
+ */
+
+// CopyWith 复制数据,每次固定4KB,并提供函数监听
+func CopyWith(w Writer, r Reader, fn func(buf []byte)) (int, error) {
+	return CopyNWith(w, r, DefaultBufferSize, fn)
+}
+
+// CopyNWith 复制数据,每次固定大小,并提供函数监听
+func CopyNWith(w Writer, r Reader, n int64, fn func(buf []byte)) (int, error) {
 	buff := bufio.NewReader(r)
 	length := 0
 	for {
@@ -33,6 +56,12 @@ func CopyNFunc(w Writer, r Reader, n int64, fn func(buf []byte)) (int, error) {
 	}
 }
 
+/*
+
+
+
+ */
+
 // MultiCloser 多个关闭合并
 func MultiCloser(closer ...Closer) Closer {
 	return &multiCloser{closer: closer}
@@ -44,7 +73,7 @@ func PublisherToWriter(p Publisher, topic string) Writer {
 }
 
 func NewReadWriter(r Reader, w Writer) ReadWriteCloser {
-	return &readWrite{Reader: r, Writer: w}
+	return &readWriter{Reader: r, Writer: w}
 }
 
 // SwapClient 数据交换交换
@@ -69,8 +98,15 @@ func Swap(i1, i2 ReadWriteCloser) {
 
  */
 
-// multiCloser
-// 合并多个Closer , 变成1个Closer
+type messageReader struct {
+	buf  *bufio.Reader
+	read ReadFunc
+}
+
+func (this *messageReader) ReadMessage() ([]byte, error) {
+	return this.read(this.buf)
+}
+
 type multiCloser struct {
 	closer []Closer
 }
@@ -94,12 +130,12 @@ func (this *publishToWriter) Write(p []byte) (int, error) {
 	return len(p), err
 }
 
-type readWrite struct {
+type readWriter struct {
 	Reader
 	Writer
 }
 
-func (this *readWrite) Close() error { return nil }
+func (this *readWriter) Close() error { return nil }
 
 type Read func(p []byte) (int, error)
 

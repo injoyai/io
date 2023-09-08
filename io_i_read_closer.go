@@ -29,11 +29,11 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 type IReadCloser struct {
 	*IReader
 	*ICloser
-	dealFunc DealFunc      //处理数据函数
-	running  uint32        //是否在运行
-	timeout  time.Duration //超时时间
-	readSign chan struct{} //读取到数据信号,配合超时机制使用
-	queue    *chans.Entity //协程队列,可选
+	dealFunc func(msg Message) //处理数据函数
+	running  uint32            //是否在运行
+	timeout  time.Duration     //超时时间
+	readSign chan struct{}     //读取到数据信号,配合超时机制使用
+	queue    *chans.Entity     //协程队列,可选
 }
 
 //================================Nature================================

@@ -35,10 +35,10 @@ func (this *printer) SetPrintFunc(fn PrintFunc) {
 	this.printFunc = fn
 }
 
-// GetPrintFunc 获取打印函数
-func (this *printer) GetPrintFunc() PrintFunc {
-	return this.printFunc
-}
+//// GetPrintFunc 获取打印函数
+//func (this *printer) GetPrintFunc() PrintFunc {
+//	return this.printFunc
+//}
 
 // SetPrintWithHEX 设置打印HEX
 func (this *printer) SetPrintWithHEX() {

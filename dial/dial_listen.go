@@ -2,10 +2,13 @@ package dial
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -230,4 +233,88 @@ func (this *_memoryServer) Close() error {
 
 func (this *_memoryServer) Addr() string {
 	return fmt.Sprintf("%p", this)
+}
+
+//================================WebsocketListen================================
+
+func WebsocketListenFunc(port int) io.ListenFunc {
+	return func() (io.Listener, error) { return WebsocketListener(port) }
+}
+
+func NewWebsocketServer(port int, options ...io.OptionServer) (*io.Server, error) {
+	return io.NewServer(WebsocketListenFunc(port), func(s *io.Server) {
+		s.SetKey(fmt.Sprintf(":%d", port))
+		s.SetOptions(options...)
+	})
+}
+
+func RunWebsocketServer(port int, options ...io.OptionServer) error {
+	return RunServer(NewWebsocketServer(port, options...))
+}
+
+type _websocketClient struct {
+	*websocket.Conn
+}
+
+func (this *_websocketClient) Read(p []byte) (int, error) {
+	return 0, errors.New("请使用ReadMessage")
+}
+
+func (this *_websocketClient) Write(p []byte) (int, error) {
+	err := this.Conn.WriteMessage(websocket.BinaryMessage, p)
+	return len(p), err
+}
+
+func (this *_websocketClient) ReadMessage() ([]byte, error) {
+	_, data, err := this.Conn.ReadMessage()
+	return data, err
+}
+
+func WebsocketListener(port int) (io.Listener, error) {
+	ch := make(chan *websocket.Conn)
+	s := &_websocketServer{
+		s: &http.Server{
+			Addr: fmt.Sprintf(":%d", port),
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ws, err := websocket.Upgrade(w, r, r.Header, 4096, 4096)
+				if err != nil {
+					w.WriteHeader(500)
+					w.Write([]byte(err.Error()))
+					return
+				}
+				ch <- ws
+			}),
+		},
+		c:      ch,
+		closed: make(chan struct{}),
+	}
+	go func() {
+		s.err = s.s.ListenAndServe()
+		close(s.closed)
+	}()
+	return s, nil
+}
+
+type _websocketServer struct {
+	s      *http.Server
+	c      chan *websocket.Conn
+	err    error
+	closed chan struct{}
+}
+
+func (this *_websocketServer) Accept() (io.ReadWriteCloser, string, error) {
+	select {
+	case <-this.closed:
+		return nil, "", this.err
+	case ws := <-this.c:
+		return &_websocketClient{ws}, ws.RemoteAddr().String(), nil
+	}
+}
+
+func (this *_websocketServer) Close() error {
+	return this.s.Close()
+}
+
+func (this *_websocketServer) Addr() string {
+	return this.s.Addr
 }
