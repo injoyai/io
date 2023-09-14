@@ -3,6 +3,7 @@ package io
 import (
 	"bufio"
 	"github.com/injoyai/io/buf"
+	"github.com/injoyai/io/internal/frame"
 	"io"
 	"time"
 )
@@ -150,25 +151,30 @@ func (this *IReader) SetReadWithKB(n uint) *IReader {
 
 // SetReadWithStartEnd 设置根据包头包尾读取数据
 func (this *IReader) SetReadWithStartEnd(packageStart, packageEnd []byte) *IReader {
-	return this.SetReadFunc(buf.NewReadWithStartEnd(packageStart, packageEnd))
+	return this.SetReadFunc(NewReadWithStartEnd(packageStart, packageEnd))
 }
 
 // SetReadWithWriter same io.Copy 注意不能设置读取超时
 func (this *IReader) SetReadWithWriter(writer io.Writer) *IReader {
-	return this.SetReadFunc(buf.NewReadWithWriter(writer))
+	return this.SetReadFunc(NewReadWithWriter(writer))
+}
+
+// Bridge 桥接模式,等同SetReadWithWriter
+func (this *IReader) Bridge(w ...io.Writer) *IReader {
+	return this.SetReadFunc(NewReadWithWriter(MultiWriter(w...)))
 }
 
 // SetReadWithLenFrame 根据动态长度读取数据
-func (this *IReader) SetReadWithLenFrame(f *buf.LenFrame) *IReader {
-	return this.SetReadFunc(buf.NewReadWithLen(f))
+func (this *IReader) SetReadWithLenFrame(f *frame.LenFrame) *IReader {
+	return this.SetReadFunc(NewReadWithLen(f))
 }
 
 // SetReadWithTimeout 根据超时时间读取数据(需要及时读取,避免阻塞产生粘包)
 func (this *IReader) SetReadWithTimeout(timeout time.Duration) *IReader {
-	return this.SetReadFunc(buf.NewReadWithTimeout(timeout))
+	return this.SetReadFunc(NewReadWithTimeout(timeout))
 }
 
 // SetReadWithFrame 适配预大部分读取
-func (this *IReader) SetReadWithFrame(f *buf.Frame) *IReader {
-	return this.SetReadFunc(buf.NewReadWithFrame(f))
+func (this *IReader) SetReadWithFrame(f *frame.Frame) *IReader {
+	return this.SetReadFunc(NewReadWithFrame(f))
 }

@@ -5,7 +5,6 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/logs"
 	"testing"
-	"time"
 )
 
 func TestRedialWebsocket(t *testing.T) {
@@ -68,28 +67,6 @@ func TestRedialSSH(t *testing.T) {
 		}()
 	})
 	select {}
-}
-
-// 测试传输速度
-func TestIOSpeed(t *testing.T) {
-	start := time.Now() //当前时间
-	length := 20        //传输的数据大小
-	go RunTCPServer(10086, func(s *io.Server) {
-		s.SetPrintWithHEX()
-		s.SetDealFunc(func(msg *io.IMessage) {
-			t.Log("数据长度: ", msg.Len())
-			t.Log("传输耗时: ", time.Now().Sub(start))
-		})
-	})
-	<-RedialTCP(":10086", func(c *io.Client) {
-		c.SetPrintWithHEX()
-		data := make([]byte, length)
-		start = time.Now()
-		c.Write(data)
-		c.SetDealFunc(func(msg *io.IMessage) {
-			t.Log(msg)
-		})
-	}).DoneAll()
 }
 
 func TestRedialUDP(t *testing.T) {

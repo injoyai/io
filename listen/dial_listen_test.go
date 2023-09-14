@@ -1,8 +1,10 @@
-package dial
+package listen
 
 import (
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/dial"
 	"testing"
+	"time"
 )
 
 func TestTCPServer(t *testing.T) {
@@ -23,7 +25,7 @@ func TestTCPServer(t *testing.T) {
 }
 
 func TestRedial(t *testing.T) {
-	RedialTCP(":10086", func(c *io.Client) {
+	dial.RedialTCP(":10086", func(c *io.Client) {
 		c.SetPrintWithASCII()
 		c.Debug()
 		//c.GoTimerWriter(time.Second*5, func(c *io.IWriter) error {
@@ -42,4 +44,26 @@ func TestRunUDPServer(t *testing.T) {
 			msg.WriteString("7777")
 		})
 	})
+}
+
+// 测试传输速度
+func TestIOSpeed(t *testing.T) {
+	start := time.Now() //当前时间
+	length := 20        //传输的数据大小
+	go RunTCPServer(10086, func(s *io.Server) {
+		s.SetPrintWithHEX()
+		s.SetDealFunc(func(msg *io.IMessage) {
+			t.Log("数据长度: ", msg.Len())
+			t.Log("传输耗时: ", time.Now().Sub(start))
+		})
+	})
+	<-dial.RedialTCP(":10086", func(c *io.Client) {
+		c.SetPrintWithHEX()
+		data := make([]byte, length)
+		start = time.Now()
+		c.Write(data)
+		c.SetDealFunc(func(msg *io.IMessage) {
+			t.Log(msg)
+		})
+	}).DoneAll()
 }

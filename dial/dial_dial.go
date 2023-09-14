@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/internal/common"
 	"golang.org/x/crypto/ssh"
 	"net"
 	"net/http"
@@ -115,11 +116,11 @@ func NewFile(path string, options ...io.OptionClient) (*io.Client, error) {
 
 // Memory 内存
 func Memory(key string) (io.ReadWriteCloser, error) {
-	s := memoryServerManage.MustGet(key)
+	s := common.MemoryServerManage.MustGet(key)
 	if s == nil {
 		return nil, errors.New("服务不存在")
 	}
-	return s.(*_memoryServer).connect()
+	return s.(*common.MemoryServer).Connect()
 }
 
 func WithMemory(key string) func() (io.ReadWriteCloser, error) {

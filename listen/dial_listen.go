@@ -1,16 +1,15 @@
-package dial
+package listen
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/dial"
+	"github.com/injoyai/io/internal/common"
 	"net"
 	"net/http"
 	"sync"
-	"time"
 )
 
 //================================TCPListen================================
@@ -39,11 +38,11 @@ func RunTCPServer(port int, options ...io.OptionServer) error {
 }
 
 func NewTCPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
-	return NewProxyServer(TCPListenFunc(port), WithTCP(addr), options...)
+	return NewProxyServer(TCPListenFunc(port), dial.WithTCP(addr), options...)
 }
 
 func RunTCPProxyServer(port int, addr string, options ...io.OptionServer) error {
-	return RunProxyServer(TCPListenFunc(port), WithTCP(addr), options...)
+	return RunProxyServer(TCPListenFunc(port), dial.WithTCP(addr), options...)
 }
 
 type _tcpServer struct {
@@ -90,11 +89,11 @@ func RunUDPServer(port int, options ...io.OptionServer) error {
 }
 
 func NewUDPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
-	return NewProxyServer(UDPListenFunc(port), WithTCP(addr), options...)
+	return NewProxyServer(UDPListenFunc(port), dial.WithTCP(addr), options...)
 }
 
 func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error {
-	return RunProxyServer(UDPListenFunc(port), WithTCP(addr), options...)
+	return RunProxyServer(UDPListenFunc(port), dial.WithTCP(addr), options...)
 }
 
 type _udp struct {
@@ -171,13 +170,13 @@ func (this *_udpServer) Addr() string {
 //================================MemoryListen================================
 
 func MemoryListener(key string) (io.Listener, error) {
-	s, _ := memoryServerManage.GetOrSetByHandler(key, func() (interface{}, error) {
-		return &_memoryServer{
-			key: key,
-			ch:  make(chan io.ReadWriteCloser, 1000),
+	s, _ := common.MemoryServerManage.GetOrSetByHandler(key, func() (interface{}, error) {
+		return &common.MemoryServer{
+			Key: key,
+			Ch:  make(chan io.ReadWriteCloser, 1000),
 		}, nil
 	})
-	return s.(*_memoryServer), nil
+	return s.(*common.MemoryServer), nil
 }
 
 func MemoryListenFunc(key string) io.ListenFunc {
@@ -192,47 +191,6 @@ func NewMemoryServer(key string, options ...io.OptionServer) (*io.Server, error)
 
 func RunMemoryServer(key string, options ...io.OptionServer) error {
 	return io.RunServer(MemoryListenFunc(key), options...)
-}
-
-var memoryServerManage = maps.NewSafe()
-
-type _memoryClient struct {
-	*bytes.Buffer
-}
-
-func (this *_memoryClient) Close() error {
-	this.Reset()
-	return nil
-}
-
-// _memoryServer 虚拟服务,为了实现接口
-type _memoryServer struct {
-	key string
-	ch  chan io.ReadWriteCloser
-}
-
-func (this *_memoryServer) connect() (io.ReadWriteCloser, error) {
-	c := &_memoryClient{Buffer: bytes.NewBuffer(nil)}
-	select {
-	case this.ch <- c:
-	case <-time.After(io.DefaultConnectTimeout):
-		return nil, io.ErrWithTimeout
-	}
-	return c, nil
-}
-
-func (this *_memoryServer) Accept() (io.ReadWriteCloser, string, error) {
-	c := <-this.ch
-	return c, fmt.Sprintf("%p", c), nil
-}
-
-func (this *_memoryServer) Close() error {
-	memoryServerManage.Del(this.key)
-	return nil
-}
-
-func (this *_memoryServer) Addr() string {
-	return fmt.Sprintf("%p", this)
 }
 
 //================================WebsocketListen================================

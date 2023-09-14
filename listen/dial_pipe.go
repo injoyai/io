@@ -1,10 +1,11 @@
-package dial
+package listen
 
 import (
 	"context"
 	"errors"
 	"github.com/injoyai/base/g"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/dial"
 )
 
 /*
@@ -118,7 +119,7 @@ func NewTunnelServer(s *io.Server) {
 				case TypeConnect:
 					switch m.Model {
 					default:
-						c, err = NewTCP(string(m.Data), func(c *io.Client) {
+						c, err = dial.NewTCP(string(m.Data), func(c *io.Client) {
 							c.Debug(false)
 							c.SetReadWithAll()
 							c.SetDealFunc(func(msg *io.IMessage) {
