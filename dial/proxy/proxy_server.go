@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/injoyai/io"
-	"github.com/injoyai/io/dial"
+	"github.com/injoyai/io/listen"
 	"github.com/injoyai/logs"
 	"net/http"
 	"net/url"
@@ -89,7 +89,7 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 		//})
 		ser = &Server{s: s, e: New(), dealFunc: func(msg *CMessage) error {
 			m := "未设置处理函数"
-			io.Log.Errorf("[PR|S] 未设置处理函数")
+			s.Logger.Errorf("[PR|S] 未设置处理函数")
 			//s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
 			return errors.New(m)
 		}}
@@ -148,7 +148,7 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 }
 
 func NewUDPServer(port int, options ...func(s *Server)) (*Server, error) {
-	s, err := NewServer(dial.UDPListenFunc(port), options...)
+	s, err := NewServer(listen.UDPListenFunc(port), options...)
 	if err == nil {
 		s.s.SetKey(fmt.Sprintf(":%d", port))
 	}
@@ -156,7 +156,7 @@ func NewUDPServer(port int, options ...func(s *Server)) (*Server, error) {
 }
 
 func NewTCPServer(port int, options ...func(s *Server)) (*Server, error) {
-	s, err := NewServer(dial.TCPListenFunc(port), options...)
+	s, err := NewServer(listen.TCPListenFunc(port), options...)
 	if err == nil {
 		s.s.SetKey(fmt.Sprintf(":%d", port))
 	}

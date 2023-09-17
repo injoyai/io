@@ -1,7 +1,8 @@
 package io
 
 import (
-	"log"
+	"encoding/hex"
+	golog "log"
 )
 
 const (
@@ -30,45 +31,88 @@ func (this Level) String() string {
 	return "未知"
 }
 
-func (this Level) printf(level Level, format string, v ...interface{}) {
-	if this >= level {
-		log.Printf("["+this.String()+"]"+format, v...)
+func (this Level) printf(log *log, format string, v ...interface{}) {
+	if log.debug && this >= log.level {
+		prefix := "[" + this.String() + "]"
+		if len(log.key) > 0 {
+			prefix += "[" + log.key + "]"
+		}
+		golog.Printf(prefix+format, v...)
 	}
 }
 
+type Logger = ILog
+
 type ILog interface {
 	Level(level Level)
-	Readf(format string, v ...interface{})
-	Writef(format string, v ...interface{})
+	Debug(b ...bool)
+	Read(p []byte)
+	Write(p []byte)
 	Infof(format string, v ...interface{})
 	Debugf(format string, v ...interface{})
 	Errorf(format string, v ...interface{})
 }
 
-type _log struct {
-	level Level
+func newLog() Logger {
+	return &log{
+		debug:  true,
+		coding: "ascii",
+	}
 }
 
-func (this *_log) Level(level Level) {
+type log struct {
+	level  Level
+	key    string
+	debug  bool
+	coding string
+}
+
+func (this *log) SetKey(key string) {
+	this.key = key
+}
+
+func (this *log) Level(level Level) {
 	this.level = level
 }
 
-func (this *_log) Infof(format string, v ...interface{}) {
-	LevelInfo.printf(this.level, format, v...)
+func (this *log) Debug(b ...bool) {
+	this.debug = !(len(b) > 0 && b[0])
 }
 
-func (this *_log) Writef(format string, v ...interface{}) {
-	LevelWrite.printf(this.level, format, v...)
+func (this *log) SetPrintWithHEX() {
+	this.coding = "hex"
 }
 
-func (this *_log) Readf(format string, v ...interface{}) {
-	LevelRead.printf(this.level, format, v...)
+func (this *log) SetPrintWithASCII() {
+	this.coding = "ascii"
 }
 
-func (this *_log) Debugf(format string, v ...interface{}) {
-	LevelDebug.printf(this.level, format, v...)
+func (this *log) Write(p []byte) {
+	switch this.coding {
+	case "hex":
+		LevelWrite.printf(this, "%s", hex.EncodeToString(p))
+	default:
+		LevelWrite.printf(this, "%s", string(p))
+	}
 }
 
-func (this *_log) Errorf(format string, v ...interface{}) {
-	LevelError.printf(this.level, format, v...)
+func (this *log) Read(p []byte) {
+	switch this.coding {
+	case "hex":
+		LevelRead.printf(this, "%s", hex.EncodeToString(p))
+	default:
+		LevelRead.printf(this, "%s", string(p))
+	}
+}
+
+func (this *log) Infof(format string, v ...interface{}) {
+	LevelInfo.printf(this, format, v...)
+}
+
+func (this *log) Debugf(format string, v ...interface{}) {
+	LevelDebug.printf(this, format, v...)
+}
+
+func (this *log) Errorf(format string, v ...interface{}) {
+	LevelError.printf(this, format, v...)
 }

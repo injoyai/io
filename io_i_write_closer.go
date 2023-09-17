@@ -34,12 +34,12 @@ func (this *IWriteCloser) SetKey(key string) *IWriteCloser {
 	return this
 }
 
-// SetPrintFunc 设置打印函数
-func (this *IWriteCloser) SetPrintFunc(fn PrintFunc) *IWriteCloser {
-	this.IWriter.SetPrintFunc(fn)
-	this.ICloser.SetPrintFunc(fn) //错误信息按ASCII编码?
-	return this
-}
+//// SetPrintFunc 设置打印函数
+//func (this *IWriteCloser) SetPrintFunc(fn PrintFunc) *IWriteCloser {
+//	this.IWriter.SetPrintFunc(fn)
+//	this.ICloser.SetPrintFunc(fn) //错误信息按ASCII编码?
+//	return this
+//}
 
 func (this *IWriteCloser) Debug(b ...bool) *IWriteCloser {
 	this.IWriter.Debug(b...)

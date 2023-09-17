@@ -3,10 +3,28 @@ package io
 import (
 	"fmt"
 	"io"
-	"log"
 	"strings"
 )
 
+type key string
+
+func (this *key) GetKey() string {
+	return string(*this)
+}
+
+func (this *key) SetKey(s string) {
+	*this = key(s)
+}
+
+type coding string
+
+func (this *coding) SetPrintWithHEX() {
+	*this = "hex"
+}
+
+func (this *coding) SetPrintWithASCII() {
+	*this = "ascii"
+}
 func newPrinter(key string) *printer {
 	cp := &printer{}
 	cp.SetKey(key)
@@ -34,11 +52,6 @@ func (this *printer) GetKey() string {
 func (this *printer) SetPrintFunc(fn PrintFunc) {
 	this.printFunc = fn
 }
-
-//// GetPrintFunc 获取打印函数
-//func (this *printer) GetPrintFunc() PrintFunc {
-//	return this.printFunc
-//}
 
 // SetPrintWithHEX 设置打印HEX
 func (this *printer) SetPrintWithHEX() {
@@ -82,23 +95,23 @@ func (this *printer) GetDebug() bool {
 //================================Common================================
 
 func PrintWithHEX(msg Message, tag ...string) {
-	log.Print(PrintfWithHEX(msg, tag...))
+	//log.Print(PrintfWithHEX(msg, tag...))
 }
 
 // PrintWithASCII todo [13 10 69 82 82 79 82 13 10]用log.Print打印不出来
 func PrintWithASCII(msg Message, tag ...string) {
-	log.Print(PrintfWithASCII(msg, tag...))
+	//log.Print(PrintfWithASCII(msg, tag...))
 }
 
 func PrintWithBase(msg Message, tag ...string) {
 	if len(tag) > 0 && (tag[0] == TagErr || tag[0] == TagInfo) {
-		log.Print(PrintfWithASCII(msg, tag...))
+		//log.Print(PrintfWithASCII(msg, tag...))
 	}
 }
 
 func PrintWithErr(msg Message, tag ...string) {
 	if len(tag) > 0 && tag[0] == TagErr && msg.String() != io.EOF.Error() {
-		log.Print(PrintfWithASCII(msg, tag...))
+		//log.Print(PrintfWithASCII(msg, tag...))
 	}
 }
 

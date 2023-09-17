@@ -11,7 +11,8 @@ import (
 // NewIReader 新建IReader,默认读取函数ReadAll
 func NewIReader(r Reader) *IReader {
 	i := &IReader{
-		printer:  newPrinter(""),
+		Logger: newLog(),
+		//printer:  newPrinter(""),
 		lastChan: make(chan Message),
 		lastTime: time.Now(),
 	}
@@ -25,7 +26,8 @@ func NewIReader(r Reader) *IReader {
 }
 
 type IReader struct {
-	*printer               //printer
+	Logger
+	//*printer               //printer
 	mReader  MessageReader //接口MessageReader,兼容Reader
 	buf      *bufio.Reader //buffer
 	readFunc ReadFunc      //读取函数
@@ -122,8 +124,7 @@ func (this *IReader) SetReadFunc(fn func(*bufio.Reader) ([]byte, error)) *IReade
 			default:
 			}
 			//打印日志
-			Log.Readf("["+this.GetKey()+"] %s", string(bs))
-			//this.Print(bs, TagRead, this.GetKey())
+			this.Logger.Read(bs)
 		}
 		return bs, nil
 	}

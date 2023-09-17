@@ -19,7 +19,8 @@ func NewIWriter(writer Writer) *IWriter {
 		return c
 	}
 	return &IWriter{
-		printer:   newPrinter(""),
+		Logger: newLog(),
+		//printer:   newPrinter(""),
 		writer:    writer,
 		writeFunc: nil,
 		lastTime:  time.Time{},
@@ -28,11 +29,15 @@ func NewIWriter(writer Writer) *IWriter {
 
 // IWriter 写
 type IWriter struct {
-	*printer                             //打印
-	writer     Writer                    //io.Writer
-	writeFunc  WriteFunc                 //写入函数
-	writeAfter func(p []byte, err error) //写结束后
-	lastTime   time.Time                 //最后写入时间
+	Logger
+	key
+
+	//*printer                             //打印
+	writer      Writer                    //io.Writer
+	writeFunc   WriteFunc                 //写入函数
+	writeAfter  func(p []byte, err error) //写结束后
+	lastTime    time.Time                 //最后写入时间
+	printCoding string                    //数据编码模式
 }
 
 //================================Nature================================
@@ -56,8 +61,13 @@ func (this *IWriter) Write(p []byte) (n int, err error) {
 		}
 	}
 	//打印实际发送的数据,方便调试
-	Log.Writef("["+this.GetKey()+"] %s", string(p))
-	//this.Print(p, TagWrite, this.GetKey())
+	switch this.printCoding {
+	case "hex":
+		this.Logger.Readf("["+this.GetKey()+"] %s", hex.EncodeToString(p))
+	default:
+		this.Logger.Readf("["+this.GetKey()+"] %s", string(p))
+	}
+	//写入数据
 	n, err = this.writer.Write(p)
 	if err != nil {
 		return 0, dealErr(err)

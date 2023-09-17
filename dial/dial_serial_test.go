@@ -24,9 +24,9 @@ func TestNewSerial(t *testing.T) {
 	}
 	defer c.Close()
 	c.Debug()
-	c.SetPrintFunc(func(msg io.Message, tag ...string) {
-		logs.Debug(tag, msg)
-	})
+	//c.SetPrintFunc(func(msg io.Message, tag ...string) {
+	//	logs.Debug(tag, msg)
+	//})
 	c.SetReadWithAll()
 	t.Log(c.Run())
 
@@ -44,9 +44,9 @@ func TestNewSerial2(t *testing.T) {
 	}
 	defer c.Close()
 	c.Debug()
-	c.SetPrintFunc(func(msg io.Message, tag ...string) {
-		logs.Debug(tag, msg)
-	})
+	//c.SetPrintFunc(func(msg io.Message, tag ...string) {
+	//	logs.Debug(tag, msg)
+	//})
 	c.SetReadWithAll()
 	go c.Run()
 

@@ -73,6 +73,7 @@ type ClientManage struct {
 
 	timeout         time.Duration //超时时间,小于0是不超时
 	timeoutInterval time.Duration //超时检测间隔
+	Logger          ILog
 	*printer
 }
 
@@ -209,7 +210,7 @@ func (this *ClientManage) SetClient(c *Client) {
 		//前置操作,例如等待注册数据,不符合的返回错误则关闭连接
 		if this.beforeFunc != nil {
 			if err := this.beforeFunc(c); err != nil {
-				Log.Errorf("[%s] %v", c.GetKey(), err)
+				this.Logger.Errorf("[%s] %v", c.GetKey(), err)
 				//this.Print(Message(err.Error()), TagErr)
 				_ = c.Close()
 				return
