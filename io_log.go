@@ -17,20 +17,18 @@ const (
 
 type Level int
 
-func (this Level) String() string {
-	switch this {
-	case LevelWrite:
-		return "发送"
-	case LevelRead:
-		return "接收"
-	case LevelDebug:
-		return "调试"
-	case LevelInfo:
-		return "信息"
-	case LevelError:
-		return "错误"
+var (
+	LevelMap = map[Level]string{
+		LevelWrite: "发送",
+		LevelRead:  "接收",
+		LevelDebug: "调试",
+		LevelInfo:  "信息",
+		LevelError: "错误",
 	}
-	return "未知"
+)
+
+func (this Level) String() string {
+	return LevelMap[this]
 }
 
 func (this Level) printf(log *log, format string, v ...interface{}) {
@@ -39,7 +37,7 @@ func (this Level) printf(log *log, format string, v ...interface{}) {
 		if len(log.key) > 0 {
 			prefix += "[" + log.key + "]"
 		}
-		logs.New(this.String()).SetName("").Writef(logs.LevelError, prefix+" "+format, v...)
+		logs.New(this.String()).Writef(logs.LevelError, prefix+" "+format, v...)
 	}
 }
 
@@ -60,6 +58,9 @@ type Logger interface {
 var NewLog = newLog
 
 func newLog(key ...string) Logger {
+	for _, name := range LevelMap {
+		logs.New(name).SetName("")
+	}
 	return &log{
 		level:  LevelAll,
 		key:    conv.DefaultString("", key...),
