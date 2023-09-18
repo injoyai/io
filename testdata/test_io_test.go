@@ -3,6 +3,7 @@ package testdata
 import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
+	"github.com/injoyai/io/listen"
 	"testing"
 	"time"
 )
@@ -21,7 +22,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestNewServer(t *testing.T) {
-	_, err := dial.NewTCPServer(10089, func(s *io.Server) {
+	_, err := listen.NewTCPServer(10089, func(s *io.Server) {
 		s.Debug()
 		s.SetDealFunc(func(msg *io.IMessage) {
 			msg.WriteString("777")

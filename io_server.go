@@ -28,7 +28,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	}
 	//新建实例
 	s := &Server{
-		Logger:       newLog(),
+		Logger:       newLog(fmt.Sprintf("%p", listener)),
 		ICloser:      NewICloserWithContext(ctx, listener),
 		ClientManage: NewClientManage(ctx, fmt.Sprintf("%p", listener)),
 		Tag:          maps.NewSafe(),

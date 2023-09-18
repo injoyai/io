@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
+	"github.com/injoyai/io/listen"
 	"github.com/injoyai/logs"
 	"time"
 )
@@ -11,7 +12,7 @@ import (
 func Example() {
 	io.Redial(dial.WithTCP("xxx"))
 	io.Redial(dial.WithUDP("xxx"))
-	io.Redial(dial.SerialFunc(nil))
+	io.Redial(dial.WithSerial(nil))
 	io.Redial(dial.WithFile("./xxx.txt"))
 
 }
@@ -29,7 +30,7 @@ func NewClient(addr string) error {
 }
 
 func NewServer(port int) error {
-	s, err := io.NewServer(dial.TCPListenFunc(port))
+	s, err := io.NewServer(listen.WithTCP(port))
 	if err != nil {
 		return err
 	}
@@ -40,7 +41,7 @@ func NewServer(port int) error {
 // CloseAll 测试closeAll
 func CloseAll(port int) error {
 
-	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+	s, err := listen.NewTCPServer(port, func(s *io.Server) {
 		s.Debug()
 	})
 	if err != nil {
@@ -90,7 +91,7 @@ func TimeoutClient(port int, timeout time.Duration) error {
 			c.Debug()
 			c.SetReadIntervalTimeout(timeout)
 		})
-	s, err := io.NewServer(dial.TCPListenFunc(port))
+	s, err := io.NewServer(listen.WithTCP(port))
 	if err != nil {
 		return err
 	}
@@ -104,7 +105,7 @@ func TimeoutServer(port int, timeout time.Duration) error {
 		func(c *io.Client) {
 			c.Debug()
 		})
-	s, err := io.NewServer(dial.TCPListenFunc(port))
+	s, err := io.NewServer(listen.WithTCP(port))
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,7 @@ func TimeoutServer(port int, timeout time.Duration) error {
 
 // GoFor 测试客户端的GoFor函数
 func GoFor(port int) error {
-	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+	s, err := listen.NewTCPServer(port, func(s *io.Server) {
 		s.Debug()
 	})
 	if err != nil {
@@ -139,7 +140,7 @@ func GoFor(port int) error {
 
 // ServerMaxClient 测试服务端最大连接数
 func ServerMaxClient(port int) error {
-	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+	s, err := listen.NewTCPServer(port, func(s *io.Server) {
 		s.Debug()
 		s.SetMaxClient(1)
 	})
@@ -157,7 +158,7 @@ func ServerMaxClient(port int) error {
 
 // ClientCtxParent 测试ctxAll
 func ClientCtxParent(port int) error {
-	s, err := io.NewServer(dial.TCPListenFunc(port))
+	s, err := io.NewServer(listen.WithTCP(port))
 	if err != nil {
 		return err
 	}
@@ -190,7 +191,7 @@ func ClientCtxParent(port int) error {
 }
 
 func Pool(port int) error {
-	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+	s, err := listen.NewTCPServer(port, func(s *io.Server) {
 		s.Debug()
 	})
 	if err != nil {
@@ -207,7 +208,7 @@ func Pool(port int) error {
 }
 
 func PoolWrite(port int) (*io.Pool, error) {
-	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+	s, err := listen.NewTCPServer(port, func(s *io.Server) {
 		s.Debug()
 	})
 	if err != nil {

@@ -3,7 +3,7 @@ package io
 import (
 	"encoding/hex"
 	"github.com/injoyai/conv"
-	golog "log"
+	"github.com/injoyai/logs"
 )
 
 const (
@@ -39,7 +39,7 @@ func (this Level) printf(log *log, format string, v ...interface{}) {
 		if len(log.key) > 0 {
 			prefix += "[" + log.key + "]"
 		}
-		golog.Printf(prefix+" "+format, v...)
+		logs.New(this.String()).SetName("").Writef(logs.LevelError, prefix+" "+format, v...)
 	}
 }
 

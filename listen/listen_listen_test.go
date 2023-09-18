@@ -8,7 +8,7 @@ import (
 )
 
 func TestTCPServer(t *testing.T) {
-	s, err := io.NewServer(WithTCP(10089))
+	s, err := NewTCPServer(10089)
 	if err != nil {
 		t.Error(err)
 		return
