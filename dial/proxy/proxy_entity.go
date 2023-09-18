@@ -207,7 +207,7 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 func WithClientDebug(b ...bool) func(c *io.Client, e *Entity) {
 	return func(c *io.Client, e *Entity) {
 		c.Debug(b...)
-		c.SetPrintWithHEX()
+		//c.SetPrintWithHEX()
 		e.Debug(b...)
 		e.SetPrintWithHEX()
 	}

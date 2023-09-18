@@ -10,6 +10,16 @@ import (
 
 var MemoryServerManage = maps.NewSafe()
 
+func NewMemoryServer(key string) *MemoryServer {
+	s, _ := MemoryServerManage.GetOrSetByHandler(key, func() (interface{}, error) {
+		return &MemoryServer{
+			Key: key,
+			Ch:  make(chan io.ReadWriteCloser, 1000),
+		}, nil
+	})
+	return s.(*MemoryServer)
+}
+
 // MemoryServer 虚拟服务,为了实现接口
 type MemoryServer struct {
 	Key string
@@ -17,10 +27,14 @@ type MemoryServer struct {
 }
 
 func (this *MemoryServer) Connect() (io.ReadWriteCloser, error) {
+	return this.ConnectWithTimeout(io.DefaultConnectTimeout)
+}
+
+func (this *MemoryServer) ConnectWithTimeout(timeout time.Duration) (io.ReadWriteCloser, error) {
 	c := &MemoryClient{Buffer: bytes.NewBuffer(nil)}
 	select {
 	case this.Ch <- c:
-	case <-time.After(io.DefaultConnectTimeout):
+	case <-time.After(timeout):
 		return nil, io.ErrWithTimeout
 	}
 	return c, nil

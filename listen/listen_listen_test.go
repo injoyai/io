@@ -8,7 +8,7 @@ import (
 )
 
 func TestTCPServer(t *testing.T) {
-	s, err := io.NewServer(TCPListenFunc(10089))
+	s, err := io.NewServer(WithTCP(10089))
 	if err != nil {
 		t.Error(err)
 		return
@@ -60,7 +60,7 @@ func TestIOSpeed(t *testing.T) {
 	})
 	<-dial.RedialTCP(":10086", func(c *io.Client) {
 		c.Debug(false)
-		c.SetPrintWithHEX()
+		//c.SetPrintWithHEX()
 		data := make([]byte, length)
 		start = time.Now()
 		c.Write(data)

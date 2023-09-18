@@ -14,7 +14,7 @@ import (
 
 //================================TCPListen================================
 
-func TCPListener(port int) (io.Listener, error) {
+func TCP(port int) (io.Listener, error) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
@@ -22,12 +22,12 @@ func TCPListener(port int) (io.Listener, error) {
 	return &_tcpServer{Listener: listener}, nil
 }
 
-func TCPListenFunc(port int) io.ListenFunc {
-	return func() (io.Listener, error) { return TCPListener(port) }
+func WithTCP(port int) io.ListenFunc {
+	return func() (io.Listener, error) { return TCP(port) }
 }
 
 func NewTCPServer(port int, options ...io.OptionServer) (*io.Server, error) {
-	return io.NewServer(TCPListenFunc(port), func(s *io.Server) {
+	return io.NewServer(WithTCP(port), func(s *io.Server) {
 		s.SetKey(fmt.Sprintf(":%d", port))
 		s.SetOptions(options...)
 	})
@@ -38,11 +38,11 @@ func RunTCPServer(port int, options ...io.OptionServer) error {
 }
 
 func NewTCPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
-	return NewProxyServer(TCPListenFunc(port), dial.WithTCP(addr), options...)
+	return NewProxyServer(WithTCP(port), dial.WithTCP(addr), options...)
 }
 
 func RunTCPProxyServer(port int, addr string, options ...io.OptionServer) error {
-	return RunProxyServer(TCPListenFunc(port), dial.WithTCP(addr), options...)
+	return RunProxyServer(WithTCP(port), dial.WithTCP(addr), options...)
 }
 
 type _tcpServer struct {
@@ -63,7 +63,7 @@ func (this *_tcpServer) Addr() string {
 
 //================================UDPListen================================
 
-func UDPListener(port int) (io.Listener, error) {
+func UDP(port int) (io.Listener, error) {
 	listener, err := net.ListenUDP("udp", &net.UDPAddr{Port: port})
 	if err != nil {
 		return nil, err
@@ -71,14 +71,14 @@ func UDPListener(port int) (io.Listener, error) {
 	return &_udpServer{UDPConn: listener, m: make(map[string]*_udp)}, nil
 }
 
-func UDPListenFunc(port int) io.ListenFunc {
+func WithUDP(port int) io.ListenFunc {
 	return func() (io.Listener, error) {
-		return UDPListener(port)
+		return UDP(port)
 	}
 }
 
 func NewUDPServer(port int, options ...io.OptionServer) (*io.Server, error) {
-	return io.NewServer(UDPListenFunc(port), func(s *io.Server) {
+	return io.NewServer(WithUDP(port), func(s *io.Server) {
 		s.SetKey(fmt.Sprintf(":%d", port))
 		s.SetOptions(options...)
 	})
@@ -89,11 +89,11 @@ func RunUDPServer(port int, options ...io.OptionServer) error {
 }
 
 func NewUDPProxyServer(port int, addr string, options ...io.OptionServer) (*io.Server, error) {
-	return NewProxyServer(UDPListenFunc(port), dial.WithTCP(addr), options...)
+	return NewProxyServer(WithUDP(port), dial.WithTCP(addr), options...)
 }
 
 func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error {
-	return RunProxyServer(UDPListenFunc(port), dial.WithTCP(addr), options...)
+	return RunProxyServer(WithUDP(port), dial.WithTCP(addr), options...)
 }
 
 type _udp struct {
@@ -169,38 +169,60 @@ func (this *_udpServer) Addr() string {
 
 //================================MemoryListen================================
 
-func MemoryListener(key string) (io.Listener, error) {
-	s, _ := common.MemoryServerManage.GetOrSetByHandler(key, func() (interface{}, error) {
-		return &common.MemoryServer{
-			Key: key,
-			Ch:  make(chan io.ReadWriteCloser, 1000),
-		}, nil
-	})
-	return s.(*common.MemoryServer), nil
+func Memory(key string) (io.Listener, error) {
+	return common.NewMemoryServer(key), nil
 }
 
-func MemoryListenFunc(key string) io.ListenFunc {
+func WithMemory(key string) io.ListenFunc {
 	return func() (io.Listener, error) {
-		return MemoryListener(key)
+		return Memory(key)
 	}
 }
 
 func NewMemoryServer(key string, options ...io.OptionServer) (*io.Server, error) {
-	return io.NewServer(MemoryListenFunc(key), options...)
+	return io.NewServer(WithMemory(key), func(s *io.Server) {
+		s.SetKey(key)
+		s.SetOptions(options...)
+	})
 }
 
 func RunMemoryServer(key string, options ...io.OptionServer) error {
-	return io.RunServer(MemoryListenFunc(key), options...)
+	return RunServer(NewMemoryServer(key, options...))
 }
 
 //================================WebsocketListen================================
 
-func WebsocketListenFunc(port int) io.ListenFunc {
-	return func() (io.Listener, error) { return WebsocketListener(port) }
+func Websocket(port int) (io.Listener, error) {
+	ch := make(chan *websocket.Conn)
+	s := &_websocketServer{
+		s: &http.Server{
+			Addr: fmt.Sprintf(":%d", port),
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ws, err := websocket.Upgrade(w, r, r.Header, 4096, 4096)
+				if err != nil {
+					w.WriteHeader(500)
+					w.Write([]byte(err.Error()))
+					return
+				}
+				ch <- ws
+			}),
+		},
+		c:      ch,
+		closed: make(chan struct{}),
+	}
+	go func() {
+		s.err = s.s.ListenAndServe()
+		close(s.closed)
+	}()
+	return s, nil
+}
+
+func WithWebsocket(port int) io.ListenFunc {
+	return func() (io.Listener, error) { return Websocket(port) }
 }
 
 func NewWebsocketServer(port int, options ...io.OptionServer) (*io.Server, error) {
-	return io.NewServer(WebsocketListenFunc(port), func(s *io.Server) {
+	return io.NewServer(WithWebsocket(port), func(s *io.Server) {
 		s.SetKey(fmt.Sprintf(":%d", port))
 		s.SetOptions(options...)
 	})
@@ -226,31 +248,6 @@ func (this *_websocketClient) Write(p []byte) (int, error) {
 func (this *_websocketClient) ReadMessage() ([]byte, error) {
 	_, data, err := this.Conn.ReadMessage()
 	return data, err
-}
-
-func WebsocketListener(port int) (io.Listener, error) {
-	ch := make(chan *websocket.Conn)
-	s := &_websocketServer{
-		s: &http.Server{
-			Addr: fmt.Sprintf(":%d", port),
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ws, err := websocket.Upgrade(w, r, r.Header, 4096, 4096)
-				if err != nil {
-					w.WriteHeader(500)
-					w.Write([]byte(err.Error()))
-					return
-				}
-				ch <- ws
-			}),
-		},
-		c:      ch,
-		closed: make(chan struct{}),
-	}
-	go func() {
-		s.err = s.s.ListenAndServe()
-		close(s.closed)
-	}()
-	return s, nil
 }
 
 type _websocketServer struct {

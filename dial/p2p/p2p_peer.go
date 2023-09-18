@@ -2,7 +2,7 @@ package p2p
 
 import (
 	"github.com/injoyai/io"
-	"github.com/injoyai/io/dial"
+	"github.com/injoyai/io/listen"
 	"net"
 )
 
@@ -16,7 +16,7 @@ type Peer interface {
 func NewPeer(localPort int, remoteAddr string) (*peer, error) {
 	localAddr := &net.UDPAddr{Port: localPort}
 	//s, err := net.ListenUDP("udp", localAddr)
-	s, err := dial.NewUDPServer(localPort, func(s *io.Server) {
+	s, err := listen.NewUDPServer(localPort, func(s *io.Server) {
 		s.Debug()
 		s.SetPrintWithASCII()
 	})
