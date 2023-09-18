@@ -136,7 +136,6 @@ func (this *Server) Run() error {
 		//新建客户端,并配置
 		x := NewClientWithContext(this.Ctx(), c).SetKey(key)
 		this.Logger.Infof("新的客户端连接...")
-		//this.Print(Message("新的客户端连接..."), TagInfo, x.GetKey())
 		this.ClientManage.SetClient(x)
 
 	}

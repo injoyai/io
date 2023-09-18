@@ -88,7 +88,7 @@ func (this *log) SetLevel(level Level) {
 }
 
 func (this *log) Debug(b ...bool) {
-	this.debug = !(len(b) > 0 && b[0])
+	this.debug = !(len(b) > 0 && !b[0])
 }
 
 func (this *log) SetPrintWithHEX() {

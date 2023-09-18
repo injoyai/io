@@ -6,9 +6,10 @@ const (
 	Ping = "ping"
 	Pong = "pong"
 
-	KB1               = 1 << 10 //1KB
-	KB4               = 4 << 10 //4KB
-	MB1               = 1 << 20 //1MB
+	KB1               = 1 << 10  //1KB
+	KB4               = 4 << 10  //4KB
+	KB32              = 32 << 10 //4KB
+	MB1               = 1 << 20  //1MB
 	DefaultBufferSize = KB4
 
 	DefaultPort            = 10086
