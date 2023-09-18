@@ -69,8 +69,6 @@ type WriteFunc func(p []byte) ([]byte, error)
 // DealFunc 数据处理函数
 type DealFunc func(msg Message) error
 
-type DealReaderFunc func(buf *bufio.Reader) error
-
 // CloseFunc 关闭函数
 type CloseFunc func(ctx context.Context, msg Message)
 

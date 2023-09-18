@@ -9,7 +9,7 @@ func NewMessageReader(r io.Reader, read ReadFunc) MessageReader {
 	return &messageReader{bufio.NewReader(r), read}
 }
 
-func MessageReaderWith(r MessageReader, fn DealFunc) error {
+func DealMessageReader(r MessageReader, fn DealFunc) error {
 	for {
 		bs, err := r.ReadMessage()
 		if err != nil {
@@ -21,7 +21,7 @@ func MessageReaderWith(r MessageReader, fn DealFunc) error {
 	}
 }
 
-func DealReader(r io.Reader, fn DealReaderFunc) (err error) {
+func DealReader(r io.Reader, fn func(buf *bufio.Reader) error) (err error) {
 	buf := bufio.NewReader(r)
 	for ; err == nil; err = fn(buf) {
 	}
@@ -44,18 +44,18 @@ func CopyWith(w Writer, r Reader, fn func(buf []byte)) (int, error) {
 func CopyNWith(w Writer, r Reader, n int64, fn func(buf []byte)) (int, error) {
 	buff := bufio.NewReader(r)
 	length := 0
+	buf := make([]byte, n)
 	for {
-		buf := make([]byte, n)
-		n, err := buff.Read(buf)
+		num, err := buff.Read(buf)
 		if err != nil && err != io.EOF {
 			return length, err
 		}
-		length += n
-		if _, err := w.Write(buf[:n]); err != nil {
-			return length, err
-		}
+		length += num
 		if fn != nil {
-			fn(buf[:n])
+			fn(buf[:num])
+		}
+		if _, err := w.Write(buf[:num]); err != nil {
+			return length, err
 		}
 		if err == io.EOF {
 			return length, nil
