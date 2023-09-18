@@ -19,7 +19,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 		ctx:             ctx,
 		dealQueue:       chans.NewEntityWithContext(ctx, 1, 1000),
 		readChan:        make(chan *IMessage, 100),
-		readFunc:        ReadWithAll,
+		readFunc:        buf.ReadWithAll,
 		writeFunc:       nil,
 		timeout:         DefaultKeepAlive * 3,
 		timeoutInterval: DefaultTimeoutInterval,

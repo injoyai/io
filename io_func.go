@@ -21,6 +21,13 @@ func MessageReaderWith(r MessageReader, fn DealFunc) error {
 	}
 }
 
+func DealReader(r io.Reader, fn DealReaderFunc) (err error) {
+	buf := bufio.NewReader(r)
+	for ; err == nil; err = fn(buf) {
+	}
+	return
+}
+
 /*
 
 
