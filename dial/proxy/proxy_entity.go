@@ -16,7 +16,7 @@ func New() *Entity {
 		ioMap:       maps.NewSafe(),
 		connectFunc: DefaultConnectFunc,
 		buff:        make(chan io.Message, 1000),
-		printFunc:   io.PrintWithASCII,
+		Logger:      io.NewLog(),
 	}
 }
 
@@ -27,18 +27,12 @@ type Entity struct {
 	connectFunc func(msg *Message) (i io.ReadWriteCloser, err error) //连接函数
 	buff        chan io.Message                                      //
 	debug       bool                                                 //
-	printFunc   io.PrintFunc                                         //
+	io.Logger
 }
 
 // Debug 调试模式
 func (this *Entity) Debug(b ...bool) *Entity {
 	this.debug = !(len(b) > 0 && !b[0])
-	return this
-}
-
-// SetPrintFunc 设置打印函数
-func (this *Entity) SetPrintFunc(fn func(msg io.Message, tag ...string)) *Entity {
-	this.printFunc = fn
 	return this
 }
 
@@ -116,7 +110,7 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 
 			proxyClient = io.NewClient(i)
 			proxyClient.Debug(this.debug)
-			proxyClient.SetPrintFunc(this.printFunc)
+			proxyClient.SetLogger(this.Logger)
 			proxyClient.SetKey(msg.Addr)
 			proxyClient.SetReadFunc(buf.ReadWithAll)
 			proxyClient.SetDealFunc(func(m *io.IMessage) {
@@ -215,7 +209,7 @@ func WithClientDebug(b ...bool) func(c *io.Client, e *Entity) {
 		c.Debug(b...)
 		c.SetPrintWithHEX()
 		e.Debug(b...)
-		e.SetPrintFunc(io.PrintWithHEX)
+		e.SetPrintWithHEX()
 	}
 }
 

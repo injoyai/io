@@ -2,11 +2,13 @@ package io
 
 import (
 	"encoding/hex"
+	"github.com/injoyai/conv"
 	golog "log"
 )
 
 const (
-	LevelWrite Level = 1 + iota
+	LevelAll Level = iota
+	LevelWrite
 	LevelRead
 	LevelDebug
 	LevelInfo
@@ -37,24 +39,30 @@ func (this Level) printf(log *log, format string, v ...interface{}) {
 		if len(log.key) > 0 {
 			prefix += "[" + log.key + "]"
 		}
-		golog.Printf(prefix+format, v...)
+		golog.Printf(prefix+" "+format, v...)
 	}
 }
 
-type Logger = ILog
-
-type ILog interface {
-	Level(level Level)
+type Logger interface {
+	SetLevel(level Level)
+	GetKey() string
+	SetKey(key string)
+	SetPrintWithHEX()
+	SetPrintWithASCII()
 	Debug(b ...bool)
-	Read(p []byte)
-	Write(p []byte)
+	Readln(p []byte)
+	Writeln(p []byte)
 	Infof(format string, v ...interface{})
 	Debugf(format string, v ...interface{})
 	Errorf(format string, v ...interface{})
 }
 
-func newLog() Logger {
+var NewLog = newLog
+
+func newLog(key ...string) Logger {
 	return &log{
+		level:  LevelAll,
+		key:    conv.DefaultString("", key...),
 		debug:  true,
 		coding: "ascii",
 	}
@@ -67,11 +75,15 @@ type log struct {
 	coding string
 }
 
+func (this *log) GetKey() string {
+	return this.key
+}
+
 func (this *log) SetKey(key string) {
 	this.key = key
 }
 
-func (this *log) Level(level Level) {
+func (this *log) SetLevel(level Level) {
 	this.level = level
 }
 
@@ -87,7 +99,7 @@ func (this *log) SetPrintWithASCII() {
 	this.coding = "ascii"
 }
 
-func (this *log) Write(p []byte) {
+func (this *log) Writeln(p []byte) {
 	switch this.coding {
 	case "hex":
 		LevelWrite.printf(this, "%s", hex.EncodeToString(p))
@@ -96,7 +108,7 @@ func (this *log) Write(p []byte) {
 	}
 }
 
-func (this *log) Read(p []byte) {
+func (this *log) Readln(p []byte) {
 	switch this.coding {
 	case "hex":
 		LevelRead.printf(this, "%s", hex.EncodeToString(p))

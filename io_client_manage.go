@@ -13,6 +13,7 @@ import (
 
 func NewClientManage(ctx context.Context, key string) *ClientManage {
 	e := &ClientManage{
+		Logger:          newLog(key),
 		m:               make(map[string]*Client),
 		mu:              sync.RWMutex{},
 		ctx:             ctx,
@@ -22,7 +23,6 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 		writeFunc:       nil,
 		timeout:         DefaultKeepAlive * 3,
 		timeoutInterval: DefaultTimeoutInterval,
-		printer:         newPrinter(key),
 	}
 	e.dealQueue.SetHandler(func(ctx context.Context, no, count int, data interface{}) {
 		if e.dealFunc != nil {
@@ -58,6 +58,7 @@ ClientManage
 例如串口,需要统一
 */
 type ClientManage struct {
+	Logger
 	m          map[string]*Client
 	mu         sync.RWMutex
 	max        int                 //最大数
@@ -73,8 +74,6 @@ type ClientManage struct {
 
 	timeout         time.Duration //超时时间,小于0是不超时
 	timeoutInterval time.Duration //超时检测间隔
-	Logger          ILog
-	*printer
 }
 
 // SetReadFunc 设置数据读取
@@ -201,8 +200,7 @@ func (this *ClientManage) SetClient(c *Client) {
 	c.SetDealFunc(this._dealFunc)  //数据处理方法
 	c.SetReadFunc(this.readFunc)   //读取数据方法
 	c.SetWriteFunc(this.writeFunc) //设置发送函数
-	c.Debug(this.debug)            //设置debug模式
-	c.SetPrintFunc(this.printFunc) //设置打印实例
+	c.SetLogger(this.Logger)       //设置日志
 
 	// 协程执行,等待连接的后续数据,来决定后续操作
 	go func(c *Client) {
@@ -210,8 +208,7 @@ func (this *ClientManage) SetClient(c *Client) {
 		//前置操作,例如等待注册数据,不符合的返回错误则关闭连接
 		if this.beforeFunc != nil {
 			if err := this.beforeFunc(c); err != nil {
-				this.Logger.Errorf("[%s] %v", c.GetKey(), err)
-				//this.Print(Message(err.Error()), TagErr)
+				this.Logger.Errorf(err.Error())
 				_ = c.Close()
 				return
 			}

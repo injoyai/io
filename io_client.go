@@ -223,31 +223,43 @@ func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *IMessage)) *C
 	return this
 }
 
-// SetPrintFunc 设置打印函数
-func (this *Client) SetPrintFunc(fn PrintFunc) *Client {
-	this.IWriter.SetPrintFunc(fn)
-	this.IReadCloser.SetPrintFunc(fn)
+// SetLogger 设置日志
+func (this *Client) SetLogger(logger Logger) *Client {
+	this.Logger = logger
+	this.IWriter.Logger = logger
+	this.IReadCloser.SetLogger(logger)
 	return this
 }
 
 // SetPrintWithHEX 设置打印HEX
 func (this *Client) SetPrintWithHEX() *Client {
-	return this.SetPrintFunc(PrintWithHEX)
+	this.IWriter.SetPrintWithHEX()
+	this.IReadCloser.SetPrintWithHEX()
+	return this
 }
 
 // SetPrintWithASCII 设置打印ASCII
 func (this *Client) SetPrintWithASCII() *Client {
-	return this.SetPrintFunc(PrintWithASCII)
+	this.IWriter.SetPrintWithASCII()
+	this.IReadCloser.SetPrintWithASCII()
+	return this
+}
+
+// SetLevel 设置日志等级
+func (this *Client) SetLevel(level Level) *Client {
+	this.IWriter.SetLevel(level)
+	this.IReadCloser.SetLevel(level)
+	return this
 }
 
 // SetPrintWithBase 设置打印ASCII,基础信息
 func (this *Client) SetPrintWithBase() *Client {
-	return this.SetPrintFunc(PrintWithBase)
+	return this.SetLevel(LevelInfo)
 }
 
 // SetPrintWithErr 设置打印ASCII,错误信息
 func (this *Client) SetPrintWithErr() *Client {
-	return this.SetPrintFunc(PrintWithErr)
+	return this.SetLevel(LevelError)
 }
 
 // SetReadWriteWithPkg 设置读写为默认分包方式
@@ -271,11 +283,11 @@ func (this *Client) Redial(options ...OptionClient) *Client {
 		readWriteCloser := this.IReadCloser.MustDial(ctx)
 		if readWriteCloser == nil {
 			if this.ICloser.Err() != ErrHandClose {
-				this.Logger.Errorf("[%s] 连接断开(%v),未设置重连函数", this.GetKey(), this.ICloser.Err())
+				this.Logger.Errorf("连接断开(%v),未设置重连函数", this.ICloser.Err())
 			}
 			return
 		}
-		this.Logger.Infof("[%s] 连接断开(%v),重连成功", this.GetKey(), this.ICloser.Err())
+		this.Logger.Infof("连接断开(%v),重连成功", this.ICloser.Err())
 		redialFunc := this.IReadCloser.redialFunc
 		key := this.GetKey()
 		*this = *NewClient(readWriteCloser)
@@ -286,7 +298,7 @@ func (this *Client) Redial(options ...OptionClient) *Client {
 	})
 	this.SetOptions(options...)
 	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
-	this.Logger.Infof("[%s] 连接服务端成功...", this.GetKey())
+	this.Logger.Infof("连接服务端成功...")
 	go this.Run()
 	return this
 }

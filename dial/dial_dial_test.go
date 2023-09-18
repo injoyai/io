@@ -41,7 +41,7 @@ func TestRedialWebsocket2(t *testing.T) {
 
 func TestRedialTCP(t *testing.T) {
 	//"ws://192.168.10.3:1880/node-red/comms"
-	RedialTCP(":1082", func(c *io.Client) {
+	RedialTCP(":10086", func(c *io.Client) {
 		c.Debug()
 		c.WriteAny("666")
 	})
@@ -86,5 +86,9 @@ func TestRedialSSH(t *testing.T) {
 }
 
 func TestRedialUDP(t *testing.T) {
+	RedialUDP("127.0.0.1")
+}
+
+func TestRedialTCP2(t *testing.T) {
 	RedialUDP("127.0.0.1")
 }

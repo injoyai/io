@@ -7,6 +7,11 @@ import (
 )
 
 var (
+	// DealErr 错误处理配置
+	DealErr = defaultDealErr
+)
+
+var (
 	ErrHandClose          = errors.New("主动关闭")
 	ErrRemoteClose        = errors.New("远程端主动关闭连接")
 	ErrRemoteCloseUnusual = errors.New("远程端意外关闭连接")

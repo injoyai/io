@@ -50,13 +50,6 @@ func (this *IReadCloser) SetKey(key string) *IReadCloser {
 	return this
 }
 
-// SetPrintFunc 设置打印函数
-func (this *IReadCloser) SetPrintFunc(fn PrintFunc) *IReadCloser {
-	this.IReader.SetPrintFunc(fn)
-	this.ICloser.SetPrintFunc(fn) //错误信息按ASCII编码?
-	return this
-}
-
 // Debug debug模式
 func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
 	this.IReader.Debug(b...)
@@ -67,6 +60,33 @@ func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
 // SetReadIntervalTimeout 设置读取间隔超时时间,需要在Run之前设置
 func (this *IReadCloser) SetReadIntervalTimeout(timeout time.Duration) *IReadCloser {
 	this.timeout = timeout
+	return this
+}
+
+//================================Log================================
+
+func (this *IReadCloser) SetLogger(logger Logger) *IReadCloser {
+	this.IReader.Logger = logger
+	this.ICloser.Logger = logger
+	return this
+}
+
+func (this *IReadCloser) SetLevel(level Level) *IReadCloser {
+	this.IReader.SetLevel(level)
+	this.ICloser.SetLevel(level)
+	return this
+}
+
+// SetPrintWithHEX 设置打印HEX
+func (this *IReadCloser) SetPrintWithHEX() *IReadCloser {
+	this.IReader.SetPrintWithHEX()
+	this.ICloser.SetPrintWithHEX()
+	return this
+}
+
+func (this *IReadCloser) SetPrintWithASCII() *IReadCloser {
+	this.IReader.SetPrintWithASCII()
+	this.ICloser.SetPrintWithASCII()
 	return this
 }
 

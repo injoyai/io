@@ -3,12 +3,8 @@ package io
 import "time"
 
 const (
-	TagRead  = "接收"
-	TagWrite = "发送"
-	TagErr   = "错误"
-	TagInfo  = "信息"
-	Ping     = "ping"
-	Pong     = "pong"
+	Ping = "ping"
+	Pong = "pong"
 
 	KB1               = 1 << 10 //1KB
 	KB4               = 4 << 10 //4KB
@@ -24,14 +20,25 @@ const (
 )
 
 const (
-	TCP       = 0x00 //"TCP"
-	UDP       = 0x01 // "UDP"
-	HTTP      = 0x02 //"HTTP"
-	Websocket = 0x03 // "Websocket"
-	Memory    = 0x04 // "Memory"
-	Serial    = 0x05 // "Serial"
-	SSH       = 0x06 // "SSH"
-	MQTT      = 0x07 // "MQTT"
+	B_TCP       = 0x00 //"TCP"
+	B_UDP       = 0x01 // "UDP"
+	B_HTTP      = 0x02 //"HTTP"
+	B_Websocket = 0x03 // "Websocket"
+	B_Memory    = 0x04 // "Memory"
+	B_Serial    = 0x05 // "Serial"
+	B_SSH       = 0x06 // "SSH"
+	B_MQTT      = 0x07 // "MQTT"
+)
+
+const (
+	TCP       = "TCP"
+	UDP       = "UDP"
+	HTTP      = "HTTP"
+	Websocket = "Websocket"
+	Memory    = "Memory"
+	Serial    = "Serial"
+	SSH       = "SSH"
+	MQTT      = "MQTT"
 )
 
 const (

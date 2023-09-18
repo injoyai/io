@@ -28,15 +28,14 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	}
 	//新建实例
 	s := &Server{
-		Logger:       &log{},
-		printer:      newPrinter(fmt.Sprintf("%p", listener)),
+		Logger:       newLog(),
 		ICloser:      NewICloserWithContext(ctx, listener),
 		ClientManage: NewClientManage(ctx, fmt.Sprintf("%p", listener)),
 		Tag:          maps.NewSafe(),
 		listener:     listener,
 	}
-	s.ICloser.printer = s.printer
-	s.ClientManage.printer = s.printer
+	s.ICloser.Logger = s.Logger
+	s.ClientManage.Logger = s.Logger
 	//开启基础信息打印
 	s.Debug()
 	//设置关闭函数
@@ -53,8 +52,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 
 // Server 服务端
 type Server struct {
-	Logger ILog
-	*printer
+	Logger
 	*ICloser
 	*ClientManage
 
@@ -119,8 +117,7 @@ func (this *Server) Run() error {
 		return nil
 	}
 
-	this.Logger.Infof("[%s] 开启服务成功...", this.GetKey())
-	//this.Print(Message("开启服务成功..."), TagInfo, this.GetKey())
+	this.Logger.Infof("开启服务成功...")
 
 	//执行监听连接
 	for {
@@ -138,7 +135,7 @@ func (this *Server) Run() error {
 
 		//新建客户端,并配置
 		x := NewClientWithContext(this.Ctx(), c).SetKey(key)
-		this.Logger.Infof("[%s] 新的客户端连接...", this.GetKey())
+		this.Logger.Infof("新的客户端连接...")
 		//this.Print(Message("新的客户端连接..."), TagInfo, x.GetKey())
 		this.ClientManage.SetClient(x)
 
