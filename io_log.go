@@ -3,7 +3,7 @@ package io
 import (
 	"encoding/hex"
 	"github.com/injoyai/conv"
-	"github.com/injoyai/logs"
+	golog "log"
 )
 
 const (
@@ -13,6 +13,7 @@ const (
 	LevelDebug
 	LevelInfo
 	LevelError
+	LevelNone Level = 999
 )
 
 type Level int
@@ -37,11 +38,13 @@ func (this Level) printf(log *log, format string, v ...interface{}) {
 		if len(log.key) > 0 {
 			prefix += "[" + log.key + "]"
 		}
-		logs.New(this.String()).Writef(logs.LevelError, prefix+" "+format, v...)
+		golog.Printf(prefix+" "+format, v...)
 	}
 }
 
 type Logger interface {
+	Copy() Logger
+	Handler() func(logger Logger)
 	SetLevel(level Level)
 	GetKey() string
 	SetKey(key string)
@@ -58,9 +61,6 @@ type Logger interface {
 var NewLog = newLog
 
 func newLog(key ...string) Logger {
-	for _, name := range LevelMap {
-		logs.New(name).SetName("")
-	}
 	return &log{
 		level:  LevelAll,
 		key:    conv.DefaultString("", key...),
@@ -74,6 +74,21 @@ type log struct {
 	key    string
 	debug  bool
 	coding string
+}
+
+func (this *log) Handler() func(l Logger) {
+	return func(l Logger) {
+		l.Debug(this.debug)
+		l.SetLevel(this.level)
+		if this.coding == "hex" {
+			l.SetPrintWithHEX()
+		}
+	}
+}
+
+func (this *log) Copy() Logger {
+	x := *this
+	return &x
 }
 
 func (this *log) GetKey() string {

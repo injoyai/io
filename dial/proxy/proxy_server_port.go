@@ -5,7 +5,7 @@ import (
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
-	"github.com/injoyai/io/dial"
+	"github.com/injoyai/io/listen"
 	"regexp"
 )
 
@@ -26,7 +26,7 @@ type PortForwardingServer struct {
 
 // Listen 监听
 func (this *PortForwardingServer) Listen(port int, sn, addr string, options ...io.OptionServer) error {
-	s, err := dial.NewTCPServer(port, func(s *io.Server) {
+	s, err := listen.NewTCPServer(port, func(s *io.Server) {
 		s.Tag.Set("sn", sn)
 		s.Tag.Set("addr", addr)
 		s.SetDealFunc(func(msg *io.IMessage) {

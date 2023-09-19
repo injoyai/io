@@ -5,6 +5,7 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/logs"
 	"testing"
+	"time"
 )
 
 func TestRedialWebsocket(t *testing.T) {
@@ -41,9 +42,9 @@ func TestRedialWebsocket2(t *testing.T) {
 
 func TestRedialTCP(t *testing.T) {
 	//"ws://192.168.10.3:1880/node-red/comms"
-	RedialTCP(":10086", func(c *io.Client) {
+	RedialTCP(":10089", func(c *io.Client) {
 		c.Debug()
-		c.WriteAny("666")
+		c.GoTimerWriteBytes(time.Second, []byte("666"))
 	})
 	select {}
 }

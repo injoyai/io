@@ -205,7 +205,9 @@ func (this *ClientManage) SetClient(c *Client) {
 	c.SetDealFunc(this._dealFunc)  //数据处理方法
 	c.SetReadFunc(this.readFunc)   //读取数据方法
 	c.SetWriteFunc(this.writeFunc) //设置发送函数
-	c.SetLogger(this.Logger)       //设置日志
+	cLog := this.Logger.Copy()
+	cLog.SetKey(c.GetKey())
+	c.SetLogger(cLog) //同步logger配置
 
 	// 协程执行,等待连接的后续数据,来决定后续操作
 	go func(c *Client) {
