@@ -16,11 +16,11 @@ func TestTCPServer(t *testing.T) {
 	s.Debug()
 	s.SetPrintWithASCII()
 	s.SetLevel(io.LevelAll)
-	//s.SetDealFunc(func(msg *io.IMessage) {
-	//	//msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: http://www.baidu.com\r\n")
-	//	msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: /\r\n")
-	//	msg.TryCloseWithDeadline()
-	//})
+	s.SetDealFunc(func(msg *io.IMessage) {
+		//msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: http://www.baidu.com\r\n")
+		msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: /\r\n")
+		//msg.TryCloseWithDeadline()
+	})
 	t.Error(s.Run())
 
 }
@@ -29,10 +29,10 @@ func TestRedial(t *testing.T) {
 	dial.RedialTCP(":10086", func(c *io.Client) {
 		c.SetPrintWithASCII()
 		c.Debug()
-		//c.GoTimerWriter(time.Second*5, func(c *io.IWriter) error {
-		//	_, err := c.WriteHEX("3a520600030a01000aaa0d")
-		//	return err
-		//})
+		c.GoTimerWriter(time.Second*5, func(c *io.IWriter) error {
+			_, err := c.WriteHEX("3a520600030a01000aaa0d")
+			return err
+		})
 	})
 	select {}
 }

@@ -19,8 +19,8 @@ func NewIWriter(writer Writer) *IWriter {
 		return c
 	}
 	return &IWriter{
-		Logger: newLog(),
-		//printer:   newPrinter(""),
+		Key:       &Key{},
+		Logger:    NewLog(),
 		writer:    writer,
 		writeFunc: nil,
 		lastTime:  time.Time{},
@@ -29,6 +29,7 @@ func NewIWriter(writer Writer) *IWriter {
 
 // IWriter 写
 type IWriter struct {
+	*Key
 	Logger
 	writer     Writer                    //io.Writer
 	writeFunc  WriteFunc                 //写入函数
@@ -57,7 +58,7 @@ func (this *IWriter) Write(p []byte) (n int, err error) {
 		}
 	}
 	//打印实际发送的数据,方便调试
-	this.Logger.Writeln(p)
+	this.Logger.Writeln("["+this.GetKey()+"] ", p)
 	//写入数据
 	n, err = this.writer.Write(p)
 	if err != nil {

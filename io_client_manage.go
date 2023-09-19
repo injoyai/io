@@ -13,7 +13,8 @@ import (
 
 func NewClientManage(ctx context.Context, key string) *ClientManage {
 	e := &ClientManage{
-		Logger:          newLog(key),
+		Key:             &Key{key},
+		Logger:          NewLog(),
 		m:               make(map[string]*Client),
 		mu:              sync.RWMutex{},
 		ctx:             ctx,
@@ -58,6 +59,7 @@ ClientManage
 例如串口,需要统一
 */
 type ClientManage struct {
+	*Key
 	Logger
 	m          map[string]*Client
 	mu         sync.RWMutex
@@ -205,9 +207,7 @@ func (this *ClientManage) SetClient(c *Client) {
 	c.SetDealFunc(this._dealFunc)  //数据处理方法
 	c.SetReadFunc(this.readFunc)   //读取数据方法
 	c.SetWriteFunc(this.writeFunc) //设置发送函数
-	cLog := this.Logger.Copy()
-	cLog.SetKey(c.GetKey())
-	c.SetLogger(cLog) //同步logger配置
+	c.SetLogger(this.Logger)       //同步logger配置
 
 	// 协程执行,等待连接的后续数据,来决定后续操作
 	go func(c *Client) {
@@ -215,7 +215,7 @@ func (this *ClientManage) SetClient(c *Client) {
 		//前置操作,例如等待注册数据,不符合的返回错误则关闭连接
 		if this.beforeFunc != nil {
 			if err := this.beforeFunc(c); err != nil {
-				this.Logger.Errorf(err.Error())
+				this.Logger.Errorf("[%s] %v", c.GetKey(), err)
 				_ = c.Close()
 				return
 			}

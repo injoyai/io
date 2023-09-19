@@ -26,11 +26,13 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	if err != nil {
 		return nil, err
 	}
+	key := fmt.Sprintf("%p", listener)
 	//新建实例
 	s := &Server{
-		Logger:       newLog(fmt.Sprintf("%p", listener)),
+		Key:          &Key{key: key},
+		Logger:       NewLog(),
 		ICloser:      NewICloserWithContext(ctx, listener),
-		ClientManage: NewClientManage(ctx, fmt.Sprintf("%p", listener)),
+		ClientManage: NewClientManage(ctx, key),
 		Tag:          maps.NewSafe(),
 		listener:     listener,
 	}
@@ -52,6 +54,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 
 // Server 服务端
 type Server struct {
+	*Key
 	Logger
 	*ICloser
 	*ClientManage
@@ -117,7 +120,7 @@ func (this *Server) Run() error {
 		return nil
 	}
 
-	this.Logger.Infof("开启服务成功...")
+	this.Logger.Infof("[%s] 开启服务成功...", this.GetKey())
 
 	//执行监听连接
 	for {
@@ -135,7 +138,7 @@ func (this *Server) Run() error {
 
 		//新建客户端,并配置
 		x := NewClientWithContext(this.Ctx(), c).SetKey(key)
-		this.Logger.Infof("新的客户端连接...")
+		this.Logger.Infof("[%s] 新的客户端连接...", key)
 		this.ClientManage.SetClient(x)
 
 	}

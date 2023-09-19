@@ -57,6 +57,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser, options ...Opt
 		return c
 	}
 	c := &Client{
+		Key:         &Key{},
 		IReadCloser: NewIReadCloserWithContext(ctx, i),
 		IWriter:     NewIWriter(i),
 		i:           i,
@@ -75,6 +76,7 @@ Client 通用IO客户端
 可以作为普通的io.ReadWriteCloser(Run函数不执行)
 */
 type Client struct {
+	*Key
 	*IReadCloser
 	*IWriter
 
@@ -283,11 +285,11 @@ func (this *Client) Redial(options ...OptionClient) *Client {
 		readWriteCloser := this.IReadCloser.MustDial(ctx)
 		if readWriteCloser == nil {
 			if this.ICloser.Err() != ErrHandClose {
-				this.Logger.Errorf("连接断开(%v),未设置重连函数", this.ICloser.Err())
+				this.Logger.Errorf("[%s] 连接断开(%v),未设置重连函数", this.GetKey(), this.ICloser.Err())
 			}
 			return
 		}
-		this.Logger.Infof("连接断开(%v),重连成功", this.ICloser.Err())
+		this.Logger.Infof("[%s] 连接断开(%v),重连成功", this.GetKey(), this.ICloser.Err())
 		redialFunc := this.IReadCloser.redialFunc
 		key := this.GetKey()
 		*this = *NewClient(readWriteCloser)
@@ -298,7 +300,7 @@ func (this *Client) Redial(options ...OptionClient) *Client {
 	})
 	this.SetOptions(options...)
 	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
-	this.Logger.Infof("连接服务端成功...")
+	this.Logger.Infof("[%s] 连接服务端成功...", this.GetKey())
 	go this.Run()
 	return this
 }

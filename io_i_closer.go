@@ -15,7 +15,8 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 	ctxParent, cancelParent := context.WithCancel(ctx)
 	ctx, cancel := context.WithCancel(ctxParent)
 	return &ICloser{
-		Logger:        newLog(),
+		Key:           &Key{},
+		Logger:        NewLog(),
 		closer:        closer,
 		redialFunc:    nil,
 		redialMaxTime: time.Second * 32,
@@ -30,6 +31,7 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 }
 
 type ICloser struct {
+	*Key
 	Logger
 	closer        Closer             //实例
 	redialFunc    DialFunc           //重连函数
@@ -233,8 +235,7 @@ func (this *ICloser) closeWithErr(closeErr error, fn ...func(Closer) error) (err
 		//生成错误信息
 		msg := Message(this.closeErr.Error())
 		//打印错误信息
-		this.Logger.Errorf(msg.String())
-		//this.printer.Print(msg, TagErr, this.GetKey())
+		this.Logger.Errorf("[%s] %s", this.GetKey(), msg.String())
 		//执行用户设置的错误函数
 		if this.closeFunc != nil {
 			//需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
@@ -267,7 +268,7 @@ func (this *ICloser) MustDial(ctx context.Context) ReadWriteCloser {
 			if t > this.redialMaxTime {
 				t = this.redialMaxTime
 			}
-			this.Logger.Errorf("%v,等待%d秒重试", dealErr(err), t/time.Second)
+			this.Logger.Errorf("[%s] %v,等待%d秒重试", dealErr(err), t/time.Second)
 			timer.Reset(t)
 		}
 	}

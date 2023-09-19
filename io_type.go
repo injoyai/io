@@ -80,3 +80,9 @@ type OptionClient func(c *Client)
 
 // OptionServer 服务端选项
 type OptionServer func(s *Server)
+
+type Key struct{ key string }
+
+func (this *Key) GetKey() string { return this.key }
+
+func (this *Key) SetKey(key string) { this.key = key }
