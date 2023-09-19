@@ -6,13 +6,13 @@ const (
 	Ping = "ping"
 	Pong = "pong"
 
-	KB1               = 1 << 10  //1KB
-	KB4               = 4 << 10  //4KB
-	KB32              = 32 << 10 //4KB
-	MB1               = 1 << 20  //1MB
+	KB1               = 1 << 10 //1KB
+	KB4               = 4 << 10 //4KB
+	MB1               = 1 << 20 //1MB
 	DefaultBufferSize = KB4
 
 	DefaultPort            = 10086
+	DefaultPortStr         = ":10086"
 	DefaultConnectTimeout  = time.Second * 2  //默认连接时间
 	DefaultKeepAlive       = time.Minute * 10 //默认保持连接时间
 	DefaultTimeoutInterval = time.Minute      //默认离线检查间隔

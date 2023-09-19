@@ -50,17 +50,16 @@ func TestRunUDPServer(t *testing.T) {
 func TestIOSpeed(t *testing.T) {
 	start := time.Now() //当前时间
 	length := 20 << 20  //传输的数据大小
-	go RunTCPServer(10086, func(s *io.Server) {
+	go RunTCPServer(io.DefaultPort, func(s *io.Server) {
 		s.Debug(false)
-		s.SetPrintWithHEX()
+		s.SetReadWithAll()
 		s.SetDealFunc(func(msg *io.IMessage) {
 			t.Log("数据长度: ", msg.Len())
 			t.Log("传输耗时: ", time.Now().Sub(start))
 		})
 	})
-	<-dial.RedialTCP(":10086", func(c *io.Client) {
+	<-dial.RedialTCP(io.DefaultPortStr, func(c *io.Client) {
 		c.Debug(false)
-		//c.SetPrintWithHEX()
 		data := make([]byte, length)
 		start = time.Now()
 		c.Write(data)

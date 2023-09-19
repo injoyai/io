@@ -94,7 +94,7 @@ func SwapClient(c1, c2 *Client) {
 }
 
 // Swap same two Copy IO数据交换
-func Swap(i1, i2 ReadWriteCloser) {
+func Swap(i1, i2 ReadWriter) {
 	go Copy(i1, i2)
 	Copy(i2, i1)
 }
