@@ -95,6 +95,15 @@ func (this *ICloser) SetRedialWithNil() *ICloser {
 
 //================================Timer================================
 
+func (this *ICloser) After(after time.Duration, fn func()) {
+	select {
+	case <-this.Done():
+		return
+	case <-time.After(after):
+		fn()
+	}
+}
+
 // Timer 定时器执行函数,直到错误
 func (this *ICloser) Timer(interval time.Duration, fn func() error) {
 	this.timer(this.Ctx(), this.CloseWithErr, interval, fn)

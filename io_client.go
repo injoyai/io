@@ -183,6 +183,11 @@ func (this *Client) GoTimerWriteASCII(interval time.Duration, s string) {
 	})
 }
 
+// GoAfter 延迟执行函数
+func (this *Client) GoAfter(after time.Duration, fn func()) {
+	go this.ICloser.After(after, fn)
+}
+
 // SetKeepAlive 设置连接保持,另外起了携程,服务器不需要,客户端再起一个也没啥问题
 // TCP keepalive定义于RFC 1122，但并不是TCP规范中的一部分,默认必需是关闭,连接方不一定支持
 func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {

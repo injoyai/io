@@ -49,10 +49,18 @@ func TestRedialWebsocket2(t *testing.T) {
 
 func TestRedialTCP(t *testing.T) {
 	//"ws://192.168.10.3:1880/node-red/comms"
-	RedialTCP(":10089", func(c *io.Client) {
+	c := RedialTCP(":10086", func(c *io.Client) {
 		c.Debug()
 		c.GoTimerWriteBytes(time.Second, []byte("666"))
+		c.GoAfter(time.Second*3, func() {
+			c.Close()
+		})
 	})
+
+	<-c.Done()
+	t.Log("结束Done")
+	<-c.DoneAll()
+	t.Log("结束DoneAll")
 	select {}
 }
 
