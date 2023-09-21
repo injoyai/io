@@ -323,10 +323,6 @@ type SSHClient struct {
 	err io.Reader
 }
 
-func (this *SSHClient) Write(p []byte) (int, error) {
-	return this.Writer.Write(append(p, '\n'))
-}
-
 func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 	cfg.new()
 	config := &ssh.ClientConfig{
