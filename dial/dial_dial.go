@@ -287,7 +287,8 @@ type SSHConfig struct {
 	Timeout     time.Duration
 	High        int    //高
 	Wide        int    //宽
-	Term        string //
+	Term        string //样式
+	ECHO        uint32 // 禁用回显（0禁用，1启动）
 	Type        string //password 或者 key
 	key         string //类型为key
 	keyPassword string //类型为key
@@ -351,9 +352,9 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 		return nil, err
 	}
 	modes := ssh.TerminalModes{
-		ssh.ECHO:          0,     // 禁用回显（0禁用，1启动）
-		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
-		ssh.TTY_OP_OSPEED: 14400, //output speed = 14.4kbaud
+		ssh.ECHO:          cfg.ECHO, // 禁用回显（0禁用，1启动）
+		ssh.TTY_OP_ISPEED: 14400,    // input speed = 14.4kbaud
+		ssh.TTY_OP_OSPEED: 14400,    //output speed = 14.4kbaud
 	}
 	reader, err := session.StdoutPipe()
 	if err != nil {
