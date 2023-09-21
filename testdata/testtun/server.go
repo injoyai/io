@@ -2,12 +2,12 @@ package main
 
 import (
 	"github.com/injoyai/io"
-	"github.com/injoyai/io/dial"
+	"github.com/injoyai/io/listen"
 	"github.com/injoyai/logs"
 )
 
 func main() {
-	s, err := dial.NewTCPServer(10088, func(s *io.Server) {
+	s, err := listen.NewTCPServer(10088, func(s *io.Server) {
 		s.Debug(true)
 		s.SetPrintWithASCII()
 	})
@@ -15,6 +15,6 @@ func main() {
 		logs.Err(err)
 		return
 	}
-	dial.NewTunnelServer(s)
+	listen.NewTunnelServer(s)
 	logs.Err(s.Run())
 }

@@ -148,7 +148,7 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 }
 
 func NewUDPServer(port int, options ...func(s *Server)) (*Server, error) {
-	s, err := NewServer(listen.UDPListenFunc(port), options...)
+	s, err := NewServer(listen.WithUDP(port), options...)
 	if err == nil {
 		s.s.SetKey(fmt.Sprintf(":%d", port))
 	}
@@ -156,7 +156,7 @@ func NewUDPServer(port int, options ...func(s *Server)) (*Server, error) {
 }
 
 func NewTCPServer(port int, options ...func(s *Server)) (*Server, error) {
-	s, err := NewServer(listen.TCPListenFunc(port), options...)
+	s, err := NewServer(listen.WithTCP(port), options...)
 	if err == nil {
 		s.s.SetKey(fmt.Sprintf(":%d", port))
 	}

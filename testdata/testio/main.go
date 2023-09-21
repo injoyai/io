@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
+	"github.com/injoyai/io/listen"
 	"github.com/injoyai/logs"
 	"os"
 	"time"
@@ -25,8 +26,8 @@ func Test(n int) {
 		var start time.Time  //当前时间
 		length := 1000 << 20 //传输的数据大小
 		totalDeal := 0
-		dial.RunTCPServer(10086, func(s *io.Server) {
-			s.SetPrintWithBase()
+		listen.RunTCPServer(10086, func(s *io.Server) {
+			s.SetLevel(io.LevelInfo)
 			s.SetDealFunc(func(msg *io.IMessage) {
 				if start.IsZero() {
 					start = time.Now()
@@ -72,8 +73,8 @@ func Test(n int) {
 		}
 
 		totalDeal := 0
-		go dial.RunTCPServer(10086, func(s *io.Server) {
-			s.SetPrintWithErr()
+		go listen.RunTCPServer(10086, func(s *io.Server) {
+			s.SetLevel(io.LevelError)
 			s.SetReadFunc(readAll)
 			s.SetDealFunc(func(msg *io.IMessage) {
 				totalDeal += msg.Len()
