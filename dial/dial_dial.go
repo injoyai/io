@@ -149,7 +149,7 @@ func MQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser
 	if token.Error() != nil {
 		return nil, token.Error()
 	}
-	r := &_mqtt{
+	r := &MQTTClient{
 		Client:   c,
 		clientID: clientID,
 		topic:    topic,
@@ -183,7 +183,7 @@ func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, options ...io
 	})
 }
 
-type _mqtt struct {
+type MQTTClient struct {
 	mqtt.Client
 	clientID string
 	topic    string
@@ -191,23 +191,23 @@ type _mqtt struct {
 	ch       chan mqtt.Message
 }
 
-func (this *_mqtt) Read(p []byte) (int, error) {
+func (this *MQTTClient) Read(p []byte) (int, error) {
 	return 0, nil
 }
 
-func (this *_mqtt) ReadMessage() ([]byte, error) {
+func (this *MQTTClient) ReadMessage() ([]byte, error) {
 	msg := <-this.ch
 	defer msg.Ack()
 	return msg.Payload(), nil
 }
 
-func (this *_mqtt) Write(p []byte) (int, error) {
+func (this *MQTTClient) Write(p []byte) (int, error) {
 	token := this.Client.Publish(this.topic, this.qos, false, p)
 	token.Wait()
 	return len(p), token.Error()
 }
 
-func (this *_mqtt) Close() error {
+func (this *MQTTClient) Close() error {
 	token := this.Client.Unsubscribe(this.clientID)
 	token.Wait()
 	return token.Error()
@@ -220,13 +220,13 @@ func (this *_mqtt) Close() error {
 // Websocket 连接
 func Websocket(url string, header http.Header) (io.MessageReadWriteCloser, error) {
 	c, _, err := websocket.DefaultDialer.Dial(url, header)
-	return &_websocket{Conn: c}, err
+	return &WebsocketClient{Conn: c}, err
 }
 
 func WithWebsocket(url string, header http.Header) func() (io.ReadWriteCloser, error) {
 	return func() (io.ReadWriteCloser, error) {
 		c, _, err := websocket.DefaultDialer.Dial(url, header)
-		return &_websocket{Conn: c}, err
+		return &WebsocketClient{Conn: c}, err
 	}
 }
 
@@ -255,41 +255,42 @@ func RedialWebsocket(url string, header http.Header, options ...io.OptionClient)
 	})
 }
 
-type _websocket struct {
+type WebsocketClient struct {
 	*websocket.Conn
 }
 
 // Read 无效,请使用ReadMessage
-func (this *_websocket) Read(p []byte) (int, error) {
+func (this *WebsocketClient) Read(p []byte) (int, error) {
 	return 0, nil
 }
 
-func (this *_websocket) Write(p []byte) (int, error) {
+func (this *WebsocketClient) Write(p []byte) (int, error) {
 	err := this.Conn.WriteMessage(websocket.TextMessage, p)
 	return len(p), err
 }
 
-func (this *_websocket) ReadMessage() ([]byte, error) {
+func (this *WebsocketClient) ReadMessage() ([]byte, error) {
 	_, bs, err := this.Conn.ReadMessage()
 	return bs, err
 }
 
-func (this *_websocket) Close() error {
+func (this *WebsocketClient) Close() error {
 	return this.Conn.Close()
 }
 
 //================================SSH================================
 
 type SSHConfig struct {
-	Addr     string
-	User     string
-	Password string //类型为password
-	Timeout  time.Duration
-	High     int //高
-	Wide     int //宽
-	//Type        string //password 或者 key
-	//key         string //类型为key
-	//keyPassword string //类型为key
+	Addr        string
+	User        string
+	Password    string //类型为password
+	Timeout     time.Duration
+	High        int    //高
+	Wide        int    //宽
+	Term        string //
+	Type        string //password 或者 key
+	key         string //类型为key
+	keyPassword string //类型为key
 }
 
 func (this *SSHConfig) new() *SSHConfig {
@@ -308,17 +309,20 @@ func (this *SSHConfig) new() *SSHConfig {
 	if this.Wide == 0 {
 		this.Wide = 300
 	}
+	if len(this.Term) == 0 {
+		this.Term = "xterm-256color"
+	}
 	return this
 }
 
-type Client struct {
+type SSHClient struct {
 	io.Writer
 	io.Reader
 	*ssh.Session
 	err io.Reader
 }
 
-func (this *Client) Write(p []byte) (int, error) {
+func (this *SSHClient) Write(p []byte) (int, error) {
 	return this.Writer.Write(append(p, '\n'))
 }
 
@@ -330,14 +334,14 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Auth:            []ssh.AuthMethod{ssh.Password(cfg.Password)},
 	}
-	//switch cfg.Type {
-	//case "key":
-	//	signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(cfg.key), []byte(cfg.keyPassword))
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
-	//}
+	switch cfg.Type {
+	case "key":
+		signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(cfg.key), []byte(cfg.keyPassword))
+		if err != nil {
+			return nil, err
+		}
+		config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	}
 	sshClient, err := ssh.Dial("tcp", cfg.Addr, config)
 	if err != nil {
 		return nil, err
@@ -363,13 +367,13 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := session.RequestPty("xterm-256color", cfg.High, cfg.Wide, modes); err != nil {
+	if err := session.RequestPty(cfg.Term, cfg.High, cfg.Wide, modes); err != nil {
 		return nil, err
 	}
 	if err := session.Shell(); err != nil {
 		return nil, err
 	}
-	return &Client{
+	return &SSHClient{
 		Writer:  writer,
 		Reader:  reader,
 		Session: session,
