@@ -68,7 +68,7 @@ func UDP(port int) (io.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &_udpServer{UDPConn: listener, m: make(map[string]*_udp)}, nil
+	return &UDPServer{UDPConn: listener, m: make(map[string]*_udp)}, nil
 }
 
 func WithUDP(port int) io.ListenFunc {
@@ -97,7 +97,7 @@ func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error 
 }
 
 type _udp struct {
-	s    *_udpServer
+	s    *UDPServer
 	addr *net.UDPAddr
 	buff chan []byte
 }
@@ -121,14 +121,14 @@ func (this *_udp) Close() error {
 	return nil
 }
 
-// todo 待优化
-type _udpServer struct {
+// UDPServer todo 待优化
+type UDPServer struct {
 	*net.UDPConn
 	m  map[string]*_udp
 	mu sync.RWMutex
 }
 
-func (this *_udpServer) Accept() (io.ReadWriteCloser, string, error) {
+func (this *UDPServer) Accept() (io.ReadWriteCloser, string, error) {
 	for {
 		buff := make([]byte, 2<<10)
 		n, addr, err := this.UDPConn.ReadFromUDP(buff)
@@ -163,7 +163,7 @@ func (this *_udpServer) Accept() (io.ReadWriteCloser, string, error) {
 	}
 }
 
-func (this *_udpServer) Addr() string {
+func (this *UDPServer) Addr() string {
 	return this.UDPConn.RemoteAddr().String()
 }
 

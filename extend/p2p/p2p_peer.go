@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/listen"
 	"net"
 	"time"
 )
@@ -23,17 +24,18 @@ type Peer interface {
 
 func NewPeer(port int) (*peer, error) {
 	localAddr := &net.UDPAddr{Port: port}
-	p, err := net.ListenUDP("udp", localAddr)
+	c, err := net.ListenUDP("udp", localAddr)
 	if err != nil {
 		return nil, err
 	}
+	listen.NewUDPServer(port)
 	if err != nil {
 		return nil, err
 	}
 	return &peer{
 		port:      port,
 		localAddr: localAddr,
-		peer:      p,
+		peer:      c,
 		clients:   maps.NewSafe(),
 	}, nil
 }
@@ -59,11 +61,24 @@ func (this *peer) dial(addr string) (*net.UDPConn, error) {
 	return v.(*net.UDPConn), err
 }
 
+func (this *peer) WriteTo(addr string, p []byte) (int, error) {
+	raddr, err := net.ResolveUDPAddr(io.UDP, addr)
+	if err != nil {
+		return 0, err
+	}
+	return this.peer.WriteToUDP(p, raddr)
+}
+
 func (this *peer) Ping(addr string) error {
+	if _, err := this.WriteTo(addr, io.NewPkgPing()); err != nil {
+
+	}
+
 	raddr, err := net.ResolveUDPAddr(io.UDP, addr)
 	if err != nil {
 		return err
 	}
+
 	c, err := net.DialUDP(io.UDP, this.localAddr, raddr)
 	if err != nil {
 		return err
