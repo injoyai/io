@@ -6,17 +6,23 @@ import (
 )
 
 func TestNewPeer(t *testing.T) {
-	remoteAddr := "124.160.230.36:20000"
-	p, err := NewPeer(20000, remoteAddr)
+	remoteAddr := "127.0.0.1:20000"
+	p, err := NewPeer(20000)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+
+	c, err := p.dial(remoteAddr)
 	if err != nil {
 		t.Log(err)
 		return
 	}
 	_ = p
 	//p.c.WriteTo([]byte("6666"),remoteAddr)
-	t.Log(p.c.LocalAddr())
-	t.Log(p.c.RemoteAddr())
-	_, err = p.c.Write([]byte("6666"))
+	t.Log(c.LocalAddr())
+	t.Log(c.RemoteAddr())
+	_, err = c.Write([]byte("6666"))
 	t.Log(err)
 	select {}
 }

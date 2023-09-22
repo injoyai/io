@@ -262,3 +262,52 @@ func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 		}
 	}
 }
+
+func ReadPkg(buf *bufio.Reader) (p *Pkg, err error) {
+	var result []byte
+	var bs []byte
+	for {
+
+		bs = make([]byte, 2)
+		n, err := buf.Read(bs)
+		if err != nil {
+			return nil, err
+		}
+
+		if n == 2 && bs[0] == pkgStart[0] && bs[1] == pkgStart[1] {
+			//帧头
+			result = append(result, bs...)
+
+			bs = make([]byte, 4)
+			n, err = buf.Read(bs)
+			if err != nil {
+				return nil, err
+			}
+			if n == 4 {
+				//长度
+				length := conv.Int(bs)
+
+				if length > pkgBaseLength {
+					result = append(result, bs...)
+					length -= 6
+
+					//tcp分包,导致需要多次读取,todo 如果数据错误是否会一直阻塞?
+					for length > 0 {
+						bs = make([]byte, length)
+						n, err = buf.Read(bs)
+						if err != nil {
+							return nil, err
+						}
+						result = append(result, bs[:n]...)
+						length -= n
+					}
+					p, err := DecodePkg(result)
+					if err != nil {
+						return nil, err
+					}
+					return p, nil
+				}
+			}
+		}
+	}
+}

@@ -1,9 +1,12 @@
 package p2p
 
 import (
+	"bufio"
+	"errors"
+	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
-	"github.com/injoyai/io/listen"
 	"net"
+	"time"
 )
 
 const (
@@ -11,39 +14,90 @@ const (
 )
 
 type Peer interface {
+	LocalAddr() net.Addr               //本地地址
+	Ping(addr string) error            //ping下地址,如果协议一直,则有消息返回
+	Base(addr string) (MsgBase, error) //获取基本信息
+	Find(addr string) (MsgFind, error) //
+	Connect(addr string) error         //建立连接
 }
 
-func NewPeer(localPort int, remoteAddr string) (*peer, error) {
-	localAddr := &net.UDPAddr{Port: localPort}
-	//s, err := net.ListenUDP("udp", localAddr)
-	s, err := listen.NewUDPServer(localPort, func(s *io.Server) {
-		s.Debug()
-		s.SetPrintWithASCII()
+func NewPeer(port int) (*peer, error) {
+	localAddr := &net.UDPAddr{Port: port}
+	p, err := net.ListenUDP("udp", localAddr)
+	if err != nil {
+		return nil, err
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &peer{
+		port:      port,
+		localAddr: localAddr,
+		peer:      p,
+		clients:   maps.NewSafe(),
+	}, nil
+}
+
+type peer struct {
+	port      int //占用的端口
+	localAddr *net.UDPAddr
+	peer      *net.UDPConn //监听的服务
+	clients   *maps.Safe
+}
+
+func (this *peer) dial(addr string) (*net.UDPConn, error) {
+	v, err := this.clients.GetOrSetByHandler(addr, func() (interface{}, error) {
+		raddr, err := net.ResolveUDPAddr(io.UDP, addr)
+		if err != nil {
+			return nil, err
+		}
+		return net.DialUDP(io.UDP, this.localAddr, raddr)
 	})
 	if err != nil {
 		return nil, err
 	}
-	raddr, err := net.ResolveUDPAddr(UDP, remoteAddr)
-	if err != nil {
-		return nil, err
-	}
-	c, err := net.DialUDP(UDP, localAddr, raddr)
-	if err != nil {
-		return nil, err
-	}
-	go s.Run()
-	return &peer{p: localPort, s: s, c: c}, nil
+	return v.(*net.UDPConn), err
 }
 
-type peer struct {
-	p int        //占用的端口
-	s *io.Server //监听的服务
-	//s    *net.UDPConn //监听的服务
-	c    *net.UDPConn //发起的请求
-	stun net.Conn     //代理的服务器
+func (this *peer) Ping(addr string) error {
+	raddr, err := net.ResolveUDPAddr(io.UDP, addr)
+	if err != nil {
+		return err
+	}
+	c, err := net.DialUDP(io.UDP, this.localAddr, raddr)
+	if err != nil {
+		return err
+	}
+	if _, err := c.Write(io.NewPkgPing()); err != nil {
+		return err
+	}
+	if err := c.SetDeadline(time.Now().Add(time.Second)); err != nil {
+		return err
+	}
+	p, err := io.ReadPkg(bufio.NewReader(c))
+	if err != nil {
+		return err
+	}
+	if !p.IsPong() {
+		return errors.New("响应失败")
+	}
+	return nil
 }
 
-func (this *peer) GetIPPort() (net.IP, int, error) {
+func (this *peer) Base(addr string) (MsgBase, error) {
+	return MsgBase{}, nil
+}
 
-	return nil, 0, nil
+func (this *peer) Find(addr string) (MsgFind, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (this *peer) Connect(addr string) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (this *peer) LocalAddr() net.Addr {
+	return this.localAddr
 }

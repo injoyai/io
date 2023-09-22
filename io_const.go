@@ -32,14 +32,14 @@ const (
 )
 
 const (
-	TCP       = "TCP"
-	UDP       = "UDP"
-	HTTP      = "HTTP"
-	Websocket = "Websocket"
-	Memory    = "Memory"
-	Serial    = "Serial"
-	SSH       = "SSH"
-	MQTT      = "MQTT"
+	TCP       = "tcp"
+	UDP       = "udp"
+	HTTP      = "http"
+	Websocket = "websocket"
+	Memory    = "memory"
+	Serial    = "serial"
+	SSH       = "ssh"
+	MQTT      = "mqtt"
 )
 
 const (
