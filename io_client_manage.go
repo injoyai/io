@@ -260,6 +260,22 @@ func (this *ClientManage) GetClient(key string) *Client {
 	return this.m[key]
 }
 
+// GetClientOrDial 获取客户端或者(不存在)重新链接
+func (this *ClientManage) GetClientOrDial(key string, dialFunc DialFunc) (*Client, error) {
+	this.mu.RLock()
+	c, ok := this.m[key]
+	this.mu.RUnlock()
+	if !ok {
+		var err error
+		c, err = this.DialClient(dialFunc)
+		if err != nil {
+			return nil, err
+		}
+		this.SetClient(c)
+	}
+	return c, nil
+}
+
 // GetClientAny 获取任意一个客户端
 func (this *ClientManage) GetClientAny() *Client {
 	this.mu.RLock()

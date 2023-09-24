@@ -1,10 +1,12 @@
 package p2p
 
 import (
+	"errors"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/listen"
 	"net"
+	"time"
 )
 
 const (
@@ -59,19 +61,26 @@ func (this *peer) WriteTo(addr string, p []byte) (int, error) {
 }
 
 func (this *peer) Ping(addr string) error {
+	c, err := this.s.GetClientOrDial(addr, func() (io.ReadWriteCloser, error) {
+		return this.s.Listener().(*listen.UDPServer).NewUDPClient(addr)
+	})
+	if err != nil {
+		return err
+	}
 	if _, err := this.WriteTo(addr, io.NewPkgPing()); err != nil {
 		return err
 	}
-	//if err := c.SetDeadline(time.Now().Add(time.Second)); err != nil {
-	//	return err
-	//}
-	//p, err := io.ReadPkg(bufio.NewReader(c))
-	//if err != nil {
-	//	return err
-	//}
-	//if !p.IsPong() {
-	//	return errors.New("响应失败")
-	//}
+	resp, err := c.ReadLast(time.Second)
+	if err != nil {
+		return err
+	}
+	p, err := io.DecodePkg(resp)
+	if err != nil {
+		return err
+	}
+	if !p.IsPong() {
+		return errors.New("响应失败")
+	}
 	return nil
 }
 
