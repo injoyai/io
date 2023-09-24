@@ -6,24 +6,24 @@ import (
 )
 
 func TestNewPeer(t *testing.T) {
-	remoteAddr := "127.0.0.1:20000"
-	p, err := NewPeer(20000)
-	if err != nil {
-		t.Log(err)
-		return
-	}
+	//remoteAddr := "127.0.0.1:20000"
+	//p, err := NewPeer(20000)
+	//if err != nil {
+	//	t.Log(err)
+	//	return
+	//}
 
-	c, err := p.dial(remoteAddr)
-	if err != nil {
-		t.Log(err)
-		return
-	}
-	_ = p
-	//p.c.WriteTo([]byte("6666"),remoteAddr)
-	t.Log(c.LocalAddr())
-	t.Log(c.RemoteAddr())
-	_, err = c.Write([]byte("6666"))
-	t.Log(err)
+	//c, err := p.dial(remoteAddr)
+	//if err != nil {
+	//	t.Log(err)
+	//	return
+	//}
+	//_ = p
+	////p.c.WriteTo([]byte("6666"),remoteAddr)
+	//t.Log(p.peer.LocalAddr())
+	//t.Log(p.peer.RemoteAddr())
+	//_, err = p.peer.WriteToUDP([]byte("6666"))
+	//t.Log(err)
 	select {}
 }
 

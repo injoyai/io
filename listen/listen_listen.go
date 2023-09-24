@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/internal/common"
@@ -68,7 +69,7 @@ func UDP(port int) (io.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &UDPServer{UDPConn: listener, m: make(map[string]*_udp)}, nil
+	return &UDPServer{UDPConn: listener, m: make(map[string]*UDPClient)}, nil
 }
 
 func WithUDP(port int) io.ListenFunc {
@@ -96,25 +97,25 @@ func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error 
 	return RunProxyServer(WithUDP(port), dial.WithTCP(addr), options...)
 }
 
-type _udp struct {
+type UDPClient struct {
 	s    *UDPServer
 	addr *net.UDPAddr
 	buff chan []byte
 }
 
-func (this *_udp) Read(p []byte) (int, error) {
+func (this *UDPClient) Read(p []byte) (int, error) {
 	return 0, nil
 }
 
-func (this *_udp) ReadMessage() ([]byte, error) {
+func (this *UDPClient) ReadMessage() ([]byte, error) {
 	return <-this.buff, nil
 }
 
-func (this *_udp) Write(p []byte) (int, error) {
+func (this *UDPClient) Write(p []byte) (int, error) {
 	return this.s.WriteToUDP(p, this.addr)
 }
 
-func (this *_udp) Close() error {
+func (this *UDPClient) Close() error {
 	this.s.mu.Lock()
 	defer this.s.mu.Unlock()
 	delete(this.s.m, this.addr.String())
@@ -124,8 +125,28 @@ func (this *_udp) Close() error {
 // UDPServer todo 待优化
 type UDPServer struct {
 	*net.UDPConn
-	m  map[string]*_udp
+	m  map[string]*UDPClient
 	mu sync.RWMutex
+	m2 *maps.Safe
+}
+
+func (this *UDPServer) NewUDPClient(addr string) (*UDPClient, error) {
+	raddr, err := net.ResolveUDPAddr(io.UDP, addr)
+	if err != nil {
+		return nil, err
+	}
+	return this.newUDPClient(raddr), nil
+}
+
+func (this *UDPServer) newUDPClient(addr *net.UDPAddr) *UDPClient {
+	v, _ := this.m2.GetOrSetByHandler(addr.String(), func() (interface{}, error) {
+		return &UDPClient{
+			s:    this,
+			addr: addr,
+			buff: make(chan []byte, 100),
+		}, nil
+	})
+	return v.(*UDPClient)
 }
 
 func (this *UDPServer) Accept() (io.ReadWriteCloser, string, error) {
@@ -147,11 +168,7 @@ func (this *UDPServer) Accept() (io.ReadWriteCloser, string, error) {
 			continue
 		}
 
-		u := &_udp{
-			s:    this,
-			addr: addr,
-			buff: make(chan []byte, 100),
-		}
+		u := this.newUDPClient(addr)
 
 		this.mu.Lock()
 		this.m[addr.String()] = u

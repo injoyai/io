@@ -1,13 +1,10 @@
 package p2p
 
 import (
-	"bufio"
-	"errors"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/listen"
 	"net"
-	"time"
 )
 
 const (
@@ -23,79 +20,58 @@ type Peer interface {
 }
 
 func NewPeer(port int) (*peer, error) {
-	localAddr := &net.UDPAddr{Port: port}
-	c, err := net.ListenUDP("udp", localAddr)
-	if err != nil {
-		return nil, err
-	}
-	listen.NewUDPServer(port)
+	//localAddr := &net.UDPAddr{Port: port}
+	//c, err := net.ListenUDP("udp", localAddr)
+	//if err != nil {
+	//	return nil, err
+	//}
+	s, err := listen.NewUDPServer(port)
 	if err != nil {
 		return nil, err
 	}
 	return &peer{
-		port:      port,
-		localAddr: localAddr,
-		peer:      c,
-		clients:   maps.NewSafe(),
+		port: port,
+		s:    s,
+		//peer:    c,
+		clients: maps.NewSafe(),
 	}, nil
 }
 
 type peer struct {
 	port      int //占用的端口
 	localAddr *net.UDPAddr
+	s         *io.Server
 	peer      *net.UDPConn //监听的服务
 	clients   *maps.Safe
 }
 
-func (this *peer) dial(addr string) (*net.UDPConn, error) {
-	v, err := this.clients.GetOrSetByHandler(addr, func() (interface{}, error) {
-		raddr, err := net.ResolveUDPAddr(io.UDP, addr)
-		if err != nil {
-			return nil, err
-		}
-		return net.DialUDP(io.UDP, this.localAddr, raddr)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return v.(*net.UDPConn), err
-}
-
 func (this *peer) WriteTo(addr string, p []byte) (int, error) {
-	raddr, err := net.ResolveUDPAddr(io.UDP, addr)
+	if c := this.s.GetClient(addr); c != nil {
+		return c.Write(p)
+	}
+	c, err := this.s.DialClient(func() (io.ReadWriteCloser, error) {
+		return this.s.Listener().(*listen.UDPServer).NewUDPClient(addr)
+	})
 	if err != nil {
 		return 0, err
 	}
-	return this.peer.WriteToUDP(p, raddr)
+	return c.Write(p)
 }
 
 func (this *peer) Ping(addr string) error {
 	if _, err := this.WriteTo(addr, io.NewPkgPing()); err != nil {
-
-	}
-
-	raddr, err := net.ResolveUDPAddr(io.UDP, addr)
-	if err != nil {
 		return err
 	}
-
-	c, err := net.DialUDP(io.UDP, this.localAddr, raddr)
-	if err != nil {
-		return err
-	}
-	if _, err := c.Write(io.NewPkgPing()); err != nil {
-		return err
-	}
-	if err := c.SetDeadline(time.Now().Add(time.Second)); err != nil {
-		return err
-	}
-	p, err := io.ReadPkg(bufio.NewReader(c))
-	if err != nil {
-		return err
-	}
-	if !p.IsPong() {
-		return errors.New("响应失败")
-	}
+	//if err := c.SetDeadline(time.Now().Add(time.Second)); err != nil {
+	//	return err
+	//}
+	//p, err := io.ReadPkg(bufio.NewReader(c))
+	//if err != nil {
+	//	return err
+	//}
+	//if !p.IsPong() {
+	//	return errors.New("响应失败")
+	//}
 	return nil
 }
 

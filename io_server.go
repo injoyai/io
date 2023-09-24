@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/injoyai/base/maps"
-	"github.com/injoyai/io/listen"
-	"net"
 	"sync/atomic"
 	"time"
 )
@@ -76,9 +74,8 @@ func (this *Server) SetOptions(options ...OptionServer) *Server {
 	return this
 }
 
-// GetUDPConn 危险操作
-func (this *Server) GetUDPConn() *net.UDPConn {
-	return this.listener.(*listen.UDPServer).UDPConn
+func (this *Server) Listener() Listener {
+	return this.listener
 }
 
 // Timer 定时执行

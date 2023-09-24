@@ -20,10 +20,15 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 		ctx:             ctx,
 		dealQueue:       chans.NewEntityWithContext(ctx, 1, 1000),
 		readChan:        make(chan *IMessage, 100),
-		readFunc:        buf.ReadWithAll,
-		writeFunc:       nil,
 		timeout:         DefaultKeepAlive * 3,
 		timeoutInterval: DefaultTimeoutInterval,
+		ClientOptions: ClientOptions{
+			beforeFunc: nil,
+			closeFunc:  nil,
+			dealFunc:   nil,
+			readFunc:   buf.ReadWithAll,
+			writeFunc:  nil,
+		},
 	}
 	e.dealQueue.SetHandler(func(ctx context.Context, no, count int, data interface{}) {
 		if e.dealFunc != nil {
@@ -53,6 +58,14 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 	return e
 }
 
+type ClientOptions struct {
+	beforeFunc func(*Client) error //连接前置事件,onConnect()
+	closeFunc  func(msg *IMessage) //断开连接事件,onClose()
+	dealFunc   func(msg *IMessage) //数据处理方法,onMessage()
+	readFunc   buf.ReadFunc        //数据读取方法,onRead()
+	writeFunc  WriteFunc           //数据发送函数,包装下原始数据,onWrite()
+}
+
 /*
 ClientManage
 客户端统一管理
@@ -61,21 +74,16 @@ ClientManage
 type ClientManage struct {
 	*Key
 	Logger
-	m          map[string]*Client
-	mu         sync.RWMutex
-	max        int                 //最大数
-	ctx        context.Context     //ctx
-	beforeFunc func(*Client) error //连接前置事件
-	closeFunc  func(msg *IMessage) //断开连接事件
-	dealFunc   func(msg *IMessage) //数据处理方法
-	dealQueue  *chans.Entity       //数据处理队列
-	readChan   chan *IMessage      //数据通道,dealFunc二选一
+	ClientOptions
+	m               map[string]*Client
+	mu              sync.RWMutex
+	maxClientNum    int             //最大数
+	ctx             context.Context //ctx
+	dealQueue       *chans.Entity   //数据处理队列
+	readChan        chan *IMessage  //数据通道,dealFunc二选一
+	timeout         time.Duration   //超时时间,小于0是不超时
+	timeoutInterval time.Duration   //超时检测间隔
 
-	readFunc  buf.ReadFunc //数据读取方法
-	writeFunc WriteFunc    //数据发送函数,包装下原始数据
-
-	timeout         time.Duration //超时时间,小于0是不超时
-	timeoutInterval time.Duration //超时检测间隔
 }
 
 // SetReadFunc 设置数据读取
@@ -155,7 +163,7 @@ func (this *ClientManage) SetCloseFunc(fn func(msg *IMessage)) {
 
 // SetMaxClient 设置最大连接数,超过最大连接数的连接会直接断开
 func (this *ClientManage) SetMaxClient(max int) {
-	this.max = max
+	this.maxClientNum = max
 }
 
 // SetTimeout 设置超时时间,还有time/3的时间误差
@@ -191,6 +199,13 @@ func (this *ClientManage) RedialClient(dial DialFunc, options ...OptionClient) *
 	return c
 }
 
+func (this *ClientManage) SetClientOptions(c *Client) {
+	c.SetDealFunc(this._dealFunc)  //数据处理方法
+	c.SetReadFunc(this.readFunc)   //读取数据方法
+	c.SetWriteFunc(this.writeFunc) //设置发送函数
+	c.SetLogger(this.Logger)       //同步logger配置
+}
+
 // SetClient 添加客户端
 func (this *ClientManage) SetClient(c *Client) {
 	if c == nil {
@@ -198,16 +213,13 @@ func (this *ClientManage) SetClient(c *Client) {
 	}
 
 	//判断是否到达最大连接数,禁止新连接
-	if this.max > 0 && this.GetClientLen() >= this.max {
+	if this.maxClientNum > 0 && this.GetClientLen() >= this.maxClientNum {
 		c.WriteString(fmt.Sprintf("超过最大连接数(%d)", this.GetClientLen()))
 		c.CloseAll()
 		return
 	}
 
-	c.SetDealFunc(this._dealFunc)  //数据处理方法
-	c.SetReadFunc(this.readFunc)   //读取数据方法
-	c.SetWriteFunc(this.writeFunc) //设置发送函数
-	c.SetLogger(this.Logger)       //同步logger配置
+	this.SetClientOptions(c)
 
 	// 协程执行,等待连接的后续数据,来决定后续操作
 	go func(c *Client) {
