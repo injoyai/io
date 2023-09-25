@@ -100,10 +100,10 @@ func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error 
 }
 
 type UDPClient struct {
-	c    *net.UDPConn
-	s    *UDPServer
-	addr *net.UDPAddr
-	buff chan []byte
+	c          *net.UDPConn
+	s          *UDPServer
+	remoteAddr *net.UDPAddr
+	buff       chan []byte
 }
 
 func (this *UDPClient) Read(p []byte) (int, error) {
@@ -115,11 +115,11 @@ func (this *UDPClient) ReadMessage() ([]byte, error) {
 }
 
 func (this *UDPClient) Write(p []byte) (int, error) {
-	return this.s.WriteToUDP(p, this.addr)
+	return this.s.WriteToUDP(p, this.remoteAddr)
 }
 
 func (this *UDPClient) Close() error {
-	this.s.m.Del(this.addr.String())
+	this.s.m.Del(this.remoteAddr.String())
 	return nil
 }
 
@@ -138,17 +138,17 @@ func (this *UDPServer) NewUDPClient(addr string) (*UDPClient, error) {
 	return this.newUDPClient(raddr), nil
 }
 
-func (this *UDPServer) newUDPClient(addr *net.UDPAddr) *UDPClient {
-	v, _ := this.m.GetOrSetByHandler(addr.String(), func() (interface{}, error) {
-		c, err := net.DialUDP(io.UDP, this.localAddr, addr)
+func (this *UDPServer) newUDPClient(remoteAddr *net.UDPAddr) *UDPClient {
+	v, _ := this.m.GetOrSetByHandler(remoteAddr.String(), func() (interface{}, error) {
+		c, err := net.DialUDP(io.UDP, this.localAddr, remoteAddr)
 		if err != nil {
 			return nil, err
 		}
 		return &UDPClient{
-			c:    c,
-			s:    this,
-			addr: addr,
-			buff: make(chan []byte, 100),
+			c:          c,
+			s:          this,
+			remoteAddr: remoteAddr,
+			buff:       make(chan []byte, 100),
 		}, nil
 	})
 	return v.(*UDPClient)
@@ -185,7 +185,7 @@ func (this *UDPServer) Accept() (io.ReadWriteCloser, string, error) {
 			continue
 		}
 
-		return u, u.addr.String(), nil
+		return u, u.remoteAddr.String(), nil
 	}
 }
 
