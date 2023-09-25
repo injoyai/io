@@ -21,38 +21,32 @@ type Peer interface {
 	Connect(addr string) error         //建立连接
 }
 
-func NewPeer(port int) (*peer, error) {
-	//localAddr := &net.UDPAddr{Port: port}
-	//c, err := net.ListenUDP("udp", localAddr)
-	//if err != nil {
-	//	return nil, err
-	//}
-	s, err := listen.NewUDPServer(port)
+func NewPeer(port int, options ...io.OptionServer) (*peer, error) {
+	s, err := listen.NewUDPServer(port, func(s *io.Server) {
+		s.SetReadWriteWithPkg()
+		s.SetOptions(options...)
+	})
 	if err != nil {
 		return nil, err
 	}
 	return &peer{
-		port: port,
-		s:    s,
-		//peer:    c,
-		clients: maps.NewSafe(),
+		port:      port,
+		localAddr: &net.UDPAddr{Port: port},
+		Server:    s,
+		clients:   maps.NewSafe(),
 	}, nil
 }
 
 type peer struct {
 	port      int //占用的端口
 	localAddr *net.UDPAddr
-	s         *io.Server
-	peer      *net.UDPConn //监听的服务
-	clients   *maps.Safe
+	*io.Server
+	clients *maps.Safe
 }
 
 func (this *peer) WriteTo(addr string, p []byte) (int, error) {
-	if c := this.s.GetClient(addr); c != nil {
-		return c.Write(p)
-	}
-	c, err := this.s.DialClient(func() (io.ReadWriteCloser, error) {
-		return this.s.Listener().(*listen.UDPServer).NewUDPClient(addr)
+	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, error) {
+		return this.Listener().(*listen.UDPServer).NewUDPClient(addr)
 	})
 	if err != nil {
 		return 0, err
@@ -61,24 +55,20 @@ func (this *peer) WriteTo(addr string, p []byte) (int, error) {
 }
 
 func (this *peer) Ping(addr string) error {
-	c, err := this.s.GetClientOrDial(addr, func() (io.ReadWriteCloser, error) {
-		return this.s.Listener().(*listen.UDPServer).NewUDPClient(addr)
+	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, error) {
+		return this.Listener().(*listen.UDPServer).NewUDPClient(addr)
 	})
 	if err != nil {
 		return err
 	}
-	if _, err := this.WriteTo(addr, io.NewPkgPing()); err != nil {
+	if _, err := c.WriteString(io.Ping); err != nil {
 		return err
 	}
 	resp, err := c.ReadLast(time.Second)
 	if err != nil {
 		return err
 	}
-	p, err := io.DecodePkg(resp)
-	if err != nil {
-		return err
-	}
-	if !p.IsPong() {
+	if string(resp) != io.Pong {
 		return errors.New("响应失败")
 	}
 	return nil

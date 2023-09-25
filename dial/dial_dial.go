@@ -20,7 +20,7 @@ import (
 
 // TCP 连接
 func TCP(addr string) (io.ReadWriteCloser, error) {
-	return net.Dial("tcp", addr)
+	return net.Dial(io.TCP, addr)
 }
 
 // WithTCP 连接函数
@@ -339,7 +339,7 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 		}
 		config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
 	}
-	sshClient, err := ssh.Dial("tcp", cfg.Addr, config)
+	sshClient, err := ssh.Dial(io.TCP, cfg.Addr, config)
 	if err != nil {
 		return nil, err
 	}

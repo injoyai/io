@@ -271,6 +271,7 @@ func (this *ClientManage) GetClientOrDial(key string, dialFunc DialFunc) (*Clien
 		if err != nil {
 			return nil, err
 		}
+		c.SetKey(key)
 		this.SetClient(c)
 	}
 	return c, nil
@@ -328,7 +329,7 @@ func (this *ClientManage) RangeClient(fn func(key string, c *Client) bool) {
 
 // Read 无效,使用ReadMessage
 func (this *ClientManage) Read(p []byte) (int, error) {
-	return 0, nil
+	return 0, ErrUseReadMessage
 }
 
 // ReadMessage 读取数据,当未设置DealFunc时生效

@@ -1,6 +1,7 @@
 package listen
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
@@ -8,15 +9,15 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/internal/common"
+	"github.com/injoyai/logs"
 	"net"
 	"net/http"
-	"sync"
 )
 
 //================================TCPListen================================
 
 func TCP(port int) (io.Listener, error) {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	listener, err := net.Listen(io.TCP, fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
@@ -65,11 +66,12 @@ func (this *_tcpServer) Addr() string {
 //================================UDPListen================================
 
 func UDP(port int) (io.Listener, error) {
-	listener, err := net.ListenUDP("udp", &net.UDPAddr{Port: port})
+	localAddr := &net.UDPAddr{Port: port}
+	listener, err := net.ListenUDP(io.UDP, localAddr)
 	if err != nil {
 		return nil, err
 	}
-	return &UDPServer{UDPConn: listener, m: make(map[string]*UDPClient)}, nil
+	return &UDPServer{UDPConn: listener, localAddr: localAddr, m: maps.NewSafe()}, nil
 }
 
 func WithUDP(port int) io.ListenFunc {
@@ -98,13 +100,14 @@ func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error 
 }
 
 type UDPClient struct {
+	c    *net.UDPConn
 	s    *UDPServer
 	addr *net.UDPAddr
 	buff chan []byte
 }
 
 func (this *UDPClient) Read(p []byte) (int, error) {
-	return 0, nil
+	return 0, io.ErrUseReadMessage
 }
 
 func (this *UDPClient) ReadMessage() ([]byte, error) {
@@ -116,18 +119,15 @@ func (this *UDPClient) Write(p []byte) (int, error) {
 }
 
 func (this *UDPClient) Close() error {
-	this.s.mu.Lock()
-	defer this.s.mu.Unlock()
-	delete(this.s.m, this.addr.String())
+	this.s.m.Del(this.addr.String())
 	return nil
 }
 
 // UDPServer todo 待优化
 type UDPServer struct {
 	*net.UDPConn
-	m  map[string]*UDPClient
-	mu sync.RWMutex
-	m2 *maps.Safe
+	localAddr *net.UDPAddr
+	m         *maps.Safe
 }
 
 func (this *UDPServer) NewUDPClient(addr string) (*UDPClient, error) {
@@ -139,8 +139,13 @@ func (this *UDPServer) NewUDPClient(addr string) (*UDPClient, error) {
 }
 
 func (this *UDPServer) newUDPClient(addr *net.UDPAddr) *UDPClient {
-	v, _ := this.m2.GetOrSetByHandler(addr.String(), func() (interface{}, error) {
+	v, _ := this.m.GetOrSetByHandler(addr.String(), func() (interface{}, error) {
+		c, err := net.DialUDP(io.UDP, this.localAddr, addr)
+		if err != nil {
+			return nil, err
+		}
 		return &UDPClient{
+			c:    c,
 			s:    this,
 			addr: addr,
 			buff: make(chan []byte, 100),
@@ -151,30 +156,34 @@ func (this *UDPServer) newUDPClient(addr *net.UDPAddr) *UDPClient {
 
 func (this *UDPServer) Accept() (io.ReadWriteCloser, string, error) {
 	for {
-		buff := make([]byte, 2<<10)
+		logs.Debug(66666)
+		buff := make([]byte, 1500)
 		n, addr, err := this.UDPConn.ReadFromUDP(buff)
+		if err != nil {
+			logs.Err(err)
+			return nil, "", err
+		}
+
+		logs.Debug(hex.EncodeToString(buff[:n]))
+
+		newClient := false
+		v, err := this.m.GetOrSetByHandler(addr.String(), func() (interface{}, error) {
+			newClient = true
+			return this.newUDPClient(addr), nil
+		})
 		if err != nil {
 			return nil, "", err
 		}
 
-		this.mu.RLock()
-		val, ok := this.m[addr.String()]
-		this.mu.RUnlock()
-		if ok {
-			select {
-			case val.buff <- buff[:n]:
-			default:
-			}
-			continue
+		u := v.(*UDPClient)
+		select {
+		case u.buff <- buff[:n]:
+		default:
 		}
 
-		u := this.newUDPClient(addr)
-
-		this.mu.Lock()
-		this.m[addr.String()] = u
-		this.mu.Unlock()
-
-		u.buff <- buff[:n]
+		if !newClient {
+			continue
+		}
 
 		return u, u.addr.String(), nil
 	}

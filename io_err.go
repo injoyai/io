@@ -27,6 +27,7 @@ var (
 	ErrWithWriteTimeout   = errors.New("写超时")
 	ErrInvalidReadFunc    = errors.New("无效数据读取函数")
 	ErrMaxConnect         = errors.New("到达最大连接数")
+	ErrUseReadMessage     = errors.New("不支持,请使用ReadMessage")
 )
 
 // 错误处理 错误信息处理
