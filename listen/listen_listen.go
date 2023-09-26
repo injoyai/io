@@ -1,7 +1,6 @@
 package listen
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
@@ -9,7 +8,6 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/internal/common"
-	"github.com/injoyai/logs"
 	"net"
 	"net/http"
 )
@@ -66,12 +64,11 @@ func (this *_tcpServer) Addr() string {
 //================================UDPListen================================
 
 func UDP(port int) (io.Listener, error) {
-	localAddr := &net.UDPAddr{Port: port}
-	listener, err := net.ListenUDP(io.UDP, localAddr)
+	listener, err := net.ListenUDP(io.UDP, &net.UDPAddr{Port: port})
 	if err != nil {
 		return nil, err
 	}
-	return &UDPServer{UDPConn: listener, localAddr: localAddr, m: maps.NewSafe()}, nil
+	return &UDPServer{UDPConn: listener, m: maps.NewSafe()}, nil
 }
 
 func WithUDP(port int) io.ListenFunc {
@@ -99,11 +96,69 @@ func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error 
 	return RunProxyServer(WithUDP(port), dial.WithTCP(addr), options...)
 }
 
+// UDPServer todo 待优化
+type UDPServer struct {
+	*net.UDPConn            //客户端,兼服务器
+	m            *maps.Safe //缓存虚拟客户端
+}
+
+func (this *UDPServer) NewUDPClient(addr string) (*UDPClient, error) {
+	raddr, err := net.ResolveUDPAddr(io.UDP, addr)
+	if err != nil {
+		return nil, err
+	}
+	c, _ := this.newUDPClient(raddr)
+	return c, nil
+}
+
+func (this *UDPServer) newUDPClient(remoteAddr *net.UDPAddr) (*UDPClient, bool) {
+	exist := true
+	v, _ := this.m.GetOrSetByHandler(remoteAddr.String(), func() (interface{}, error) {
+		exist = false
+		return &UDPClient{
+			s:          this,
+			remoteAddr: remoteAddr,
+			buff:       make(chan []byte, 100),
+		}, nil
+	})
+	return v.(*UDPClient), exist
+}
+
+func (this *UDPServer) Accept() (io.ReadWriteCloser, string, error) {
+	for {
+		buff := make([]byte, 1500)
+		n, addr, err := this.UDPConn.ReadFromUDP(buff)
+		if err != nil {
+			return nil, "", err
+		}
+
+		u, exist := this.newUDPClient(addr)
+
+		select {
+		case u.buff <- buff[:n]:
+		default:
+		}
+
+		if exist {
+			continue
+		}
+
+		return u, u.RemoteAddr().String(), nil
+	}
+}
+
+func (this *UDPServer) Addr() string {
+	return this.UDPConn.LocalAddr().String()
+}
+
 type UDPClient struct {
-	c          *net.UDPConn
 	s          *UDPServer
-	remoteAddr *net.UDPAddr
-	buff       chan []byte
+	remoteAddr *net.UDPAddr //远程地址
+	buff       chan []byte  // 数据是无序的,用队列,而不是buffer
+}
+
+func (this *UDPClient) RemoteAddr() *net.UDPAddr {
+	return this.remoteAddr
 }
 
 func (this *UDPClient) Read(p []byte) (int, error) {
@@ -121,76 +176,6 @@ func (this *UDPClient) Write(p []byte) (int, error) {
 func (this *UDPClient) Close() error {
 	this.s.m.Del(this.remoteAddr.String())
 	return nil
-}
-
-// UDPServer todo 待优化
-type UDPServer struct {
-	*net.UDPConn
-	localAddr *net.UDPAddr
-	m         *maps.Safe
-}
-
-func (this *UDPServer) NewUDPClient(addr string) (*UDPClient, error) {
-	raddr, err := net.ResolveUDPAddr(io.UDP, addr)
-	if err != nil {
-		return nil, err
-	}
-	return this.newUDPClient(raddr), nil
-}
-
-func (this *UDPServer) newUDPClient(remoteAddr *net.UDPAddr) *UDPClient {
-	v, _ := this.m.GetOrSetByHandler(remoteAddr.String(), func() (interface{}, error) {
-		c, err := net.DialUDP(io.UDP, this.localAddr, remoteAddr)
-		if err != nil {
-			return nil, err
-		}
-		return &UDPClient{
-			c:          c,
-			s:          this,
-			remoteAddr: remoteAddr,
-			buff:       make(chan []byte, 100),
-		}, nil
-	})
-	return v.(*UDPClient)
-}
-
-func (this *UDPServer) Accept() (io.ReadWriteCloser, string, error) {
-	for {
-		logs.Debug(66666)
-		buff := make([]byte, 1500)
-		n, addr, err := this.UDPConn.ReadFromUDP(buff)
-		if err != nil {
-			logs.Err(err)
-			return nil, "", err
-		}
-
-		logs.Debug(hex.EncodeToString(buff[:n]))
-
-		newClient := false
-		v, err := this.m.GetOrSetByHandler(addr.String(), func() (interface{}, error) {
-			newClient = true
-			return this.newUDPClient(addr), nil
-		})
-		if err != nil {
-			return nil, "", err
-		}
-
-		u := v.(*UDPClient)
-		select {
-		case u.buff <- buff[:n]:
-		default:
-		}
-
-		if !newClient {
-			continue
-		}
-
-		return u, u.remoteAddr.String(), nil
-	}
-}
-
-func (this *UDPServer) Addr() string {
-	return this.UDPConn.RemoteAddr().String()
 }
 
 //================================MemoryListen================================
