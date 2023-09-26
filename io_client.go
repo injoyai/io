@@ -160,6 +160,11 @@ func (this *Client) WriteRead(request []byte, timeout ...time.Duration) (respons
 	return this.WriteReadWithTimeout(request, conv.GetDefaultDuration(DefaultResponseTimeout, timeout...))
 }
 
+func (this *Client) Ping() error {
+	_, err := this.WriteRead([]byte(Ping), time.Second)
+	return err
+}
+
 // GoTimerWriter 协程,定时写入数据,生命周期(一次链接,单次连接断开)
 func (this *Client) GoTimerWriter(interval time.Duration, write func(w *IWriter) error) {
 	go this.ICloser.Timer(interval, func() error {

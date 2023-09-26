@@ -12,12 +12,8 @@ func main() {
 		logs.Err(err)
 		return
 	}
-	p.SetBeforeFunc(func(c *io.Client) error {
-		logs.Debug(c.GetKey())
-		return nil
-	})
 	p.SetDealFunc(func(msg *io.IMessage) {
-		logs.Debug(msg.String())
+		msg.Write(msg.Bytes())
 	})
 	logs.Err(p.Run())
 }

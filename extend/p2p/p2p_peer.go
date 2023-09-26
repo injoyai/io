@@ -1,16 +1,14 @@
 package p2p
 
 import (
-	"errors"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/listen"
 	"net"
-	"time"
 )
 
 const (
-	UDP = "udp"
+	TypeLocalType = "local_addr"
 )
 
 type Peer interface {
@@ -30,7 +28,6 @@ func NewPeer(port int, options ...io.OptionServer) (*peer, error) {
 		return nil, err
 	}
 	return &peer{
-		port:      port,
 		localAddr: &net.UDPAddr{Port: port},
 		Server:    s,
 		clients:   maps.NewSafe(),
@@ -38,10 +35,10 @@ func NewPeer(port int, options ...io.OptionServer) (*peer, error) {
 }
 
 type peer struct {
-	port      int //占用的端口
 	localAddr *net.UDPAddr
 	*io.Server
 	clients *maps.Safe
+	nat     *maps.Safe
 }
 
 func (this *peer) WriteTo(addr string, p []byte) (int, error) {
@@ -61,17 +58,21 @@ func (this *peer) Ping(addr string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := c.WriteString(io.Ping); err != nil {
-		return err
-	}
-	resp, err := c.ReadLast(time.Second)
+	return c.Ping()
+}
+
+func (this *peer) WriteBase(addr string) error {
+	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, error) {
+		return this.Listener().(*listen.UDPServer).NewUDPClient(addr)
+	})
 	if err != nil {
 		return err
 	}
-	if string(resp) != io.Pong {
-		return errors.New("响应失败")
-	}
-	return nil
+	_, err = c.WriteAny(Msg{
+		Type: TypeLocalType,
+		Data: this.localAddr.String(),
+	})
+	return err
 }
 
 func (this *peer) Base(addr string) (MsgBase, error) {
