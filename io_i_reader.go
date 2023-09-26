@@ -26,7 +26,7 @@ func NewIReader(r Reader) *IReader {
 
 type IReader struct {
 	*Key
-	Logger
+	Logger   Logger
 	mReader  MessageReader //接口MessageReader,兼容Reader
 	buf      *bufio.Reader //buffer
 	readFunc ReadFunc      //读取函数

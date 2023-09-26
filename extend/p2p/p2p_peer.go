@@ -68,6 +68,7 @@ func (this *peer) WriteBase(addr string) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = c.WriteAny(Msg{
 		Type: TypeLocalType,
 		Data: this.localAddr.String(),

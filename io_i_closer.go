@@ -32,7 +32,7 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 
 type ICloser struct {
 	*Key
-	Logger
+	Logger        Logger
 	closer        Closer             //实例
 	redialFunc    DialFunc           //重连函数
 	redialMaxTime time.Duration      //最大尝试退避重连时间

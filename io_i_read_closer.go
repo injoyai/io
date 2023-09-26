@@ -52,8 +52,8 @@ func (this *IReadCloser) SetKey(key string) *IReadCloser {
 
 // Debug debug模式
 func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
-	this.IReader.Debug(b...)
-	this.ICloser.Debug(b...)
+	this.IReader.Logger.Debug(b...)
+	this.ICloser.Logger.Debug(b...)
 	return this
 }
 
@@ -72,21 +72,21 @@ func (this *IReadCloser) SetLogger(logger Logger) *IReadCloser {
 }
 
 func (this *IReadCloser) SetLevel(level Level) *IReadCloser {
-	this.IReader.SetLevel(level)
-	this.ICloser.SetLevel(level)
+	this.IReader.Logger.SetLevel(level)
+	this.ICloser.Logger.SetLevel(level)
 	return this
 }
 
 // SetPrintWithHEX 设置打印HEX
 func (this *IReadCloser) SetPrintWithHEX() *IReadCloser {
-	this.IReader.SetPrintWithHEX()
-	this.ICloser.SetPrintWithHEX()
+	this.IReader.Logger.SetPrintWithHEX()
+	this.ICloser.Logger.SetPrintWithHEX()
 	return this
 }
 
 func (this *IReadCloser) SetPrintWithASCII() *IReadCloser {
-	this.IReader.SetPrintWithASCII()
-	this.ICloser.SetPrintWithASCII()
+	this.IReader.Logger.SetPrintWithASCII()
+	this.ICloser.Logger.SetPrintWithASCII()
 	return this
 }
 

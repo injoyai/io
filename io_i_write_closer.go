@@ -31,8 +31,8 @@ func (this *IWriteCloser) SetKey(key string) *IWriteCloser {
 }
 
 func (this *IWriteCloser) Debug(b ...bool) *IWriteCloser {
-	this.IWriter.Debug(b...)
-	this.ICloser.Debug(b...)
+	this.IWriter.Logger.Debug(b...)
+	this.ICloser.Logger.Debug(b...)
 	return this
 }
 

@@ -30,7 +30,7 @@ func NewIWriter(writer Writer) *IWriter {
 // IWriter 写
 type IWriter struct {
 	*Key
-	Logger
+	Logger     Logger
 	writer     Writer                    //io.Writer
 	writeFunc  WriteFunc                 //写入函数
 	writeAfter func(p []byte, err error) //写结束后

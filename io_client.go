@@ -17,7 +17,7 @@ func Redial(dial DialFunc, options ...OptionClient) *Client {
 // RedialWithContext 一直尝试连接,直到成功,需要输入上下文
 func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClient) *Client {
 	x := NewICloserWithContext(ctx, nil)
-	x.Debug()
+	x.Logger.Debug()
 	x.SetRedialFunc(dial)
 	x.SetKey(conv.String(dial))
 
@@ -121,7 +121,7 @@ func (this *Client) GetKey() string {
 
 // Debug 调试模式,打印日志
 func (this *Client) Debug(b ...bool) *Client {
-	this.IWriter.Debug(b...)
+	this.IWriter.Logger.Debug(b...)
 	this.IReadCloser.Debug(b...)
 	return this
 }
@@ -245,21 +245,21 @@ func (this *Client) SetLogger(logger Logger) *Client {
 
 // SetPrintWithHEX 设置打印HEX
 func (this *Client) SetPrintWithHEX() *Client {
-	this.IWriter.SetPrintWithHEX()
+	this.IWriter.Logger.SetPrintWithHEX()
 	this.IReadCloser.SetPrintWithHEX()
 	return this
 }
 
 // SetPrintWithASCII 设置打印ASCII
 func (this *Client) SetPrintWithASCII() *Client {
-	this.IWriter.SetPrintWithASCII()
+	this.IWriter.Logger.SetPrintWithASCII()
 	this.IReadCloser.SetPrintWithASCII()
 	return this
 }
 
 // SetLevel 设置日志等级
 func (this *Client) SetLevel(level Level) *Client {
-	this.IWriter.SetLevel(level)
+	this.IWriter.Logger.SetLevel(level)
 	this.IReadCloser.SetLevel(level)
 	return this
 }
