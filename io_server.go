@@ -33,13 +33,13 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		Logger:       NewLog(),
 		ICloser:      NewICloserWithContext(ctx, listener),
 		ClientManage: NewClientManage(ctx, key),
-		Tag:          maps.NewSafe(),
+		tag:          maps.NewSafe(),
 		listener:     listener,
 	}
 	s.ICloser.Logger = s.Logger
 	s.ClientManage.Logger = s.Logger
 	//开启基础信息打印
-	s.Debug()
+	s.Logger.Debug()
 	//设置关闭函数
 	s.ICloser.SetCloseFunc(func(ctx context.Context, msg Message) {
 		//关闭listener
@@ -55,13 +55,28 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 // Server 服务端
 type Server struct {
 	*Key
-	Logger
 	*ICloser
 	*ClientManage
 
-	Tag      *maps.Safe //tag
+	Logger   Logger
+	tag      *maps.Safe //tag
 	listener Listener   //listener
 	running  uint32     //是否在运行
+}
+
+//================================Nature================================
+
+func (this *Server) Tag() *maps.Safe {
+	return this.tag
+}
+
+func (this *Server) SetTag(key, value interface{}) *Server {
+	this.Tag().Set(key, value)
+	return this
+}
+
+func (this *Server) GetTag(key interface{}) (interface{}, bool) {
+	return this.Tag().Get(key)
 }
 
 //================================SetFunc================================

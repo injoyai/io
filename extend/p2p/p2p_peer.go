@@ -17,7 +17,9 @@ var (
 const (
 	Version = "1.0.0"
 
-	TypeRegister = "register"
+	TypeRegister = "register" //注册自己节点信息
+	TypeGetPeers = "getPeers" //获取其他节点信息
+	TypeConnect  = "connect"  //连接其他节点
 )
 
 type Peer interface {
@@ -38,8 +40,13 @@ func NewPeer(port int, options ...io.OptionServer) (*peer, error) {
 			case TypeRegister:
 				registerMsg := new(MsgRegister)
 				json.Unmarshal(conv.Bytes(m.Data), registerMsg)
+				//保存注册信息
+				s.Tag().Set(TypeRegister, registerMsg)
 
-				s.Tag.Set("register", registerMsg)
+			case TypeGetPeers:
+				getPeerMsg := new(MsgGetPeer)
+				json.Unmarshal(conv.Bytes(m.Data), getPeerMsg)
+				s.Tag().Get(getPeerMsg.RemoteAddr)
 
 			}
 
@@ -74,14 +81,14 @@ func (this *peer) WriteTo(addr string, p []byte) (int, error) {
 	return c.Write(p)
 }
 
-func (this *peer) Ping(addr string) error {
+func (this *peer) Ping(addr string, timeout ...time.Duration) error {
 	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, error) {
 		return this.Listener().(*listen.UDPServer).NewUDPClient(addr)
 	})
 	if err != nil {
 		return err
 	}
-	return c.Ping()
+	return c.Ping(timeout...)
 }
 
 // Register 向服务端注册节点信息

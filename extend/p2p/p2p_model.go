@@ -8,8 +8,9 @@ const (
 )
 
 type Msg struct {
-	Type string      `json:"type"` //消息类型
-	Data interface{} `json:"data"` //消息数据
+	Type  string      `json:"type"`  //消息类型
+	MsgID string      `json:"msgId"` //消息标识
+	Data  interface{} `json:"data"`  //消息数据
 }
 
 type MsgRegister struct {
@@ -18,6 +19,10 @@ type MsgRegister struct {
 	StartTime  int64  `json:"startTime"`  //运行时间
 	ConnectKey string `json:"connectKey"` //连接秘钥
 	LocalAddr  string `json:"localAddr"`  //本地地址
+}
+
+type MsgGetPeer struct {
+	RemoteAddr string `json:"remoteAddr"` //远程外网地址
 }
 
 // MsgFind 查找站点信息

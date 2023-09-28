@@ -64,11 +64,12 @@ func (this *_tcpServer) Addr() string {
 //================================UDPListen================================
 
 func UDP(port int) (io.Listener, error) {
-	listener, err := net.ListenUDP(io.UDP, &net.UDPAddr{Port: port})
+	localAddr := &net.UDPAddr{Port: port}
+	listener, err := net.ListenUDP(io.UDP, localAddr)
 	if err != nil {
 		return nil, err
 	}
-	return &UDPServer{UDPConn: listener, m: maps.NewSafe()}, nil
+	return &UDPServer{UDPConn: listener, localAddr: localAddr, m: maps.NewSafe()}, nil
 }
 
 func WithUDP(port int) io.ListenFunc {
@@ -98,8 +99,9 @@ func RunUDPProxyServer(port int, addr string, options ...io.OptionServer) error 
 
 // UDPServer todo 待优化
 type UDPServer struct {
-	*net.UDPConn            //客户端,兼服务器
-	m            *maps.Safe //缓存虚拟客户端
+	*net.UDPConn              //客户端,兼服务器
+	localAddr    *net.UDPAddr //本地地址
+	m            *maps.Safe   //缓存虚拟客户端
 }
 
 func (this *UDPServer) NewUDPClient(addr string) (*UDPClient, error) {

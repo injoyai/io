@@ -160,8 +160,8 @@ func (this *Client) WriteRead(request []byte, timeout ...time.Duration) (respons
 	return this.WriteReadWithTimeout(request, conv.GetDefaultDuration(DefaultResponseTimeout, timeout...))
 }
 
-func (this *Client) Ping() error {
-	_, err := this.WriteRead([]byte(Ping), time.Second)
+func (this *Client) Ping(timeout ...time.Duration) error {
+	_, err := this.WriteRead([]byte(Ping), conv.DefaultDuration(time.Second, timeout...))
 	return err
 }
 

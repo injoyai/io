@@ -73,8 +73,8 @@ ClientManage
 */
 type ClientManage struct {
 	*Key
-	Logger
 	ClientOptions
+	Logger          Logger
 	m               map[string]*Client
 	mu              sync.RWMutex
 	maxClientNum    int             //最大数

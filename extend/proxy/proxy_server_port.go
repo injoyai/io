@@ -27,19 +27,19 @@ type PortForwardingServer struct {
 // Listen 监听
 func (this *PortForwardingServer) Listen(port int, sn, addr string, options ...io.OptionServer) error {
 	s, err := listen.NewTCPServer(port, func(s *io.Server) {
-		s.Tag.Set("sn", sn)
-		s.Tag.Set("addr", addr)
+		s.Tag().Set("sn", sn)
+		s.Tag().Set("addr", addr)
 		s.SetDealFunc(func(msg *io.IMessage) {
 			{
 				if _addr := regexp.MustCompile("(\\?|&)(_addr=)[0-9.:]+").FindString(msg.String()); len(_addr) > 7 {
-					s.Tag.Set("addr", _addr[7:])
+					s.Tag().Set("addr", _addr[7:])
 				}
 				if _sn := regexp.MustCompile("(\\?|&)(_sn=)[0-9a-zA-Z]+").FindString(msg.String()); len(_sn) > 5 {
-					s.Tag.Set("sn", _sn[5:])
+					s.Tag().Set("sn", _sn[5:])
 				}
 			}
-			sn = s.Tag.GetString("sn")
-			addr = s.Tag.GetString("addr")
+			sn = s.Tag().GetString("sn")
+			addr = s.Tag().GetString("addr")
 			pipe := this.GetClient(sn)
 			if pipe == nil {
 				msg.Client.CloseWithErr(fmt.Errorf("通道客户端未连接,关闭连接"))
