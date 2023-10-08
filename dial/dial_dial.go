@@ -140,7 +140,7 @@ func NewMemory(key string, options ...io.OptionClient) (*io.Client, error) {
 
 type MQTTConfig = mqtt.ClientOptions
 
-func MQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser, error) {
+func MQTT(subscribe, publish string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser, error) {
 	c := mqtt.NewClient(cfg)
 	token := c.Connect()
 	if !token.WaitTimeout(cfg.WriteTimeout) {
@@ -150,13 +150,13 @@ func MQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser
 		return nil, token.Error()
 	}
 	r := &MQTTClient{
-		Client:   c,
-		clientID: clientID,
-		topic:    topic,
-		qos:      qos,
-		ch:       make(chan mqtt.Message, 1000),
+		Client:    c,
+		subscribe: subscribe,
+		publish:   publish,
+		qos:       qos,
+		ch:        make(chan mqtt.Message, 1000),
 	}
-	c.Subscribe(clientID, qos, func(client mqtt.Client, message mqtt.Message) {
+	c.Subscribe(subscribe, qos, func(client mqtt.Client, message mqtt.Message) {
 		r.ch <- message
 	})
 	return r, token.Error()
@@ -185,14 +185,14 @@ func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, options ...io
 
 type MQTTClient struct {
 	mqtt.Client
-	clientID string
-	topic    string
-	qos      byte
-	ch       chan mqtt.Message
+	subscribe string
+	publish   string
+	qos       byte
+	ch        chan mqtt.Message
 }
 
 func (this *MQTTClient) Read(p []byte) (int, error) {
-	return 0, nil
+	return 0, io.ErrUseReadMessage
 }
 
 func (this *MQTTClient) ReadMessage() ([]byte, error) {
@@ -202,13 +202,13 @@ func (this *MQTTClient) ReadMessage() ([]byte, error) {
 }
 
 func (this *MQTTClient) Write(p []byte) (int, error) {
-	token := this.Client.Publish(this.topic, this.qos, false, p)
+	token := this.Client.Publish(this.publish, this.qos, false, p)
 	token.Wait()
 	return len(p), token.Error()
 }
 
 func (this *MQTTClient) Close() error {
-	token := this.Client.Unsubscribe(this.clientID)
+	token := this.Client.Unsubscribe(this.subscribe)
 	token.Wait()
 	return token.Error()
 }
