@@ -140,6 +140,8 @@ func NewMemory(key string, options ...io.OptionClient) (*io.Client, error) {
 
 type MQTTConfig = mqtt.ClientOptions
 
+var NewMQTTOptions = mqtt.NewClientOptions()
+
 func MQTT(subscribe, publish string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser, error) {
 	c := mqtt.NewClient(cfg)
 	token := c.Connect()
@@ -177,7 +179,8 @@ func NewMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (*io.Client, err
 }
 
 func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(WithMQTT(clientID, topic, qos, cfg.SetAutoReconnect(false)), func(c *io.Client) {
+	//cfg.SetAutoReconnect(false)
+	return io.Redial(WithMQTT(clientID, topic, qos, cfg), func(c *io.Client) {
 		c.SetKey(topic)
 		c.SetOptions(options...)
 	})
