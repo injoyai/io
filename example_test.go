@@ -9,7 +9,7 @@ func ExampleRedial() {
 				c.Debug()             //开启打印日志
 				c.SetPrintWithASCII() //打印日志编码ASCII
 				c.SetReadWithAll()    //设置读取全部
-				c.SetDealFunc(func(msg *IMessage) {
+				c.SetDealFunc(func(c *Client, msg Message) {
 					//业务逻辑,处理读取到的数据
 				})
 				c.GoTimerWriter(time.Minute, func(c *IWriter) error {

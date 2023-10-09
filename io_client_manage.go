@@ -32,8 +32,8 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 	}
 	e.dealQueue.SetHandler(func(ctx context.Context, no, count int, data interface{}) {
 		if e.dealFunc != nil {
-			x := data.(*IMessage)
-			e.dealFunc(x.Client, x.Message)
+			x := data.([]interface{})
+			e.dealFunc(x[0].(*Client), x[1].(Message))
 		}
 	})
 	//设置默认处理数据函数
@@ -434,7 +434,7 @@ func (this *ClientManage) _dealFunc(c *Client, msg Message) {
 	case <-this.ctx.Done():
 	default:
 		//加入消费队列
-		this.dealQueue.Do(NewIMessage(c, msg))
+		this.dealQueue.Do([]interface{}{c, msg})
 	}
 }
 
