@@ -65,7 +65,7 @@ type SSHClient struct {
 	err io.Reader
 }
 
-func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
+func SSH(cfg *SSHConfig) (io.ReadWriteCloser, string, error) {
 	cfg.new()
 	config := &ssh.ClientConfig{
 		Timeout:         cfg.Timeout,
@@ -77,61 +77,52 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, error) {
 	case "key":
 		signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(cfg.key), []byte(cfg.keyPassword))
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
 	}
 	sshClient, err := ssh.Dial(cfg.Network, cfg.Addr, config)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	session, err := sshClient.NewSession()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	reader, err := session.StdoutPipe()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	outputErr, err := session.StderrPipe()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	writer, err := session.StdinPipe()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := session.RequestPty(cfg.Term, cfg.High, cfg.Wide, cfg.TerminalModes); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := session.Shell(); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	return &SSHClient{
 		Writer:  writer,
 		Reader:  reader,
 		Session: session,
 		err:     outputErr,
-	}, nil
+	}, cfg.Addr, nil
 }
 
-func WithSSH(cfg *SSHConfig) func() (io.ReadWriteCloser, error) {
-	return func() (io.ReadWriteCloser, error) {
-		return SSH(cfg)
-	}
+func WithSSH(cfg *SSHConfig) io.DialFunc {
+	return func() (io.ReadWriteCloser, string, error) { return SSH(cfg) }
 }
 
 func NewSSH(cfg *SSHConfig, options ...io.OptionClient) (*io.Client, error) {
-	c, err := io.NewDial(WithSSH(cfg))
-	if err == nil {
-		c.SetKey(cfg.Addr).SetOptions(options...)
-	}
-	return c, err
+	return io.NewDial(WithSSH(cfg), options...)
 }
 
 func RedialSSH(cfg *SSHConfig, options ...io.OptionClient) *io.Client {
-	return io.Redial(WithSSH(cfg), func(c *io.Client) {
-		c.SetKey(cfg.Addr)
-		c.SetOptions(options...)
-	})
+	return io.Redial(WithSSH(cfg), options...)
 }

@@ -13,9 +13,9 @@ func TestTCPServer(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	s.Debug()
-	s.SetPrintWithASCII()
-	s.SetLevel(io.LevelAll)
+	s.Logger.Debug()
+	s.Logger.SetPrintWithASCII()
+	s.Logger.SetLevel(io.LevelAll)
 	s.SetDealFunc(func(msg *io.IMessage) {
 		//msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: http://www.baidu.com\r\n")
 		msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: /\r\n")
@@ -39,8 +39,8 @@ func TestRedial(t *testing.T) {
 
 func TestRunUDPServer(t *testing.T) {
 	RunUDPServer(20001, func(s *io.Server) {
-		s.Debug()
-		s.SetPrintWithHEX()
+		s.Logger.Debug()
+		s.Logger.SetPrintWithHEX()
 		s.SetDealFunc(func(msg *io.IMessage) {
 			msg.WriteString("7777")
 		})
@@ -52,8 +52,9 @@ func TestIOSpeed(t *testing.T) {
 	start := time.Now() //当前时间
 	length := 20 << 20  //传输的数据大小
 	go RunTCPServer(io.DefaultPort, func(s *io.Server) {
-		s.Debug(false)
-		s.SetReadWithAll()
+		s.Logger.Debug(false)
+		s.SetReadWithAll() //100毫秒
+		s.SetReadWithMB(1) //65毫秒
 		s.SetDealFunc(func(msg *io.IMessage) {
 			t.Log("数据长度: ", msg.Len())
 			t.Log("传输耗时: ", time.Now().Sub(start))

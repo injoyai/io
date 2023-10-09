@@ -58,7 +58,7 @@ type ListenFunc func() (Listener, error)
 type PrintFunc func(msg Message, tag ...string)
 
 // DialFunc 连接函数
-type DialFunc func() (ReadWriteCloser, error)
+type DialFunc func() (ReadWriteCloser, string, error)
 
 // ReadFunc 读取函数
 type ReadFunc func(buf *bufio.Reader) ([]byte, error)

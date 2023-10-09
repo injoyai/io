@@ -255,23 +255,23 @@ func (this *ICloser) closeWithErr(closeErr error, fn ...func(Closer) error) (err
 }
 
 // MustDial 无限重连,返回nil,或者成功数据
-func (this *ICloser) MustDial(ctx context.Context) ReadWriteCloser {
+func (this *ICloser) MustDial(ctx context.Context) (ReadWriteCloser, string) {
 	t := time.Second
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return nil, ""
 		case <-timer.C:
 			if this.redialFunc == nil {
 				//未设置重连函数
-				return nil
+				return nil, ""
 			}
-			readWriteCloser, err := this.redialFunc()
+			readWriteCloser, key, err := this.redialFunc()
 			if err == nil {
 				//上下文关闭
-				return readWriteCloser
+				return readWriteCloser, key
 			}
 			t *= 2
 			if t > this.redialMaxTime {

@@ -10,40 +10,26 @@ import (
 //================================Websocket================================
 
 // Websocket 连接
-func Websocket(url string, header http.Header) (io.ReadWriteCloser, error) {
+func Websocket(url string, header http.Header) (io.ReadWriteCloser, string, error) {
 	c, _, err := websocket.DefaultDialer.Dial(url, header)
-	return &WebsocketClient{Conn: c}, err
+	return &WebsocketClient{Conn: c}, func() string {
+		if u, err := gourl.Parse(url); err == nil {
+			return u.Path
+		}
+		return url
+	}(), err
 }
 
-func WithWebsocket(url string, header http.Header) func() (io.ReadWriteCloser, error) {
-	return func() (io.ReadWriteCloser, error) {
-		return Websocket(url, header)
-	}
+func WithWebsocket(url string, header http.Header) io.DialFunc {
+	return func() (io.ReadWriteCloser, string, error) { return Websocket(url, header) }
 }
 
-func NewWebsocket(url string, header http.Header) (*io.Client, error) {
-	c, err := io.NewDial(WithWebsocket(url, header))
-	if err == nil {
-		c.SetKey(func() string {
-			if u, err := gourl.Parse(url); err == nil {
-				return u.Path
-			}
-			return url
-		}())
-	}
-	return c, err
+func NewWebsocket(url string, header http.Header, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(WithWebsocket(url, header), options...)
 }
 
 func RedialWebsocket(url string, header http.Header, options ...io.OptionClient) *io.Client {
-	return io.Redial(WithWebsocket(url, header), func(c *io.Client) {
-		c.SetKey(func() string {
-			if u, err := gourl.Parse(url); err == nil {
-				return u.Path
-			}
-			return url
-		}())
-		c.SetOptions(options...)
-	})
+	return io.Redial(WithWebsocket(url, header), options...)
 }
 
 type WebsocketClient struct {
@@ -52,7 +38,7 @@ type WebsocketClient struct {
 
 // Read 无效,请使用ReadMessage
 func (this *WebsocketClient) Read(p []byte) (int, error) {
-	return 0, nil
+	return 0, io.ErrUseReadMessage
 }
 
 func (this *WebsocketClient) Write(p []byte) (int, error) {

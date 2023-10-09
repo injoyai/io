@@ -12,67 +12,57 @@ import (
 //================================TCPDial================================
 
 // TCP 连接
-func TCP(addr string) (io.ReadWriteCloser, error) {
-	return net.Dial(io.TCP, addr)
+func TCP(addr string) (io.ReadWriteCloser, string, error) {
+	r, err := net.Dial(io.TCP, addr)
+	return r, addr, err
 }
 
 // WithTCP 连接函数
-func WithTCP(addr string) func() (io.ReadWriteCloser, error) {
-	return func() (io.ReadWriteCloser, error) { return TCP(addr) }
+func WithTCP(addr string) io.DialFunc {
+	return func() (io.ReadWriteCloser, string, error) { return TCP(addr) }
 }
 
 // NewTCP 新建TCP连接
 func NewTCP(addr string, options ...io.OptionClient) (*io.Client, error) {
-	return io.NewDial(WithTCP(addr), func(c *io.Client) {
-		c.SetKey(addr)
-		c.SetOptions(options...)
-	})
+	return io.NewDial(WithTCP(addr), options...)
 }
 
 // RedialTCP 一直连接TCP服务端,并重连
 func RedialTCP(addr string, options ...io.OptionClient) *io.Client {
-	return io.Redial(WithTCP(addr), func(c *io.Client) {
-		c.SetKey(addr)
-		c.SetOptions(options...)
-	})
+	return io.Redial(WithTCP(addr), options...)
 }
 
 //================================UDPDial================================
 
 // UDP 连接
-func UDP(addr string) (io.ReadWriteCloser, error) {
-	return net.Dial("udp", addr)
+func UDP(addr string) (io.ReadWriteCloser, string, error) {
+	c, err := net.Dial(io.UDP, addr)
+	return c, addr, err
 }
 
 // WithUDP 连接函数
-func WithUDP(addr string) func() (io.ReadWriteCloser, error) {
-	return func() (io.ReadWriteCloser, error) { return UDP(addr) }
+func WithUDP(addr string) io.DialFunc {
+	return func() (io.ReadWriteCloser, string, error) { return UDP(addr) }
 }
 
 func NewUDP(addr string, options ...io.OptionClient) (*io.Client, error) {
-	return io.NewDial(WithUDP(addr), func(c *io.Client) {
-		c.SetKey(addr)
-		c.SetOptions(options...)
-	})
+	return io.NewDial(WithUDP(addr), options...)
 }
 
 // RedialUDP 一直连接UDP服务端,并重连
 func RedialUDP(addr string, options ...io.OptionClient) *io.Client {
-	return io.Redial(WithUDP(addr), func(c *io.Client) {
-		c.SetKey(addr)
-		c.SetOptions(options...)
-	})
+	return io.Redial(WithUDP(addr), options...)
 }
 
 var udpMap *maps.Safe
 
-func WriteUDP(addr string, p []byte) error {
+func WriteUDP(addr string, p []byte, selfPort ...int) error {
 	if udpMap == nil {
 		udpMap = maps.NewSafe()
 	}
 	v := udpMap.GetInterface(addr)
 	if v == nil {
-		c, err := net.Dial("udp", addr)
+		c, err := net.Dial(io.UDP, addr)
 		if err != nil {
 			return err
 		}
@@ -87,48 +77,44 @@ func WriteUDP(addr string, p []byte) error {
 //================================FileDial================================
 
 // File 打开文件
-func File(path string) (io.ReadWriteCloser, error) {
-	return os.Open(path)
+func File(path string) (io.ReadWriteCloser, string, error) {
+	c, err := os.Open(path)
+	return c, path, err
 }
 
 // WithFile 打开文件函数
-func WithFile(path string) func() (io.ReadWriteCloser, error) {
-	return func() (io.ReadWriteCloser, error) {
-		return os.Open(path)
-	}
+func WithFile(path string) io.DialFunc {
+	return func() (io.ReadWriteCloser, string, error) { return File(path) }
 }
 
 func NewFile(path string, options ...io.OptionClient) (*io.Client, error) {
-	return io.NewDial(WithFile(path), func(c *io.Client) {
-		c.SetKey(path)
-		c.SetOptions(options...)
-	})
+	return io.NewDial(WithFile(path), options...)
 }
 
 //================================MemoryDial================================
 
 // Memory 内存
-func Memory(key string) (io.ReadWriteCloser, error) {
+func Memory(key string) (io.ReadWriteCloser, string, error) {
 	s := common.MemoryServerManage.MustGet(key)
 	if s == nil {
-		return nil, errors.New("服务不存在")
+		return nil, "", errors.New("服务不存在")
 	}
-	return s.(*common.MemoryServer).Connect()
+	c, err := s.(*common.MemoryServer).Connect()
+	return c, key, err
 }
 
-func WithMemory(key string) func() (io.ReadWriteCloser, error) {
-	return func() (io.ReadWriteCloser, error) {
-		return Memory(key)
-	}
+func WithMemory(key string) io.DialFunc {
+	return func() (io.ReadWriteCloser, string, error) { return Memory(key) }
 }
 
 func NewMemory(key string, options ...io.OptionClient) (*io.Client, error) {
-	return io.NewDial(WithMemory(key), func(c *io.Client) {
-		c.SetKey(key)
-		c.SetOptions(options...)
-	})
+	return io.NewDial(WithMemory(key), options...)
 }
 
-//================================RabbitmqDial================================
+func RedialMemory(key string, options ...io.OptionClient) *io.Client {
+	return io.Redial(WithMemory(key), options...)
+}
 
-//================================OtherDial================================
+//================================Rabbitmq================================
+
+//================================Other================================

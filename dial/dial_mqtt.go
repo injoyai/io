@@ -15,17 +15,17 @@ func NewMQTTOptions() *mqtt.ClientOptions {
 	return mqtt.NewClientOptions()
 }
 
-func MQTT(subscribe, publish string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser, error) {
+func MQTT(subscribe, publish string, qos byte, cfg *MQTTConfig) (io.ReadWriteCloser, string, error) {
 	if cfg == nil {
 		cfg = NewMQTTOptions()
 	}
 	c := mqtt.NewClient(cfg)
 	token := c.Connect()
 	if !token.WaitTimeout(cfg.WriteTimeout) {
-		return nil, errors.New("连接超时")
+		return nil, "", errors.New("连接超时")
 	}
 	if token.Error() != nil {
-		return nil, token.Error()
+		return nil, "", token.Error()
 	}
 	r := &MQTTClient{
 		Client:    c,
@@ -37,29 +37,19 @@ func MQTT(subscribe, publish string, qos byte, cfg *MQTTConfig) (io.ReadWriteClo
 	c.Subscribe(subscribe, qos, func(client mqtt.Client, message mqtt.Message) {
 		r.ch <- message
 	})
-	return r, token.Error()
+	return r, publish, token.Error()
 }
 
-func WithMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) func() (io.ReadWriteCloser, error) {
-	return func() (closer io.ReadWriteCloser, err error) {
-		return MQTT(clientID, topic, qos, cfg)
-	}
+func WithMQTT(subscribe, publish string, qos byte, cfg *MQTTConfig) io.DialFunc {
+	return func() (io.ReadWriteCloser, string, error) { return MQTT(subscribe, publish, qos, cfg) }
 }
 
-func NewMQTT(clientID, topic string, qos byte, cfg *MQTTConfig) (*io.Client, error) {
-	c, err := io.NewDial(WithMQTT(clientID, topic, qos, cfg))
-	if err == nil {
-		c.SetKey(topic)
-	}
-	return c, err
+func NewMQTT(subscribe, publish string, qos byte, cfg *MQTTConfig, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(WithMQTT(subscribe, publish, qos, cfg), options...)
 }
 
 func RedialMQTT(clientID, topic string, qos byte, cfg *MQTTConfig, options ...io.OptionClient) *io.Client {
-	//cfg.SetAutoReconnect(false)
-	return io.Redial(WithMQTT(clientID, topic, qos, cfg), func(c *io.Client) {
-		c.SetKey(topic)
-		c.SetOptions(options...)
-	})
+	return io.Redial(WithMQTT(clientID, topic, qos, cfg), options...)
 }
 
 type MQTTClient struct {

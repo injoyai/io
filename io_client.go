@@ -20,8 +20,9 @@ func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClie
 	x.Logger.Debug()
 	x.SetRedialFunc(dial)
 	x.SetKey(conv.String(dial))
-
-	return NewClientWithContext(ctx, x.MustDial(ctx), func(c *Client) {
+	r, key := x.MustDial(ctx)
+	return NewClientWithContext(ctx, r, func(c *Client) {
+		c.SetKey(key)
 		c.SetRedialFunc(dial)
 		c.Redial(options...)
 	})
@@ -34,11 +35,12 @@ func NewDial(dial DialFunc, options ...OptionClient) (*Client, error) {
 
 // NewDialWithContext 尝试连接,返回*Client和错误,需要输入上下文
 func NewDialWithContext(ctx context.Context, dial DialFunc, options ...OptionClient) (*Client, error) {
-	c, err := dial()
+	c, key, err := dial()
 	if err != nil {
 		return nil, err
 	}
 	cli := NewClientWithContext(ctx, c, func(c *Client) {
+		c.SetKey(key)
 		c.SetRedialFunc(dial)
 		c.SetOptions(options...)
 	})
@@ -292,7 +294,7 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 func (this *Client) Redial(options ...OptionClient) *Client {
 	this.SetCloseFunc(func(ctx context.Context, msg *IMessage) {
 		<-time.After(time.Second)
-		readWriteCloser := this.IReadCloser.MustDial(ctx)
+		readWriteCloser, key := this.IReadCloser.MustDial(ctx)
 		if readWriteCloser == nil {
 			if this.ICloser.Err() != ErrHandClose {
 				this.Logger.Errorf("[%s] 连接断开(%v),未设置重连函数", this.GetKey(), this.ICloser.Err())
@@ -301,7 +303,7 @@ func (this *Client) Redial(options ...OptionClient) *Client {
 		}
 		this.Logger.Infof("[%s] 连接断开(%v),重连成功", this.GetKey(), this.ICloser.Err())
 		redialFunc := this.IReadCloser.redialFunc
-		key := this.GetKey()
+		//key := this.GetKey()
 		*this = *NewClient(readWriteCloser)
 		this.SetKey(key)
 		this.SetRedialFunc(redialFunc)

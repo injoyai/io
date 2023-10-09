@@ -27,7 +27,7 @@ func Test(n int) {
 		length := 1000 << 20 //传输的数据大小
 		totalDeal := 0
 		listen.RunTCPServer(10086, func(s *io.Server) {
-			s.SetLevel(io.LevelInfo)
+			s.Logger.SetLevel(io.LevelInfo)
 			s.SetDealFunc(func(msg *io.IMessage) {
 				if start.IsZero() {
 					start = time.Now()
@@ -74,7 +74,7 @@ func Test(n int) {
 
 		totalDeal := 0
 		go listen.RunTCPServer(10086, func(s *io.Server) {
-			s.SetLevel(io.LevelError)
+			s.Logger.SetLevel(io.LevelError)
 			s.SetReadFunc(readAll)
 			s.SetDealFunc(func(msg *io.IMessage) {
 				totalDeal += msg.Len()
