@@ -16,9 +16,9 @@ func TestTCPServer(t *testing.T) {
 	s.Logger.Debug()
 	s.Logger.SetPrintWithASCII()
 	s.Logger.SetLevel(io.LevelAll)
-	s.SetDealFunc(func(msg *io.IMessage) {
+	s.SetDealFunc(func(c *io.Client, msg io.Message) {
 		//msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: http://www.baidu.com\r\n")
-		msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: /\r\n")
+		c.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: /\r\n")
 		//msg.TryCloseWithDeadline()
 	})
 	t.Error(s.Run())
@@ -41,8 +41,8 @@ func TestRunUDPServer(t *testing.T) {
 	RunUDPServer(20001, func(s *io.Server) {
 		s.Logger.Debug()
 		s.Logger.SetPrintWithHEX()
-		s.SetDealFunc(func(msg *io.IMessage) {
-			msg.WriteString("7777")
+		s.SetDealFunc(func(c *io.Client, msg io.Message) {
+			c.WriteString("7777")
 		})
 	})
 }
@@ -55,7 +55,7 @@ func TestIOSpeed(t *testing.T) {
 		s.Logger.Debug(false)
 		s.SetReadWithAll() //100毫秒
 		s.SetReadWithMB(1) //65毫秒
-		s.SetDealFunc(func(msg *io.IMessage) {
+		s.SetDealFunc(func(c *io.Client, msg io.Message) {
 			t.Log("数据长度: ", msg.Len())
 			t.Log("传输耗时: ", time.Now().Sub(start))
 		})
@@ -65,7 +65,7 @@ func TestIOSpeed(t *testing.T) {
 		data := make([]byte, length)
 		start = time.Now()
 		c.Write(data)
-		c.SetDealFunc(func(msg *io.IMessage) {
+		c.SetDealFunc(func(c *io.Client, msg io.Message) {
 			//t.Log(msg)
 		})
 	}).DoneAll()

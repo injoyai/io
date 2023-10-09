@@ -40,7 +40,7 @@ func TestRedialWebsocket2(t *testing.T) {
 	url = "ws://192.168.10.15:80/api/ai/photo/v2/ws?key=0.0&Sn=null"
 	c := RedialWebsocket(url, nil, func(c *io.Client) {
 		c.Debug(false)
-		c.SetDealFunc(func(msg *io.IMessage) {
+		c.SetDealFunc(func(c *io.Client, msg io.Message) {
 			count.Add(1)
 		})
 	})

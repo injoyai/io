@@ -24,8 +24,8 @@ func TestNewClient(t *testing.T) {
 func TestNewServer(t *testing.T) {
 	_, err := listen.NewTCPServer(10089, func(s *io.Server) {
 		s.Debug()
-		s.SetDealFunc(func(msg *io.IMessage) {
-			msg.WriteString("777")
+		s.SetDealFunc(func(c *io.Client, msg io.Message) {
+			c.WriteString("777")
 		})
 		t.Log(s.Run())
 	})

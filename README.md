@@ -18,7 +18,7 @@
                 c.Debug()             //开启打印日志
                 c.SetPrintWithASCII() //打印日志编码ASCII
                 c.SetReadWithAll()    //设置读取方式,一次读取全部
-                c.SetDealFunc(func(msg *io.IMessage) {
+                c.SetDealFunc(func(c *io.Client, msg io.Message) {
                     // todo 业务逻辑,处理读取到的数据
                 })
                 c.GoTimerWriter(time.Minute, func(c *io.IWriter) (int, error) {
@@ -51,7 +51,7 @@ func main () {
 		return
 	}
 	c.Debug(false)
-	c.SetDealFunc(func(msg *io.IMessage) {
+	c.SetDealFunc(func(c *io.Client, msg io.Message) {
 		fmt.Print(msg.String())
 	})
 	go c.Run()

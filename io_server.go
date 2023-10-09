@@ -66,6 +66,10 @@ type Server struct {
 
 //================================Nature================================
 
+func (this *Server) Debug(b ...bool) {
+	this.Logger.Debug(b...)
+}
+
 func (this *Server) Tag() *maps.Safe {
 	return this.tag
 }
@@ -105,7 +109,7 @@ func (this *Server) Close() error {
 	return this.ICloser.Close()
 }
 
-func (this *Server) SetCloseFunc(fn func(msg *IMessage)) *Server {
+func (this *Server) SetCloseFunc(fn func(c *Client, msg Message)) *Server {
 	this.ClientManage.SetCloseFunc(fn)
 	return this
 }

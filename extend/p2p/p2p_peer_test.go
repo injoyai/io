@@ -30,7 +30,7 @@ func TestNewPeer2(t *testing.T) {
 		logs.Debug(c.GetKey())
 		return nil
 	})
-	p.SetDealFunc(func(msg *io.IMessage) {
+	p.SetDealFunc(func(c *io.Client, msg io.Message) {
 		logs.Debug(msg.String())
 	})
 	t.Log(p.Run())

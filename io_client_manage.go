@@ -19,7 +19,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 		mu:              sync.RWMutex{},
 		ctx:             ctx,
 		dealQueue:       chans.NewEntityWithContext(ctx, 1, 1000),
-		readChan:        make(chan *IMessage, 100),
+		readChan:        make(chan Message, 100),
 		timeout:         DefaultKeepAlive * 3,
 		timeoutInterval: DefaultTimeoutInterval,
 		ClientOptions: ClientOptions{
@@ -32,11 +32,12 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 	}
 	e.dealQueue.SetHandler(func(ctx context.Context, no, count int, data interface{}) {
 		if e.dealFunc != nil {
-			e.dealFunc(data.(*IMessage))
+			x := data.(*IMessage)
+			e.dealFunc(x.Client, x.Message)
 		}
 	})
 	//设置默认处理数据函数
-	e.SetDealFunc(func(msg *IMessage) { e.readChan <- msg })
+	e.SetDealFunc(func(c *Client, msg Message) { e.readChan <- msg })
 	//执行超时机制
 	go func() {
 		for {
@@ -59,11 +60,11 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 }
 
 type ClientOptions struct {
-	beforeFunc func(*Client) error //连接前置事件,onConnect()
-	closeFunc  func(msg *IMessage) //断开连接事件,onClose()
-	dealFunc   func(msg *IMessage) //数据处理方法,onMessage()
-	readFunc   buf.ReadFunc        //数据读取方法,onRead()
-	writeFunc  WriteFunc           //数据发送函数,包装下原始数据,onWrite()
+	beforeFunc func(*Client) error          //连接前置事件,onConnect()
+	closeFunc  func(c *Client, msg Message) //断开连接事件,onClose()
+	dealFunc   func(c *Client, msg Message) //数据处理方法,onMessage()
+	readFunc   buf.ReadFunc                 //数据读取方法,onRead()
+	writeFunc  WriteFunc                    //数据发送函数,包装下原始数据,onWrite()
 }
 
 /*
@@ -80,7 +81,7 @@ type ClientManage struct {
 	maxClientNum    int             //最大数
 	ctx             context.Context //ctx
 	dealQueue       *chans.Entity   //数据处理队列
-	readChan        chan *IMessage  //数据通道,dealFunc二选一
+	readChan        chan Message    //数据通道,dealFunc二选一
 	timeout         time.Duration   //超时时间,小于0是不超时
 	timeoutInterval time.Duration   //超时检测间隔
 
@@ -130,7 +131,7 @@ func (this *ClientManage) SetDealQueueNum(n int) {
 }
 
 // SetDealFunc 设置处理数据方法
-func (this *ClientManage) SetDealFunc(fn func(msg *IMessage)) {
+func (this *ClientManage) SetDealFunc(fn func(c *Client, msg Message)) {
 	this.dealFunc = fn
 	for {
 		//清除阻塞数据
@@ -145,7 +146,7 @@ func (this *ClientManage) SetDealFunc(fn func(msg *IMessage)) {
 
 // SetDealWithWriter 读取到的数据写入到writer
 func (this *ClientManage) SetDealWithWriter(w Writer) {
-	this.SetDealFunc(func(msg *IMessage) {
+	this.SetDealFunc(func(c *Client, msg Message) {
 		w.Write(msg.Bytes())
 	})
 }
@@ -157,7 +158,7 @@ func (this *ClientManage) SetBeforeFunc(fn func(c *Client) error) {
 }
 
 // SetCloseFunc 设置断开连接事件
-func (this *ClientManage) SetCloseFunc(fn func(msg *IMessage)) {
+func (this *ClientManage) SetCloseFunc(fn func(c *Client, msg Message)) {
 	this.closeFunc = fn
 }
 
@@ -334,8 +335,8 @@ func (this *ClientManage) Read(p []byte) (int, error) {
 
 // ReadMessage 读取数据,当未设置DealFunc时生效
 func (this *ClientManage) ReadMessage() ([]byte, error) {
-	m := <-this.readChan
-	return m.Message, nil
+	msg := <-this.readChan
+	return msg, nil
 }
 
 // WriteClient 写入客户端数据
@@ -428,35 +429,35 @@ func (this *ClientManage) SetClientKey(newClient *Client, newKey string) {
  */
 
 // _dealFunc 处理数据
-func (this *ClientManage) _dealFunc(msg *IMessage) {
+func (this *ClientManage) _dealFunc(c *Client, msg Message) {
 	select {
 	case <-this.ctx.Done():
 	default:
 		//加入消费队列
-		this.dealQueue.Do(msg)
+		this.dealQueue.Do(NewIMessage(c, msg))
 	}
 }
 
-func (this *ClientManage) _closeFunc(closeFunc ...CloseFunc) func(ctx context.Context, msg *IMessage) {
-	return func(ctx context.Context, msg *IMessage) {
+func (this *ClientManage) _closeFunc(closeFunc ...CloseFunc) func(ctx context.Context, c *Client, msg Message) {
+	return func(ctx context.Context, c *Client, msg Message) {
 		defer func() {
 			for _, f := range closeFunc {
 				if f != nil {
-					f(ctx, msg.Message)
+					f(ctx, msg)
 				}
 			}
 		}()
 		if this.closeFunc != nil {
-			defer this.closeFunc(msg)
+			defer this.closeFunc(c, msg)
 		}
 		this.mu.Lock()
 		defer this.mu.Unlock()
 		//获取老的连接
-		oldConn := this.m[msg.GetKey()]
+		oldConn := this.m[c.GetKey()]
 		//存在新连接上来被关闭的情况,判断是否是老的连接
-		if oldConn == nil || oldConn.Pointer() != msg.Pointer() {
+		if oldConn == nil || oldConn.Pointer() != c.Pointer() {
 			return
 		}
-		delete(this.m, msg.GetKey())
+		delete(this.m, c.GetKey())
 	}
 }

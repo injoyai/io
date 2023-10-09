@@ -63,11 +63,11 @@ func NewTunnelClient(s *io.Server, tunDial io.DialFunc, proxyAddr string, option
 
 		{
 			client.SetReadWithAll()
-			client.SetDealFunc(func(msg *io.IMessage) {
+			client.SetDealFunc(func(c *io.Client, msg io.Message) {
 				//写入数据
 				tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
 			})
-			client.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
+			client.SetCloseFunc(func(ctx context.Context, c *io.Client, msg io.Message) {
 				//发送关闭信息
 				tun.Write(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...))
 				//放回连接池
@@ -79,7 +79,7 @@ func NewTunnelClient(s *io.Server, tunDial io.DialFunc, proxyAddr string, option
 			tun.SetKey(client.GetKey())
 			tun.SetReadWriteWithPkg()
 			tun.SetCloseWithCloser(client)
-			tun.SetDealFunc(func(msg *io.IMessage) {
+			tun.SetDealFunc(func(c *io.Client, msg io.Message) {
 				m, err := decodeTunnelMessage(msg.Bytes())
 				if err != nil {
 					tun.Write(append([]byte{TypeClose, TypeRequest}, []byte(err.Error())...))
@@ -112,7 +112,7 @@ func NewTunnelServer(s *io.Server) {
 	s.SetBeforeFunc(func(tun *io.Client) error {
 		var c *io.Client
 		tun.SetReadWriteWithPkg()
-		tun.SetDealFunc(func(msg *io.IMessage) {
+		tun.SetDealFunc(func(c2 *io.Client, msg io.Message) {
 			m, err := decodeTunnelMessage(msg.Bytes())
 			if err == nil {
 				switch m.Type {
@@ -122,11 +122,11 @@ func NewTunnelServer(s *io.Server) {
 						c, err = dial.NewTCP(string(m.Data), func(c *io.Client) {
 							c.Debug(false)
 							c.SetReadWithAll()
-							c.SetDealFunc(func(msg *io.IMessage) {
+							c.SetDealFunc(func(c *io.Client, msg io.Message) {
 								//写入数据
 								tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
 							})
-							c.SetCloseFunc(func(ctx context.Context, msg *io.IMessage) {
+							c.SetCloseFunc(func(ctx context.Context, c *io.Client, msg io.Message) {
 								//发送关闭信息
 								tun.Write(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...))
 							})

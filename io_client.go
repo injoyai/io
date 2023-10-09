@@ -216,23 +216,23 @@ func (this *Client) SetOptions(options ...OptionClient) *Client {
 }
 
 // SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
-func (this *Client) SetDealFunc(fn func(msg *IMessage)) *Client {
+func (this *Client) SetDealFunc(fn func(c *Client, msg Message)) *Client {
 	this.IReadCloser.SetDealFunc(func(msg Message) {
 		switch msg.String() {
 		case Ping:
 			this.WriteString(Pong)
 		case Pong:
 		default:
-			fn(NewIMessage(this, msg))
+			fn(this, msg)
 		}
 	})
 	return this
 }
 
 // SetCloseFunc 设置关闭函数
-func (this *Client) SetCloseFunc(fn func(ctx context.Context, msg *IMessage)) *Client {
+func (this *Client) SetCloseFunc(fn func(ctx context.Context, c *Client, msg Message)) *Client {
 	this.IReadCloser.SetCloseFunc(func(ctx context.Context, msg Message) {
-		fn(ctx, NewIMessage(this, msg))
+		fn(ctx, this, msg)
 	})
 	return this
 }
@@ -292,7 +292,7 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 
 // Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
 func (this *Client) Redial(options ...OptionClient) *Client {
-	this.SetCloseFunc(func(ctx context.Context, msg *IMessage) {
+	this.SetCloseFunc(func(ctx context.Context, c *Client, msg Message) {
 		<-time.After(time.Second)
 		readWriteCloser, key := this.IReadCloser.MustDial(ctx)
 		if readWriteCloser == nil {

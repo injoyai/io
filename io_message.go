@@ -1,13 +1,8 @@
 package io
 
 import (
-	"fmt"
 	"github.com/injoyai/base/bytes"
 )
-
-func NewMessageFormat(format string, v ...interface{}) Message {
-	return Message(fmt.Sprintf(format, v...))
-}
 
 type Message = bytes.Entity
 

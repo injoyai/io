@@ -34,7 +34,7 @@ func NewServer(port int) error {
 	if err != nil {
 		return err
 	}
-	s.Debug()
+	s.Logger.Debug()
 	return s.Run()
 }
 
@@ -42,7 +42,7 @@ func NewServer(port int) error {
 func CloseAll(port int) error {
 
 	s, err := listen.NewTCPServer(port, func(s *io.Server) {
-		s.Debug()
+		s.Logger.Debug()
 	})
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func ClientRun(addr string) *io.Client {
 		c.Debug()
 		c.SetPrintWithASCII()
 		c.SetKey("test")
-		c.SetDealFunc(func(msg *io.IMessage) {
+		c.SetDealFunc(func(c *io.Client, msg io.Message) {
 			logs.Debug(msg.String())
 			//业务逻辑
 			c.WriteString("666")
@@ -95,7 +95,7 @@ func TimeoutClient(port int, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	s.Debug()
+	s.Logger.Debug()
 	return s.Run()
 }
 
@@ -109,7 +109,7 @@ func TimeoutServer(port int, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	s.Debug()
+	s.Logger.Debug()
 	s.SetTimeout(timeout)
 	return s.Run()
 }
@@ -117,7 +117,7 @@ func TimeoutServer(port int, timeout time.Duration) error {
 // GoFor 测试客户端的GoFor函数
 func GoFor(port int) error {
 	s, err := listen.NewTCPServer(port, func(s *io.Server) {
-		s.Debug()
+		s.Logger.Debug()
 	})
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func GoFor(port int) error {
 // ServerMaxClient 测试服务端最大连接数
 func ServerMaxClient(port int) error {
 	s, err := listen.NewTCPServer(port, func(s *io.Server) {
-		s.Debug()
+		s.Logger.Debug()
 		s.SetMaxClient(1)
 	})
 	if err != nil {

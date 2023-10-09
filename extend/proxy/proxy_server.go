@@ -1,5 +1,6 @@
 package proxy
 
+import "C"
 import (
 	"bufio"
 	"bytes"
@@ -25,7 +26,7 @@ type Server struct {
 }
 
 func (this *Server) Debug(b ...bool) {
-	this.s.Debug(b...)
+	this.s.Logger.Debug(b...)
 }
 
 func (this *Server) Run() error {
@@ -93,14 +94,14 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 			//s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
 			return errors.New(m)
 		}}
-		s.SetCloseFunc(func(msg *io.IMessage) {
+		s.SetCloseFunc(func(c *io.Client, msg io.Message) {
 			//客户端关闭了连接,发送是数据到代理端关闭代理客户端
-			m := NewCMessage(msg.Client, NewCloseMessage(msg.GetKey(), msg.String()))
+			m := NewCMessage(c, NewCloseMessage(c.GetKey(), msg.String()))
 			if ser.dealFunc != nil {
 				logs.PrintErr(ser.dealFunc(m))
 			}
 		})
-		s.SetDealFunc(func(msg *io.IMessage) {
+		s.SetDealFunc(func(c *io.Client, msg io.Message) {
 			// 设置处理数据函数
 			// 处理监听到的用户数据,只能监听http协议数据
 			// 处理http的CONNECT数据,及处理端口等
@@ -110,34 +111,34 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 			switch true {
 			case len(list) > 2 && list[0] == http.MethodConnect:
 				//http代理请求
-				addr, err := getAddr(msg)
+				addr, err := getAddr(c, msg)
 				if err != nil {
 					logs.Err(err)
-					msg.Close()
+					C.Close()
 					return
 				}
 
 				//保存请求地址,后续直接使用该地址
-				msg.Tag().Set(KeyAddr, addr)
+				c.Tag().Set(KeyAddr, addr)
 
 				//理论要先建立连接,在返回成功
 				//现在是直接返回连接成功
-				msg.Client.WriteString(Connection)
+				c.WriteString(Connection)
 
 			default:
 				//后续的包,尝试按http协议解析
-				addr, err := getAddr(msg)
+				addr, err := getAddr(c, msg)
 				if err != nil {
 					//这里不做处理
 					//logs.Err(err)
 					//msg.Close()
 					//return
 				}
-				m := NewCMessage(msg.Client, NewWriteMessage(msg.GetKey(), addr, msg.Bytes()))
+				m := NewCMessage(c, NewWriteMessage(c.GetKey(), addr, msg.Bytes()))
 				if ser.dealFunc != nil {
 					//多半是传输错误,例如未连接隧道,关闭客户端请求
 					if err := ser.dealFunc(m); err != nil {
-						msg.CloseWithErr(err)
+						c.CloseWithErr(err)
 					}
 				}
 			}
@@ -164,8 +165,8 @@ func NewTCPServer(port int, options ...func(s *Server)) (*Server, error) {
 }
 
 // 获取请求地址
-func getAddr(msg *io.IMessage) (string, error) {
-	addr := msg.Tag().GetString(KeyAddr)
+func getAddr(c *io.Client, msg io.Message) (string, error) {
+	addr := c.Tag().GetString(KeyAddr)
 	if len(addr) > 0 {
 		return addr, nil
 	}

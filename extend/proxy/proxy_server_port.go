@@ -29,7 +29,7 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string, options ...i
 	s, err := listen.NewTCPServer(port, func(s *io.Server) {
 		s.Tag().Set("sn", sn)
 		s.Tag().Set("addr", addr)
-		s.SetDealFunc(func(msg *io.IMessage) {
+		s.SetDealFunc(func(c *io.Client, msg io.Message) {
 			{
 				if _addr := regexp.MustCompile("(\\?|&)(_addr=)[0-9.:]+").FindString(msg.String()); len(_addr) > 7 {
 					s.Tag().Set("addr", _addr[7:])
@@ -42,12 +42,12 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string, options ...i
 			addr = s.Tag().GetString("addr")
 			pipe := this.GetClient(sn)
 			if pipe == nil {
-				msg.Client.CloseWithErr(fmt.Errorf("通道客户端未连接,关闭连接"))
+				c.CloseWithErr(fmt.Errorf("通道客户端未连接,关闭连接"))
 				return
 			}
-			key := fmt.Sprintf("%d#%s", port, msg.GetKey())
+			key := fmt.Sprintf("%d#%s", port, c.GetKey())
 			if _, err := pipe.WriteAny(NewWriteMessage(key, addr, msg.Bytes())); err != nil {
-				msg.Client.Close()
+				c.Close()
 			}
 		})
 	})
@@ -59,60 +59,3 @@ func (this *PortForwardingServer) Listen(port int, sn, addr string, options ...i
 	go s.Run()
 	return nil
 }
-
-//// NewPortForwardingServer 端口转发服务端
-//func NewPortForwardingServer(port int, options ...io.OptionServer) (*PortForwardingServer, error) {
-//	pipeServer, err := dial.NewPipeServer(port, options...)
-//	if err != nil {
-//		return nil, err
-//	}
-//	ser := &PortForwardingServer{Server: pipeServer, listen: maps.NewSafe()}
-//	pipeServer.SetCloseFunc(func(msg *io.IMessage) {
-//		//通道断开连接,则关闭所有代理连接
-//		sn := msg.GetKey()
-//		ser.listen.Range(func(key, value interface{}) bool {
-//			s := value.(*io.Server)
-//			if s.Tag.GetString("sn") == sn {
-//				s.CloseClientAll()
-//			}
-//			return true
-//		})
-//	})
-//	pipeServer.SetDealFunc(func(msg *io.IMessage) {
-//		m, err := DecodeMessage(msg.Bytes())
-//		if err != nil {
-//			//msg.Close()
-//			logs.Err(err)
-//			return
-//		}
-//		switch m.OperateType {
-//		case Register:
-//			//处理注册信息
-//			pipeServer.SetClientKey(msg.Client, m.Data)
-//		default:
-//			listenPort := strings.Split(m.Key, "#")[0]
-//			v := ser.listen.MustGet(listenPort)
-//			if v == nil {
-//				msg.WriteAny(m.Close(fmt.Sprintf("未找到监听服务(%s)", listenPort)))
-//				return
-//			}
-//			s := v.(*io.Server)
-//			m.Key = append(strings.Split(m.Key, "#"), "")[1]
-//			switch m.OperateType {
-//			case Response:
-//				//代理响应,写入请求客户端
-//				_, err = s.WriteClient(m.Key, m.GetData())
-//			case Close:
-//				//关闭客户端请求连接
-//				c := s.GetClient(m.Key)
-//				if c != nil {
-//					_ = c.TryCloseWithDeadline()
-//				}
-//			default:
-//				//代理请求 改服务作为代理 发起请求
-//
-//			}
-//		}
-//	})
-//	return ser, nil
-//}

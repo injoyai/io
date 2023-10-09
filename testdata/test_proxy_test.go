@@ -35,7 +35,7 @@ func TestVPNHTTP(t *testing.T) {
 	}
 
 	c.Debug()
-	c.SetDealFunc(func(msg *io.IMessage) {
+	c.SetDealFunc(func(c *io.Client, msg io.Message) {
 		wait.Done("", nil)
 	})
 	go c.Run()
@@ -66,7 +66,7 @@ func TestVPNHTTPMore(t *testing.T) {
 		}
 
 		c.Debug()
-		c.SetDealFunc(func(msg *io.IMessage) {
+		c.SetDealFunc(func(c *io.Client, msg io.Message) {
 			wait.Done("", nil)
 		})
 		go c.Run()

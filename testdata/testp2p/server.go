@@ -16,7 +16,7 @@ func main() {
 		logs.Err(err)
 		return
 	}
-	p.SetDealFunc(func(msg *io.IMessage) {
+	p.SetDealFunc(func(c *io.Client, msg io.Message) {
 		m := new(p2p.Msg)
 		json.Unmarshal(msg.Bytes(), &m)
 		switch m.Type {

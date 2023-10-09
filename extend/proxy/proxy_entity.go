@@ -113,12 +113,12 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 			proxyClient.SetLogger(this.Logger)
 			proxyClient.SetKey(msg.Addr)
 			proxyClient.SetReadFunc(buf.ReadWithAll)
-			proxyClient.SetDealFunc(func(m *io.IMessage) {
+			proxyClient.SetDealFunc(func(c *io.Client, m io.Message) {
 				this.AddMessage(msg.Response(m.Bytes()))
 			})
-			proxyClient.SetCloseFunc(func(ctx context.Context, m *io.IMessage) {
-				this.delIO(msg.Key)
-				this.AddMessage(NewCloseMessage(msg.Key, m.String()))
+			proxyClient.SetCloseFunc(func(ctx context.Context, c *io.Client, msg io.Message) {
+				this.delIO(c.GetKey())
+				this.AddMessage(NewCloseMessage(c.GetKey(), msg.String()))
 			})
 			go proxyClient.Run()
 			//加入到缓存
@@ -160,20 +160,20 @@ func DefaultConnectFunc(msg *Message) (i io.ReadWriteCloser, err error) {
 	err = errors.New("未实现")
 	switch msg.ConnectType {
 	case TCP:
-		i, err = dial.TCP(msg.Addr)
+		i, _, err = dial.TCP(msg.Addr)
 	case UDP:
-		i, err = dial.UDP(msg.Addr)
+		i, _, err = dial.UDP(msg.Addr)
 	case Serial:
 		cfg := new(dial.SerialConfig)
 		err = json.Unmarshal([]byte(msg.Addr), cfg)
 		if err != nil {
 			return
 		}
-		i, err = dial.Serial(cfg)
+		i, _, err = dial.Serial(cfg)
 	case File, MQ, MQTT, HTTP, Websocket:
 		// todo 待实现
 	default:
-		i, err = dial.TCP(msg.Addr)
+		i, _, err = dial.TCP(msg.Addr)
 	}
 	return
 }

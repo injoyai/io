@@ -31,7 +31,7 @@ type Peer interface {
 func NewPeer(port int, options ...io.OptionServer) (*peer, error) {
 	s, err := listen.NewUDPServer(port, func(s *io.Server) {
 		s.SetReadWriteWithPkg()
-		s.SetDealFunc(func(msg *io.IMessage) {
+		s.SetDealFunc(func(c *io.Client, msg io.Message) {
 
 			m := new(Msg)
 			json.Unmarshal(msg.Bytes(), m)
@@ -72,8 +72,9 @@ type peer struct {
 }
 
 func (this *peer) WriteTo(addr string, p []byte) (int, error) {
-	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, error) {
-		return this.Listener().(*listen.UDPServer).NewUDPClient(addr)
+	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, string, error) {
+		c, err := this.Listener().(*listen.UDPServer).NewUDPClient(addr)
+		return c, addr, err
 	})
 	if err != nil {
 		return 0, err
@@ -82,8 +83,9 @@ func (this *peer) WriteTo(addr string, p []byte) (int, error) {
 }
 
 func (this *peer) Ping(addr string, timeout ...time.Duration) error {
-	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, error) {
-		return this.Listener().(*listen.UDPServer).NewUDPClient(addr)
+	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, string, error) {
+		c, err := this.Listener().(*listen.UDPServer).NewUDPClient(addr)
+		return c, addr, err
 	})
 	if err != nil {
 		return err
@@ -93,8 +95,9 @@ func (this *peer) Ping(addr string, timeout ...time.Duration) error {
 
 // Register 向服务端注册节点信息
 func (this *peer) Register(addr string) error {
-	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, error) {
-		return this.Listener().(*listen.UDPServer).NewUDPClient(addr)
+	c, err := this.GetClientOrDial(addr, func() (io.ReadWriteCloser, string, error) {
+		c, err := this.Listener().(*listen.UDPServer).NewUDPClient(addr)
+		return c, addr, err
 	})
 	if err != nil {
 		return err

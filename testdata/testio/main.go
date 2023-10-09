@@ -28,7 +28,7 @@ func Test(n int) {
 		totalDeal := 0
 		listen.RunTCPServer(10086, func(s *io.Server) {
 			s.Logger.SetLevel(io.LevelInfo)
-			s.SetDealFunc(func(msg *io.IMessage) {
+			s.SetDealFunc(func(c *io.Client, msg io.Message) {
 				if start.IsZero() {
 					start = time.Now()
 				}
@@ -76,7 +76,7 @@ func Test(n int) {
 		go listen.RunTCPServer(10086, func(s *io.Server) {
 			s.Logger.SetLevel(io.LevelError)
 			s.SetReadFunc(readAll)
-			s.SetDealFunc(func(msg *io.IMessage) {
+			s.SetDealFunc(func(c *io.Client, msg io.Message) {
 				totalDeal += msg.Len()
 				if totalDeal >= length {
 					logs.Debugf("[处理]传输耗时: %0.1fMB/s", float64(totalDeal/(1<<20))/time.Now().Sub(start).Seconds())
@@ -92,7 +92,7 @@ func Test(n int) {
 			c.Write(data)
 			logs.Debugf("[发送]传输耗时: %0.1fMB/s", float64(length/(1<<20))/time.Now().Sub(start).Seconds())
 			start = time.Now()
-			c.SetDealFunc(func(msg *io.IMessage) {
+			c.SetDealFunc(func(c *io.Client, msg io.Message) {
 				logs.Debug(msg)
 			})
 		}).DoneAll()
