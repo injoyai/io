@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//================================SerialDial================================
+//================================Serial================================
 
 const (
 	SerialParityNone = "N" //无校验
@@ -82,7 +82,8 @@ func GetSerialBaudRate() []int {
 		110, 134, 150, 200, 300, 600,
 		1200, 1800, 2400, 4800, 7200, 9600,
 		14400, 19200, 28800, 38400, 57600, 76800,
-		115200, 230400,
+		115200, 230400, 256000, 460800, 500000, 512000, 600000, 750000, 921600,
+		1000000, 1500000, 2000000,
 	}
 }
 
@@ -92,7 +93,6 @@ func ScanSerial(addr string, timeout time.Duration, write []byte) (*SerialConfig
 		for _, stopBits := range []int{1, 2} {
 			for _, parity := range []string{SerialParityNone, SerialParityEven, SerialParityOdd} {
 				for _, baudRate := range GetSerialBaudRate() {
-					var x *SerialConfig
 					cfg, resp, err := func() (*SerialConfig, []byte, error) {
 						cfg := &SerialConfig{
 							Address:  addr,
@@ -102,7 +102,6 @@ func ScanSerial(addr string, timeout time.Duration, write []byte) (*SerialConfig
 							Parity:   parity,
 							Timeout:  timeout,
 						}
-						x = cfg
 						c, err := NewSerial(cfg)
 						if err != nil {
 							return nil, nil, err
@@ -118,7 +117,7 @@ func ScanSerial(addr string, timeout time.Duration, write []byte) (*SerialConfig
 					if err == nil {
 						return cfg, resp
 					}
-					logs.Errf("%v %v", x, err)
+					logs.Errf("%v %v", cfg, err)
 				}
 			}
 		}
