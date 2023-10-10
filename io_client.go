@@ -63,7 +63,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser, options ...Opt
 		IReadCloser: NewIReadCloserWithContext(ctx, i),
 		IWriter:     NewIWriter(i),
 		i:           i,
-		tag:         maps.NewSafe(),
+		tag:         nil,
 		createTime:  time.Now(),
 	}
 	c.SetKey(fmt.Sprintf("%p", i))
@@ -106,6 +106,9 @@ func (this *Client) CreateTime() time.Time {
 
 // Tag 自定义信息,方便记录连接信息 例:c.Tag().GetString("imei")
 func (this *Client) Tag() *maps.Safe {
+	if this.tag == nil {
+		this.tag = maps.NewSafe()
+	}
 	return this.tag
 }
 

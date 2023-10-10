@@ -3,8 +3,11 @@ package io
 import (
 	"bufio"
 	"context"
+	"github.com/injoyai/base/bytes"
 	"time"
 )
+
+type Message = bytes.Entity
 
 type TimeoutWriter interface {
 	WriteWithTimeout(p []byte, timeout time.Duration) (int, error)
@@ -12,6 +15,7 @@ type TimeoutWriter interface {
 
 type Runner interface {
 	Run() error
+	Running() bool
 }
 
 // Closed 是否已关闭
