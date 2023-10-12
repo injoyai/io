@@ -19,22 +19,20 @@ func NewIWriter(writer Writer) *IWriter {
 		return c
 	}
 	return &IWriter{
-		Key:       &Key{},
-		Logger:    NewLog(),
-		writer:    writer,
-		writeFunc: nil,
-		lastTime:  time.Time{},
+		Key:      &Key{},
+		Logger:   NewLog(),
+		writer:   writer,
+		lastTime: time.Time{},
 	}
 }
 
 // IWriter 写
 type IWriter struct {
 	*Key
-	Logger     Logger
-	writer     Writer                    //io.Writer
-	writeFunc  WriteFunc                 //写入函数
-	writeAfter func(p []byte, err error) //写结束后
-	lastTime   time.Time                 //最后写入时间
+	Logger    Logger
+	writer    Writer    //io.Writer
+	writeFunc WriteFunc //写入函数
+	lastTime  time.Time //最后写入时间
 }
 
 //================================Nature================================
@@ -46,11 +44,6 @@ func (this *IWriter) LastTime() time.Time {
 
 // Write 写入字节,实现io.Writer
 func (this *IWriter) Write(p []byte) (n int, err error) {
-	defer func() {
-		if this.writeAfter != nil {
-			this.writeAfter(p, err)
-		}
-	}()
 	if this.writeFunc != nil {
 		p, err = this.writeFunc(p)
 		if err != nil {
@@ -154,18 +147,6 @@ func (this *IWriter) WriteChan(c chan interface{}) (int64, error) {
 // SetWriteFunc 设置写入函数,封装数据包,same SetWriteBeforeFunc
 func (this *IWriter) SetWriteFunc(fn func(p []byte) ([]byte, error)) *IWriter {
 	this.writeFunc = fn
-	return this
-}
-
-// SetWriteBeforeFunc 设置写入前函数,封装数据包
-func (this *IWriter) SetWriteBeforeFunc(fn func(p []byte) ([]byte, error)) *IWriter {
-	this.writeFunc = fn
-	return this
-}
-
-// SetWriteAfterFunc 写入后函数调用
-func (this *IWriter) SetWriteAfterFunc(fn func(p []byte, err error)) *IWriter {
-	this.writeAfter = fn
 	return this
 }
 
