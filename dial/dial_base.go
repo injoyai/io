@@ -7,19 +7,28 @@ import (
 	"github.com/injoyai/io/internal/common"
 	"net"
 	"os"
+	"time"
 )
 
 //================================TCPDial================================
 
 // TCP 连接
 func TCP(addr string) (io.ReadWriteCloser, string, error) {
-	r, err := net.Dial(io.TCP, addr)
+	return TCPTimeout(addr, io.DefaultConnectTimeout)
+}
+
+func TCPTimeout(addr string, timeout time.Duration) (io.ReadWriteCloser, string, error) {
+	r, err := net.DialTimeout(io.TCP, addr, timeout)
 	return r, addr, err
 }
 
 // WithTCP 连接函数
 func WithTCP(addr string) io.DialFunc {
 	return func() (io.ReadWriteCloser, string, error) { return TCP(addr) }
+}
+
+func WithTCPTimeout(addr string, timeout time.Duration) io.DialFunc {
+	return func() (io.ReadWriteCloser, string, error) { return TCPTimeout(addr, timeout) }
 }
 
 // NewTCP 新建TCP连接
@@ -36,7 +45,11 @@ func RedialTCP(addr string, options ...io.OptionClient) *io.Client {
 
 // UDP 连接
 func UDP(addr string) (io.ReadWriteCloser, string, error) {
-	c, err := net.Dial(io.UDP, addr)
+	return UDPTimeout(addr, io.DefaultConnectTimeout)
+}
+
+func UDPTimeout(addr string, timeout time.Duration) (io.ReadWriteCloser, string, error) {
+	c, err := net.DialTimeout(io.UDP, addr, timeout)
 	return c, addr, err
 }
 
@@ -45,13 +58,25 @@ func WithUDP(addr string) io.DialFunc {
 	return func() (io.ReadWriteCloser, string, error) { return UDP(addr) }
 }
 
+func WithUDPTimeout(addr string, timeout time.Duration) io.DialFunc {
+	return func() (io.ReadWriteCloser, string, error) { return UDPTimeout(addr, timeout) }
+}
+
 func NewUDP(addr string, options ...io.OptionClient) (*io.Client, error) {
 	return io.NewDial(WithUDP(addr), options...)
+}
+
+func NewUDPTimeout(addr string, timeout time.Duration, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(WithUDPTimeout(addr, timeout), options...)
 }
 
 // RedialUDP 一直连接UDP服务端,并重连
 func RedialUDP(addr string, options ...io.OptionClient) *io.Client {
 	return io.Redial(WithUDP(addr), options...)
+}
+
+func RedialUDPTimeout(addr string, timeout time.Duration, options ...io.OptionClient) *io.Client {
+	return io.Redial(WithUDPTimeout(addr, timeout), options...)
 }
 
 var udpMap *maps.Safe

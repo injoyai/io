@@ -1,6 +1,7 @@
 package io
 
 import (
+	"bytes"
 	"testing"
 	"time"
 )
@@ -21,4 +22,14 @@ func TestSwap(t *testing.T) {
 		return len(p), nil
 	}))
 	Swap(r1, r2)
+}
+
+func TestReadPrefix(t *testing.T) {
+	r := bytes.NewReader([]byte("hello world woworld"))
+	t.Log(ReadPrefix(r, []byte("llo"))) //nil
+	t.Log(ReadPrefix(r, []byte("wor"))) //nil
+	t.Log(ReadPrefix(r, []byte("wor"))) //nil
+	t.Log(ReadPrefix(r, []byte("llo"))) //EOF
+	t.Log(ReadPrefix(r, []byte("aaa"))) //EOF
+	t.Log(ReadPrefix(r, []byte("aaa"))) //EOF
 }

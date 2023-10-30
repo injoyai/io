@@ -28,6 +28,31 @@ func DealReader(r io.Reader, fn func(buf *bufio.Reader) error) (err error) {
 	return
 }
 
+// ReadPrefix 读取Reader符合的头部,返回成功(nil),或者错误
+func ReadPrefix(r Reader, prefix []byte) (int, error) {
+	length := 0
+	i := 0
+loop:
+	for {
+		for ; i < len(prefix); i++ {
+			b := make([]byte, 1)
+			if _, err := io.ReadAtLeast(r, b, 1); err != nil {
+				return length, err
+			}
+			length++
+			if b[0] != prefix[i] {
+				if b[0] == prefix[0] {
+					i = 1
+				} else {
+					i = 0
+				}
+				continue loop
+			}
+		}
+		return length, nil
+	}
+}
+
 /*
 
 
