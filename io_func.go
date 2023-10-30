@@ -53,6 +53,26 @@ loop:
 	}
 }
 
+// ReadByte 读取一字节
+func ReadByte(r Reader) (byte, error) {
+	if i, ok := r.(interface{ ReadByte() (byte, error) }); ok {
+		return i.ReadByte()
+	}
+	b := make([]byte, 1)
+	_, err := io.ReadAtLeast(r, b, 1)
+	return b[0], err
+}
+
+// ReadBytes 读取固定字节的数据
+func ReadBytes(r Reader, length int) ([]byte, error) {
+	if i, ok := r.(interface{ ReadBytes() ([]byte, error) }); ok {
+		return i.ReadBytes()
+	}
+	bs := make([]byte, length)
+	n, err := io.ReadAtLeast(r, bs, length)
+	return bs[:n], err
+}
+
 /*
 
 

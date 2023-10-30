@@ -6,13 +6,19 @@ const (
 	Ping = "ping"
 	Pong = "pong"
 
-	KB1               = 1 << 10 //1KB
-	KB4               = 4 << 10 //4KB
-	MB1               = 1 << 20 //1MB
-	DefaultBufferSize = KB4
+	B   = 1         //1B
+	KB  = 1024 * B  //1KB
+	KB4 = 4 * KB    //4KB
+	MB  = 1024 * KB //1MB
+	GB  = 1024 * MB //1GB
+	TB  = 1024 * GB //1TB
+	PB  = 1024 * TB //1PB
+	EB  = 1024 * PB //1EB
 
-	DefaultPort            = 10086
-	DefaultPortStr         = ":10086"
+	DefaultBufferSize      = KB4              //默认buff大小,4KB
+	DefaultSerial          = "COM3"           //默认串口
+	DefaultPort            = 10086            //默认端口
+	DefaultPortStr         = ":10086"         //默认端口
 	DefaultConnectTimeout  = time.Second * 2  //默认连接时间
 	DefaultKeepAlive       = time.Minute * 10 //默认保持连接时间
 	DefaultTimeoutInterval = time.Minute      //默认离线检查间隔
@@ -21,9 +27,9 @@ const (
 )
 
 const (
-	B_TCP       = 0x00 //"TCP"
+	B_TCP       = 0x00 // "TCP"
 	B_UDP       = 0x01 // "UDP"
-	B_HTTP      = 0x02 //"HTTP"
+	B_HTTP      = 0x02 // "HTTP"
 	B_Websocket = 0x03 // "Websocket"
 	B_Memory    = 0x04 // "Memory"
 	B_Serial    = 0x05 // "Serial"
@@ -43,7 +49,7 @@ const (
 )
 
 const (
-	TypeConnect = 0x01 // "connect"
-	TypeWrite   = 0x02 // "write"
-	TypeClose   = 0x03 // "close"
+	TypeConnect = 0x01 // "connect" 建立连接
+	TypeWrite   = 0x02 // "write" 写入数据
+	TypeClose   = 0x03 // "close" 关闭连接
 )
