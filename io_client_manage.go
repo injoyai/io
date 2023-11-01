@@ -37,7 +37,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 		}
 	})
 	//设置默认处理数据函数
-	e.SetDealFunc(func(c *Client, msg Message) { e.readChan <- msg })
+	//e.SetDealFunc(func(c *Client, msg Message) { e.readChan <- msg })
 	//执行超时机制
 	go func() {
 		for {
@@ -78,10 +78,10 @@ type ClientManage struct {
 	Logger          Logger
 	m               map[string]*Client
 	mu              sync.RWMutex
-	maxClientNum    int             //最大数
+	maxClientNum    int             //限制最大客户端数
 	ctx             context.Context //ctx
 	dealQueue       *chans.Entity   //数据处理队列
-	readChan        chan Message    //数据通道,dealFunc二选一
+	readChan        chan Message    //数据通道,最多存100条
 	timeout         time.Duration   //超时时间,小于0是不超时
 	timeoutInterval time.Duration   //超时检测间隔
 
@@ -133,15 +133,6 @@ func (this *ClientManage) SetDealQueueNum(n int) {
 // SetDealFunc 设置处理数据方法
 func (this *ClientManage) SetDealFunc(fn func(c *Client, msg Message)) {
 	this.dealFunc = fn
-	for {
-		//清除阻塞数据
-		select {
-		case <-this.readChan:
-			continue
-		default:
-		}
-		break
-	}
 }
 
 // SetDealWithWriter 读取到的数据写入到writer
@@ -433,6 +424,11 @@ func (this *ClientManage) _dealFunc(c *Client, msg Message) {
 	select {
 	case <-this.ctx.Done():
 	default:
+		//尝试加入通道
+		select {
+		case this.readChan <- msg:
+		default:
+		}
 		//加入消费队列
 		this.dealQueue.Do([]interface{}{c, msg})
 	}
