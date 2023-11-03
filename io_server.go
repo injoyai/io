@@ -161,8 +161,17 @@ func (this *Server) Run() error {
 
 		//新建客户端,并配置
 		x := NewClientWithContext(this.Ctx(), c).SetKey(key)
+		x.Tag().Set("address", key)
 		this.Logger.Infof("[%s] 新的客户端连接...", key)
 		this.ClientManage.SetClient(x)
 
 	}
 }
+
+//func (this *Server) Bridge() *Server {
+//	s := common.NewMemoryServer(fmt.Sprintf("%p", this))
+//
+//	this.SetBeforeFunc(func(c *Client) error {
+//
+//	})
+//}

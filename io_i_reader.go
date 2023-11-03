@@ -26,12 +26,13 @@ func NewIReader(r Reader) *IReader {
 
 type IReader struct {
 	*Key
-	Logger   Logger
-	mReader  MessageReader //接口MessageReader,兼容Reader
-	buf      *bufio.Reader //buffer
-	readFunc ReadFunc      //读取函数
-	lastChan chan Message  //读取最新数据chan
-	lastTime time.Time     //最后读取数据时间
+	Logger     Logger
+	mReader    MessageReader //接口MessageReader,兼容Reader
+	buf        *bufio.Reader //buffer
+	readFunc   ReadFunc      //读取函数
+	lastChan   chan Message  //读取最新数据chan
+	lastTime   time.Time     //最后读取数据时间
+	bytesCount int64         //读取的字节数
 }
 
 //================================Nature================================
@@ -39,6 +40,11 @@ type IReader struct {
 // LastTime 最后数据时间
 func (this *IReader) LastTime() time.Time {
 	return this.lastTime
+}
+
+// BytesCount 写入的字节数
+func (this *IReader) BytesCount() int64 {
+	return this.bytesCount
 }
 
 //================================Read================================
@@ -117,6 +123,7 @@ func (this *IReader) SetReadFunc(fn func(*bufio.Reader) ([]byte, error)) *IReade
 		if len(bs) > 0 {
 			//设置最后读取有效数据时间
 			this.lastTime = time.Now()
+			this.bytesCount += int64(len(bs))
 			//尝试加入通道
 			select {
 			case this.lastChan <- bs:

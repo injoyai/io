@@ -29,10 +29,11 @@ func NewIWriter(writer Writer) *IWriter {
 // IWriter 写
 type IWriter struct {
 	*Key
-	Logger    Logger
-	writer    Writer    //io.Writer
-	writeFunc WriteFunc //写入函数
-	lastTime  time.Time //最后写入时间
+	Logger     Logger
+	writer     Writer    //io.Writer
+	writeFunc  WriteFunc //写入函数
+	lastTime   time.Time //最后写入时间
+	bytesCount int64     //写入的字节数
 }
 
 //================================Nature================================
@@ -40,6 +41,11 @@ type IWriter struct {
 // LastTime 最后数据时间
 func (this *IWriter) LastTime() time.Time {
 	return this.lastTime
+}
+
+// BytesCount 写入的字节数
+func (this *IWriter) BytesCount() int64 {
+	return this.bytesCount
 }
 
 // Write 写入字节,实现io.Writer
@@ -58,6 +64,7 @@ func (this *IWriter) Write(p []byte) (n int, err error) {
 		return 0, dealErr(err)
 	}
 	this.lastTime = time.Now()
+	this.bytesCount += int64(n)
 	return
 }
 
