@@ -106,5 +106,7 @@ func TestRedialUDP(t *testing.T) {
 }
 
 func TestRedialTCP2(t *testing.T) {
-	RedialUDP("127.0.0.1")
+	<-RedialTCP("127.0.0.1:10086", func(c *io.Client) {
+		c.Debug(true)
+	}).DoneAll()
 }

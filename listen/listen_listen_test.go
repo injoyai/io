@@ -52,6 +52,7 @@ func TestIOSpeed(t *testing.T) {
 	start := time.Now() //当前时间
 	length := 20 << 20  //传输的数据大小
 	go RunTCPServer(io.DefaultPort, func(s *io.Server) {
+		s.Logger.SetLevel(io.LevelInfo)
 		s.Logger.Debug(false)
 		s.SetReadWithAll() //100毫秒
 		s.SetReadWithMB(1) //65毫秒

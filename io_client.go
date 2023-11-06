@@ -25,6 +25,8 @@ func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClie
 		c.SetKey(key)
 		c.SetRedialFunc(dial)
 		c.Redial(options...)
+		//用户控制输出,需要在SetOptions之后打印
+		c.Logger.Infof("[%s] 连接服务端成功...", c.GetKey())
 	})
 }
 
@@ -43,6 +45,8 @@ func NewDialWithContext(ctx context.Context, dial DialFunc, options ...OptionCli
 		c.SetKey(key)
 		c.SetRedialFunc(dial)
 		c.SetOptions(options...)
+		//用户控制输出,需要在SetOptions之后打印
+		c.Logger.Infof("[%s] 连接服务端成功...", c.GetKey())
 	})
 	return cli, nil
 }
@@ -335,7 +339,7 @@ func (this *Client) Redial(options ...OptionClient) *Client {
 	})
 	this.SetOptions(options...)
 	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
-	this.Logger.Infof("[%s] 连接服务端成功...", this.GetKey())
+	//this.Logger.Infof("[%s] 连接服务端成功...", this.GetKey())
 	go this.Run()
 	return this
 }

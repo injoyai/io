@@ -277,7 +277,7 @@ func (this *ICloser) MustDial(ctx context.Context) (ReadWriteCloser, string) {
 			if t > this.redialMaxTime {
 				t = this.redialMaxTime
 			}
-			this.Logger.Errorf("[%s] %v,等待%d秒重试", dealErr(err), t/time.Second)
+			this.Logger.Errorf("[%s] %v,等待%d秒重试", this.GetKey(), dealErr(err), t/time.Second)
 			timer.Reset(t)
 		}
 	}
