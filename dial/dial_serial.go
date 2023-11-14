@@ -2,10 +2,12 @@ package dial
 
 import (
 	"github.com/goburrow/serial"
-	"github.com/injoyai/base/oss"
 	"github.com/injoyai/io"
 	"github.com/injoyai/logs"
 	serial2 "go.bug.st/serial"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -54,13 +56,25 @@ func WithSerial(cfg *SerialConfig) io.DialFunc {
 func NewSerial(cfg *SerialConfig, options ...io.OptionClient) (*io.Client, error) {
 	return io.NewDial(WithSerial(cfg), func(c *io.Client) {
 		c.SetOptions(options...)
-		oss.ListenExit(func() { c.CloseAll() })
+		exitChan := make(chan os.Signal)
+		signal.Notify(exitChan, os.Interrupt, os.Kill, syscall.SIGTERM)
+		go func(c *io.Client) {
+			<-exitChan
+			c.CloseAll()
+			os.Exit(-127)
+		}(c)
 	})
 }
 
 func RedialSerial(cfg *SerialConfig, options ...io.OptionClient) *io.Client {
 	c := io.Redial(WithSerial(cfg), options...)
-	oss.ListenExit(func() { c.CloseAll() })
+	exitChan := make(chan os.Signal)
+	signal.Notify(exitChan, os.Interrupt, os.Kill, syscall.SIGTERM)
+	go func(c *io.Client) {
+		<-exitChan
+		c.CloseAll()
+		os.Exit(-127)
+	}(c)
 	return c
 }
 
