@@ -9,6 +9,14 @@ import (
 
 type Message = bytes.Entity
 
+type Model struct {
+	Type string      `json:"type"`           //请求类型,例如测试连接ping,写入数据write... 推荐请求和响应通过code区分
+	Code int         `json:"code,omitempty"` //请求结果,推荐 请求:0(或null)  响应: 200成功,500失败... 同http好记一点
+	UID  string      `json:"uid,omitempty"`  //消息的唯一ID,例如UUID
+	Data interface{} `json:"data,omitempty"` //请求响应的数据
+	Msg  string      `json:"msg,omitempty"`  //消息
+}
+
 type TimeoutWriter interface {
 	WriteWithTimeout(p []byte, timeout time.Duration) (int, error)
 }
