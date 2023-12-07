@@ -58,10 +58,12 @@ type Server struct {
 	*ICloser
 	*ClientManage
 
-	Logger   Logger
-	tag      *maps.Safe //tag
-	listener Listener   //listener
-	running  uint32     //是否在运行
+	Logger    Logger
+	tag       *maps.Safe //tag
+	listener  Listener   //listener
+	running   uint32     //是否在运行
+	startTime int64      //运行时间
+	closeTime int64      //关闭时间
 }
 
 //================================Nature================================
@@ -82,6 +84,14 @@ func (this *Server) SetTag(key, value interface{}) *Server {
 
 func (this *Server) GetTag(key interface{}) (interface{}, bool) {
 	return this.Tag().Get(key)
+}
+
+func (this *Server) GetStartTime() int64 {
+	return this.startTime
+}
+
+func (this *Server) GetCloseTime() int64 {
+	return this.closeTime
 }
 
 //================================SetFunc================================
@@ -140,10 +150,18 @@ func (this *Server) Running() bool {
 // Run 运行(监听)
 func (this *Server) Run() error {
 
+	//判断是否在运行,防止重复运行
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
 	}
 
+	//结束执行,修改运行状态和时间
+	defer func() {
+		atomic.StoreUint32(&this.running, 0)
+		this.closeTime = time.Now().Unix()
+	}()
+
+	this.startTime = time.Now().Unix()
 	this.Logger.Infof("[%s] 开启服务成功...", this.GetKey())
 
 	//执行监听连接
@@ -168,11 +186,3 @@ func (this *Server) Run() error {
 
 	}
 }
-
-//func (this *Server) Bridge() *Server {
-//	s := common.NewMemoryServer(fmt.Sprintf("%p", this))
-//
-//	this.SetBeforeFunc(func(c *Client) error {
-//
-//	})
-//}
