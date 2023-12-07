@@ -37,13 +37,13 @@ type IReader struct {
 
 //================================Nature================================
 
-// GetLastTime 最后数据时间
-func (this *IReader) GetLastTime() time.Time {
+// LastTime 最后数据时间
+func (this *IReader) LastTime() time.Time {
 	return this.lastTime
 }
 
-// GetBytesCount 写入的字节数
-func (this *IReader) GetBytesCount() int64 {
+// BytesCount 写入的字节数
+func (this *IReader) BytesCount() int64 {
 	return this.bytesCount
 }
 

@@ -93,24 +93,24 @@ type Client struct {
 
 //================================Nature================================
 
-// GetReadLastTime 最后读取时间
-func (this *Client) GetReadLastTime() time.Time {
-	return this.IReader.GetLastTime()
+// ReadLastTime 最后读取时间
+func (this *Client) ReadLastTime() time.Time {
+	return this.IReader.LastTime()
 }
 
-// GetWriteLastTime 最后写入时间
-func (this *Client) GetWriteLastTime() time.Time {
-	return this.IWriter.GetLastTime()
+// WriteLastTime 最后写入时间
+func (this *Client) WriteLastTime() time.Time {
+	return this.IWriter.LastTime()
 }
 
-// GetReadBytesCount 读取的字节数
-func (this *Client) GetReadBytesCount() int64 {
-	return this.IReader.GetBytesCount()
+// ReadBytesCount 读取的字节数
+func (this *Client) ReadBytesCount() int64 {
+	return this.IReader.BytesCount()
 }
 
-// GetWriteBytesCount 写入的字节数
-func (this *Client) GetWriteBytesCount() int64 {
-	return this.IWriter.GetBytesCount()
+// WriteBytesCount 写入的字节数
+func (this *Client) WriteBytesCount() int64 {
+	return this.IWriter.BytesCount()
 }
 
 // ReadWriteCloser 读写接口,实例,传入的原始参数

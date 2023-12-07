@@ -38,13 +38,13 @@ type IWriter struct {
 
 //================================Nature================================
 
-// GetLastTime 最后数据时间
-func (this *IWriter) GetLastTime() time.Time {
+// LastTime 最后数据时间
+func (this *IWriter) LastTime() time.Time {
 	return this.lastTime
 }
 
-// GetBytesCount 写入的字节数
-func (this *IWriter) GetBytesCount() int64 {
+// BytesCount 写入的字节数
+func (this *IWriter) BytesCount() int64 {
 	return this.bytesCount
 }
 

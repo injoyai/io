@@ -86,11 +86,11 @@ func (this *Server) GetTag(key interface{}) (interface{}, bool) {
 	return this.Tag().Get(key)
 }
 
-func (this *Server) GetStartTime() time.Time {
+func (this *Server) StartTime() time.Time {
 	return this.startTime
 }
 
-func (this *Server) GetCloseTime() time.Time {
+func (this *Server) CloseTime() time.Time {
 	return this.closeTime
 }
 
