@@ -205,3 +205,25 @@ type Write func(p []byte) (int, error)
 func (this Write) Write(p []byte) (int, error) {
 	return this(p)
 }
+
+//=================
+
+// MustChan chan []byte 实现 io.Writer,必须等到写入成功为止
+type MustChan chan []byte
+
+func (this MustChan) Write(p []byte) (int, error) {
+	this <- p
+	return len(p), nil
+}
+
+// TryChan chan []byte 实现 io.Writer,尝试写入,不管是否成功
+type TryChan chan []byte
+
+func (this TryChan) Write(p []byte) (int, error) {
+	select {
+	case this <- p:
+		return len(p), nil
+	default:
+		return 0, nil
+	}
+}
