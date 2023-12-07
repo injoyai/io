@@ -62,8 +62,8 @@ type Server struct {
 	tag       *maps.Safe //tag
 	listener  Listener   //listener
 	running   uint32     //是否在运行
-	startTime int64      //运行时间
-	closeTime int64      //关闭时间
+	startTime time.Time  //运行时间
+	closeTime time.Time  //关闭时间
 }
 
 //================================Nature================================
@@ -86,11 +86,11 @@ func (this *Server) GetTag(key interface{}) (interface{}, bool) {
 	return this.Tag().Get(key)
 }
 
-func (this *Server) GetStartTime() int64 {
+func (this *Server) GetStartTime() time.Time {
 	return this.startTime
 }
 
-func (this *Server) GetCloseTime() int64 {
+func (this *Server) GetCloseTime() time.Time {
 	return this.closeTime
 }
 
@@ -158,10 +158,10 @@ func (this *Server) Run() error {
 	//结束执行,修改运行状态和时间
 	defer func() {
 		atomic.StoreUint32(&this.running, 0)
-		this.closeTime = time.Now().Unix()
+		this.closeTime = time.Now()
 	}()
 
-	this.startTime = time.Now().Unix()
+	this.startTime = time.Now()
 	this.Logger.Infof("[%s] 开启服务成功...", this.GetKey())
 
 	//执行监听连接

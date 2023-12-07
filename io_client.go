@@ -93,24 +93,24 @@ type Client struct {
 
 //================================Nature================================
 
-// ReadLastTime 最后读取时间
-func (this *Client) ReadLastTime() time.Time {
-	return this.IReader.LastTime()
+// GetReadLastTime 最后读取时间
+func (this *Client) GetReadLastTime() time.Time {
+	return this.IReader.GetLastTime()
 }
 
-// WriteLastTime 最后写入时间
-func (this *Client) WriteLastTime() time.Time {
-	return this.IWriter.LastTime()
+// GetWriteLastTime 最后写入时间
+func (this *Client) GetWriteLastTime() time.Time {
+	return this.IWriter.GetLastTime()
 }
 
-// ReadBytesCount 读取的字节数
-func (this *Client) ReadBytesCount() int64 {
-	return this.IReader.BytesCount()
+// GetReadBytesCount 读取的字节数
+func (this *Client) GetReadBytesCount() int64 {
+	return this.IReader.GetBytesCount()
 }
 
-// WriteBytesCount 写入的字节数
-func (this *Client) WriteBytesCount() int64 {
-	return this.IWriter.BytesCount()
+// GetWriteBytesCount 写入的字节数
+func (this *Client) GetWriteBytesCount() int64 {
+	return this.IWriter.GetBytesCount()
 }
 
 // ReadWriteCloser 读写接口,实例,传入的原始参数
@@ -123,8 +123,8 @@ func (this *Client) Pointer() string {
 	return fmt.Sprintf("%p", this.ReadWriteCloser())
 }
 
-// CreateTime 创建时间
-func (this *Client) CreateTime() time.Time {
+// GetCreateTime 创建时间
+func (this *Client) GetCreateTime() time.Time {
 	return this.createTime
 }
 

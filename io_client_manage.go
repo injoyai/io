@@ -48,7 +48,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 			default:
 				now := time.Now()
 				for _, v := range e.GetClientMap() {
-					if e.timeout > 0 && now.Sub(v.IReadCloser.LastTime()) > e.timeout {
+					if e.timeout > 0 && now.Sub(v.IReadCloser.GetLastTime()) > e.timeout {
 						_ = v.CloseWithErr(ErrWithReadTimeout)
 					}
 				}
