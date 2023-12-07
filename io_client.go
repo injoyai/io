@@ -184,7 +184,7 @@ func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) 
 	return this.ReadLast(timeout)
 }
 
-// WriteRead 同步写读,不超时
+// WriteRead 同步写读
 func (this *Client) WriteRead(request []byte, timeout ...time.Duration) (response []byte, err error) {
 	return this.WriteReadWithTimeout(request, conv.GetDefaultDuration(DefaultResponseTimeout, timeout...))
 }

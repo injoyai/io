@@ -41,6 +41,8 @@ var (
 	// 从第一个reader开始读取,待读取全部,依次按顺序向后读取
 	MultiReader = io.MultiReader
 
+	JoinReader = io.MultiReader
+
 	// MultiWriter 合并多个writer成1个writer
 	// 写入会写入到每一个writer
 	MultiWriter = io.MultiWriter
