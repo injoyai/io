@@ -123,8 +123,8 @@ func (this *Client) Pointer() string {
 	return fmt.Sprintf("%p", this.ReadWriteCloser())
 }
 
-// GetCreateTime 创建时间
-func (this *Client) GetCreateTime() time.Time {
+// CreateTime 创建时间
+func (this *Client) CreateTime() time.Time {
 	return this.createTime
 }
 
