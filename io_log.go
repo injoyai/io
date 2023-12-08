@@ -40,6 +40,9 @@ func NewLogger(l Logger) *logger {
 }
 
 func newLogger(l Logger) *logger {
+	if l == nil {
+		l = NewLoggerNull()
+	}
 	if l2, ok := l.(*logger); ok {
 		return l2
 	}
@@ -114,21 +117,30 @@ func (this *logger) Errorf(format string, v ...interface{}) {
 
  */
 
+// NewLoggerWithWriter 新建输出到writer的日志
 func NewLoggerWithWriter(w Writer) Logger {
 	return &printer{w}
 }
 
+// NewLoggerWithStdout 新建输出到终端的日志
 func NewLoggerWithStdout() Logger {
 	return NewLoggerWithWriter(os.Stdout)
 }
 
+// NewLoggerWithChan 新建输出到指定通道的日志
 func NewLoggerWithChan(c chan []byte) Logger {
 	return NewLoggerWithWriter(TryChan(c))
 }
 
+// NewLoggerChan 新建输出到通道的日志
 func NewLoggerChan() (Logger, chan []byte) {
 	c := make(chan []byte, 10)
 	return NewLoggerWithChan(c), c
+}
+
+// NewLoggerNull 新建无输出的日志
+func NewLoggerNull() Logger {
+	return NewLoggerWithWriter(&null{})
 }
 
 type Logger interface {
