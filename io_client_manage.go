@@ -14,7 +14,7 @@ import (
 func NewClientManage(ctx context.Context, key string) *ClientManage {
 	e := &ClientManage{
 		Key:             &Key{key},
-		Logger:          NewLog(),
+		Logger:          defaultLogger(),
 		m:               make(map[string]*Client),
 		mu:              sync.RWMutex{},
 		ctx:             ctx,
@@ -75,7 +75,7 @@ ClientManage
 type ClientManage struct {
 	*Key
 	ClientOptions
-	Logger          Logger
+	Logger          *logger
 	m               map[string]*Client
 	mu              sync.RWMutex
 	maxClientNum    int             //限制最大客户端数

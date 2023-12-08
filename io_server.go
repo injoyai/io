@@ -30,7 +30,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	//新建实例
 	s := &Server{
 		Key:          &Key{key: key},
-		Logger:       NewLog(),
+		Logger:       defaultLogger(),
 		ICloser:      NewICloserWithContext(ctx, listener),
 		ClientManage: NewClientManage(ctx, key),
 		tag:          maps.NewSafe(),
@@ -58,7 +58,7 @@ type Server struct {
 	*ICloser
 	*ClientManage
 
-	Logger    Logger
+	Logger    *logger
 	tag       *maps.Safe //tag
 	listener  Listener   //listener
 	running   uint32     //是否在运行

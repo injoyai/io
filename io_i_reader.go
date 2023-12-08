@@ -11,7 +11,7 @@ import (
 func NewIReader(r Reader) *IReader {
 	i := &IReader{
 		Key:      &Key{},
-		Logger:   NewLog(),
+		Logger:   defaultLogger(),
 		lastChan: make(chan Message),
 		lastTime: time.Now(),
 	}
@@ -26,7 +26,7 @@ func NewIReader(r Reader) *IReader {
 
 type IReader struct {
 	*Key
-	Logger     Logger
+	Logger     *logger
 	mReader    MessageReader //接口MessageReader,兼容Reader
 	buf        *bufio.Reader //buffer
 	readFunc   ReadFunc      //读取函数

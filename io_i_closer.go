@@ -16,7 +16,7 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 	ctx, cancel := context.WithCancel(ctxParent)
 	return &ICloser{
 		Key:           &Key{},
-		Logger:        NewLog(),
+		Logger:        defaultLogger(),
 		closer:        closer,
 		redialFunc:    nil,
 		redialMaxTime: time.Second * 32,
@@ -32,7 +32,7 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 
 type ICloser struct {
 	*Key
-	Logger        Logger
+	Logger        *logger
 	closer        Closer             //实例
 	redialFunc    DialFunc           //重连函数
 	redialMaxTime time.Duration      //最大尝试退避重连时间
@@ -46,6 +46,12 @@ type ICloser struct {
 }
 
 //================================CloseFunc================================
+
+// SetLogger 设置日志
+func (this *ICloser) SetLogger(logger Logger) *ICloser {
+	this.Logger = newLogger(logger)
+	return this
+}
 
 // GetCloseFunc 获取关闭函数
 func (this *ICloser) GetCloseFunc() CloseFunc {

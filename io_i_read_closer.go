@@ -50,13 +50,6 @@ func (this *IReadCloser) SetKey(key string) *IReadCloser {
 	return this
 }
 
-// Debug debug模式
-func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
-	this.IReader.Logger.Debug(b...)
-	this.ICloser.Logger.Debug(b...)
-	return this
-}
-
 // SetReadIntervalTimeout 设置读取间隔超时时间,需要在Run之前设置
 func (this *IReadCloser) SetReadIntervalTimeout(timeout time.Duration) *IReadCloser {
 	this.timeout = timeout
@@ -65,9 +58,17 @@ func (this *IReadCloser) SetReadIntervalTimeout(timeout time.Duration) *IReadClo
 
 //================================Log================================
 
+// Debug debug模式
+func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
+	this.IReader.Logger.Debug(b...)
+	this.ICloser.Logger.Debug(b...)
+	return this
+}
+
 func (this *IReadCloser) SetLogger(logger Logger) *IReadCloser {
-	this.IReader.Logger = logger
-	this.ICloser.Logger = logger
+	l := newLogger(logger)
+	this.IReader.Logger = l
+	this.ICloser.Logger = l
 	return this
 }
 

@@ -148,13 +148,6 @@ func (this *Client) GetKey() string {
 	return this.IReadCloser.GetKey()
 }
 
-// Debug 调试模式,打印日志
-func (this *Client) Debug(b ...bool) *Client {
-	this.IWriter.Logger.Debug(b...)
-	this.IReadCloser.Debug(b...)
-	return this
-}
-
 // WriteQueue 按队列写入
 func (this *Client) WriteQueue(p []byte) *Client {
 	queue, _ := this.Tag().GetOrSetByHandler(writeQueueKey, func() (interface{}, error) {
@@ -232,43 +225,22 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 	})
 }
 
-//================================SetFunc================================
+//================================Logger================================
 
-// SetOptions 设置选项
-func (this *Client) SetOptions(options ...OptionClient) *Client {
-	for _, v := range options {
-		v(this)
-	}
-	return this
-}
-
-// SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
-func (this *Client) SetDealFunc(fn func(c *Client, msg Message)) *Client {
-	this.IReadCloser.SetDealFunc(func(msg Message) {
-		switch msg.String() {
-		case Ping:
-			this.WriteString(Pong)
-		case Pong:
-		default:
-			fn(this, msg)
-		}
-	})
-	return this
-}
-
-// SetCloseFunc 设置关闭函数
-func (this *Client) SetCloseFunc(fn func(ctx context.Context, c *Client, msg Message)) *Client {
-	this.IReadCloser.SetCloseFunc(func(ctx context.Context, msg Message) {
-		fn(ctx, this, msg)
-	})
+// Debug 调试模式,打印日志
+func (this *Client) Debug(b ...bool) *Client {
+	this.IWriter.Logger.Debug(b...)
+	this.IReadCloser.Debug(b...)
 	return this
 }
 
 // SetLogger 设置日志
 func (this *Client) SetLogger(logger Logger) *Client {
-	this.Logger = logger
-	this.IWriter.Logger = logger
-	this.IReadCloser.SetLogger(logger)
+	l := newLogger(logger)
+	this.Logger = l
+	this.IWriter.Logger = l
+	this.IReadCloser.IReader.Logger = l
+	this.IReadCloser.ICloser.Logger = l
 	return this
 }
 
@@ -301,6 +273,38 @@ func (this *Client) SetPrintWithBase() *Client {
 // SetPrintWithErr 设置打印ASCII,错误信息
 func (this *Client) SetPrintWithErr() *Client {
 	return this.SetLevel(LevelError)
+}
+
+//================================SetFunc================================
+
+// SetOptions 设置选项
+func (this *Client) SetOptions(options ...OptionClient) *Client {
+	for _, v := range options {
+		v(this)
+	}
+	return this
+}
+
+// SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
+func (this *Client) SetDealFunc(fn func(c *Client, msg Message)) *Client {
+	this.IReadCloser.SetDealFunc(func(msg Message) {
+		switch msg.String() {
+		case Ping:
+			this.WriteString(Pong)
+		case Pong:
+		default:
+			fn(this, msg)
+		}
+	})
+	return this
+}
+
+// SetCloseFunc 设置关闭函数
+func (this *Client) SetCloseFunc(fn func(ctx context.Context, c *Client, msg Message)) *Client {
+	this.IReadCloser.SetCloseFunc(func(ctx context.Context, msg Message) {
+		fn(ctx, this, msg)
+	})
+	return this
 }
 
 // SetReadWriteWithPkg 设置读写为默认分包方式

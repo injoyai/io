@@ -8,6 +8,7 @@ import (
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/buf"
 	"github.com/injoyai/io/dial"
+	"os"
 )
 
 // New 新建代理实例
@@ -16,7 +17,7 @@ func New() *Entity {
 		ioMap:       maps.NewSafe(),
 		connectFunc: DefaultConnectFunc,
 		buff:        make(chan io.Message, 1000),
-		Logger:      io.NewLog(),
+		Logger:      io.NewLoggerWithWriter(os.Stdout),
 	}
 }
 
@@ -209,7 +210,7 @@ func WithClientDebug(b ...bool) func(c *io.Client, e *Entity) {
 		c.Debug(b...)
 		//c.SetPrintWithHEX()
 		e.Debug(b...)
-		e.SetPrintWithHEX()
+		//e.SetPrintWithHEX()
 	}
 }
 

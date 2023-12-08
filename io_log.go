@@ -1,15 +1,15 @@
 package io
 
 import (
-	"encoding/hex"
-	golog "log"
+	"fmt"
+	"os"
+	"time"
 )
 
 const (
 	LevelAll Level = iota
 	LevelWrite
 	LevelRead
-	LevelDebug
 	LevelInfo
 	LevelError
 	LevelNone Level = 999
@@ -21,7 +21,6 @@ var (
 	LevelMap = map[Level]string{
 		LevelWrite: "发送",
 		LevelRead:  "接收",
-		LevelDebug: "调试",
 		LevelInfo:  "信息",
 		LevelError: "错误",
 	}
@@ -31,80 +30,118 @@ func (this Level) String() string {
 	return LevelMap[this]
 }
 
-func (this Level) printf(log *log, format string, v ...interface{}) {
-	if log.debug && this >= log.level {
-		golog.Printf("["+this.String()+"]"+format, v...)
-	}
+func defaultLogger() *logger {
+	return newLogger(NewLoggerWithStdout())
 }
 
-type Logger interface {
-	SetLevel(level Level)
-	SetPrintWithHEX()
-	SetPrintWithASCII()
-	Debug(b ...bool)
-	Readln(prefix string, p []byte)
-	Writeln(prefix string, p []byte)
-	Infof(format string, v ...interface{})
-	Debugf(format string, v ...interface{})
-	Errorf(format string, v ...interface{})
+func NewLogger(l Logger) *logger {
+	return newLogger(l)
 }
 
-func NewLog() Logger {
-	return &log{
+func newLogger(l Logger) *logger {
+	return &logger{
+		Logger: l,
 		level:  LevelAll,
 		debug:  true,
 		coding: "ascii",
 	}
 }
 
-type log struct {
-	level  Level
-	debug  bool
-	coding string
+type logger struct {
+	Logger
+	level  Level  //日志等级
+	debug  bool   //是否打印调试
+	coding string //编码
 }
 
-func (this *log) SetLevel(level Level) {
+func (this *logger) SetLevel(level Level) {
 	this.level = level
 }
 
-func (this *log) Debug(b ...bool) {
+func (this *logger) Debug(b ...bool) {
 	this.debug = !(len(b) > 0 && !b[0])
 }
 
-func (this *log) SetPrintWithHEX() {
+func (this *logger) SetPrintWithHEX() {
 	this.coding = "hex"
 }
 
-func (this *log) SetPrintWithASCII() {
+func (this *logger) SetPrintWithASCII() {
 	this.coding = "ascii"
 }
 
-func (this *log) Writeln(prefix string, p []byte) {
-	switch this.coding {
-	case "hex":
-		LevelWrite.printf(this, "%s%s", prefix, hex.EncodeToString(p))
-	default:
-		LevelWrite.printf(this, "%s%s", prefix, string(p))
+func (this *logger) Readln(prefix string, p []byte) {
+	if this.debug && LevelRead >= this.level {
+		switch this.coding {
+		case "hex":
+			this.Logger.Readf("[%s] %#X\n", prefix, p)
+		case "ascii":
+			this.Logger.Readf("[%s] %s\n", prefix, p)
+		}
 	}
 }
 
-func (this *log) Readln(prefix string, p []byte) {
-	switch this.coding {
-	case "hex":
-		LevelRead.printf(this, "%s%s", prefix, hex.EncodeToString(p))
-	default:
-		LevelRead.printf(this, "%s%s", prefix, string(p))
+func (this *logger) Writeln(prefix string, p []byte) {
+	if this.debug && LevelWrite >= this.level {
+		switch this.coding {
+		case "hex":
+			this.Logger.Writef("[%s] %#X\n", prefix, p)
+		case "ascii":
+			this.Logger.Writef("[%s] %s\n", prefix, p)
+		}
 	}
 }
 
-func (this *log) Infof(format string, v ...interface{}) {
-	LevelInfo.printf(this, format, v...)
+func (this *logger) Infof(format string, v ...interface{}) {
+	if this.debug && LevelInfo >= this.level {
+		this.Logger.Infof(format+"\n", v...)
+	}
 }
 
-func (this *log) Debugf(format string, v ...interface{}) {
-	LevelDebug.printf(this, format, v...)
+func (this *logger) Errorf(format string, v ...interface{}) {
+	if this.debug && LevelError >= this.level {
+		this.Logger.Errorf(format+"\n", v...)
+	}
 }
 
-func (this *log) Errorf(format string, v ...interface{}) {
-	LevelError.printf(this, format, v...)
+/*
+
+
+
+ */
+
+func NewLoggerWithWriter(w Writer) Logger {
+	return &printer{w}
+}
+
+func NewLoggerWithStdout() Logger {
+	return NewLoggerWithWriter(os.Stdout)
+}
+
+func NewLoggerWithChan(c chan []byte) Logger {
+	return NewLoggerWithWriter(TryChan(c))
+}
+
+func NewLoggerChan() (Logger, chan []byte) {
+	c := make(chan []byte, 10)
+	return NewLoggerWithChan(c), c
+}
+
+type Logger interface {
+	Readf(format string, v ...interface{})
+	Writef(format string, v ...interface{})
+	Infof(format string, v ...interface{})
+	Errorf(format string, v ...interface{})
+}
+
+type printer struct{ Writer }
+
+func (p printer) Readf(format string, v ...interface{})  { p.printf(LevelRead, format, v...) }
+func (p printer) Writef(format string, v ...interface{}) { p.printf(LevelWrite, format, v...) }
+func (p printer) Infof(format string, v ...interface{})  { p.printf(LevelInfo, format, v...) }
+func (p printer) Errorf(format string, v ...interface{}) { p.printf(LevelError, format, v...) }
+
+func (p printer) printf(level Level, format string, v ...interface{}) {
+	timeStr := time.Now().Format("2006-01-02 15:04:05 ")
+	p.Writer.Write([]byte(fmt.Sprintf(timeStr+"["+level.String()+"] "+format, v...)))
 }

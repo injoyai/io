@@ -20,7 +20,7 @@ func NewIWriter(writer Writer) *IWriter {
 	}
 	return &IWriter{
 		Key:      &Key{},
-		Logger:   NewLog(),
+		Logger:   defaultLogger(),
 		writer:   writer,
 		lastTime: time.Time{},
 	}
@@ -29,7 +29,7 @@ func NewIWriter(writer Writer) *IWriter {
 // IWriter 写
 type IWriter struct {
 	*Key
-	Logger     Logger
+	Logger     *logger
 	writer     Writer    //io.Writer
 	writeFunc  WriteFunc //写入函数
 	lastTime   time.Time //最后写入时间
@@ -37,6 +37,12 @@ type IWriter struct {
 }
 
 //================================Nature================================
+
+// SetLogger 设置日志
+func (this *IWriter) SetLogger(logger Logger) *IWriter {
+	this.Logger = newLogger(logger)
+	return this
+}
 
 // LastTime 最后数据时间
 func (this *IWriter) LastTime() time.Time {
