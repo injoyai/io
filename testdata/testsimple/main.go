@@ -12,6 +12,7 @@ func main() {
 
 	s, err := listen.NewTCPServer(10089)
 	logs.PanicErr(err)
+	s.Logger.SetPrintWithHEX()
 	s.SetReadFunc(io.ReadWithSimple)
 	s.SetWriteFunc(io.WriteWithSimple)
 	s.SetDealFunc(func(c *io.Client, msg io.Message) {

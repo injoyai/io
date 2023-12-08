@@ -2,6 +2,7 @@ package io
 
 import (
 	"fmt"
+	"github.com/injoyai/logs"
 	"os"
 	"time"
 )
@@ -39,6 +40,9 @@ func NewLogger(l Logger) *logger {
 }
 
 func newLogger(l Logger) *logger {
+	if l2, ok := l.(*logger); ok {
+		return l2
+	}
 	return &logger{
 		Logger: l,
 		level:  LevelAll,
@@ -74,7 +78,7 @@ func (this *logger) Readln(prefix string, p []byte) {
 	if this.debug && LevelRead >= this.level {
 		switch this.coding {
 		case "hex":
-			this.Logger.Readf("%s%#X\n", prefix, p)
+			this.Logger.Readf("%s%#x\n", prefix, p)
 		case "ascii":
 			this.Logger.Readf("%s%s\n", prefix, p)
 		}
@@ -85,7 +89,7 @@ func (this *logger) Writeln(prefix string, p []byte) {
 	if this.debug && LevelWrite >= this.level {
 		switch this.coding {
 		case "hex":
-			this.Logger.Writef("%s%#X\n", prefix, p)
+			this.Logger.Writef("%s%#x\n", prefix, p)
 		case "ascii":
 			this.Logger.Writef("%s%s\n", prefix, p)
 		}
@@ -143,5 +147,6 @@ func (p printer) Errorf(format string, v ...interface{}) { p.printf(LevelError, 
 
 func (p printer) printf(level Level, format string, v ...interface{}) {
 	timeStr := time.Now().Format("2006-01-02 15:04:05 ")
-	p.Writer.Write([]byte(fmt.Sprintf(timeStr+"["+level.String()+"] "+format, v...)))
+	_, err := p.Writer.Write([]byte(fmt.Sprintf(timeStr+"["+level.String()+"] "+format, v...)))
+	logs.PrintErr(err)
 }

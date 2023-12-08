@@ -36,10 +36,10 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		tag:          maps.NewSafe(),
 		listener:     listener,
 	}
-	//开启基础信息打印
-	s.Logger.Debug()
 	s.ICloser.Logger = s.Logger
 	s.ClientManage.Logger = s.Logger
+	//开启基础信息打印
+	s.Logger.Debug()
 	//设置关闭函数
 	s.ICloser.SetCloseFunc(func(ctx context.Context, msg Message) {
 		//关闭listener
