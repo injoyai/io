@@ -74,9 +74,9 @@ func (this *logger) Readln(prefix string, p []byte) {
 	if this.debug && LevelRead >= this.level {
 		switch this.coding {
 		case "hex":
-			this.Logger.Readf("[%s] %#X\n", prefix, p)
+			this.Logger.Readf("%s%#X\n", prefix, p)
 		case "ascii":
-			this.Logger.Readf("[%s] %s\n", prefix, p)
+			this.Logger.Readf("%s%s\n", prefix, p)
 		}
 	}
 }
@@ -85,9 +85,9 @@ func (this *logger) Writeln(prefix string, p []byte) {
 	if this.debug && LevelWrite >= this.level {
 		switch this.coding {
 		case "hex":
-			this.Logger.Writef("[%s] %#X\n", prefix, p)
+			this.Logger.Writef("%s%#X\n", prefix, p)
 		case "ascii":
-			this.Logger.Writef("[%s] %s\n", prefix, p)
+			this.Logger.Writef("%s%s\n", prefix, p)
 		}
 	}
 }
