@@ -16,6 +16,7 @@ func RunServer(newListen ListenFunc, options ...OptionServer) error {
 	return s.Run()
 }
 
+// NewServer 定义Listen,不用忘记运行Run,不要回出现能连接,服务无反应的情况
 func NewServer(newListen ListenFunc, options ...OptionServer) (*Server, error) {
 	return NewServerWithContext(context.Background(), newListen, options...)
 }
@@ -36,10 +37,9 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		tag:          maps.NewSafe(),
 		listener:     listener,
 	}
-	s.ICloser.Logger = s.Logger
-	s.ClientManage.Logger = s.Logger
+	s.SetLogger(s.Logger)
 	//开启基础信息打印
-	s.Logger.Debug()
+	s.Debug()
 	//设置关闭函数
 	s.ICloser.SetCloseFunc(func(ctx context.Context, msg Message) {
 		//关闭listener
@@ -70,7 +70,16 @@ type Server struct {
 
 func (this *Server) Debug(b ...bool) {
 	this.Logger.Debug(b...)
+	this.ICloser.Logger.Debug(b...)
 	this.ClientManage.Logger.Debug(b...)
+}
+
+func (this *Server) SetLogger(logger Logger) *Server {
+	l := newLogger(logger)
+	this.Logger = l
+	this.ICloser.Logger = l
+	this.ClientManage.Logger = l
+	return this
 }
 
 func (this *Server) Tag() *maps.Safe {

@@ -389,9 +389,7 @@ func (this *ClientManage) CloseClient(key string) error {
 
 // CloseClientAll 关闭所有客户端
 func (this *ClientManage) CloseClientAll() {
-	this.mu.Lock()
-	defer this.mu.Unlock()
-	for _, v := range this.m {
+	for _, v := range this.CopyClientMap() {
 		v.CloseAll()
 	}
 	this.m = make(map[string]*Client)
