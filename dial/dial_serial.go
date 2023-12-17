@@ -30,10 +30,10 @@ func Serial(cfg *SerialConfig) (io.ReadWriteCloser, string, error) {
 		cfg = &SerialConfig{}
 	}
 	if cfg.Address == "" {
-		cfg.Address = "COM3"
+		cfg.Address = io.DefaultSerial
 	}
 	if cfg.BaudRate == 0 {
-		cfg.BaudRate = 115200
+		cfg.BaudRate = 9600
 	}
 	if cfg.DataBits == 0 {
 		cfg.DataBits = 8

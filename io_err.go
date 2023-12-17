@@ -23,6 +23,7 @@ var (
 	ErrNetworkUnusual     = errors.New("网络异常")
 	ErrWithContext        = errors.New("上下文关闭")
 	ErrWithTimeout        = errors.New("超时")
+	ErrWithConnectTimeout = errors.New("连接超时")
 	ErrWithReadTimeout    = errors.New("读超时")
 	ErrWithWriteTimeout   = errors.New("写超时")
 	ErrInvalidReadFunc    = errors.New("无效数据读取函数")

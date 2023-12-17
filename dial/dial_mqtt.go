@@ -3,7 +3,6 @@ package dial
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
@@ -28,7 +27,7 @@ func MQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig) (io.ReadWriteCloser, string, err
 	c := mqtt.NewClient(cfg)
 	token := c.Connect()
 	if !token.WaitTimeout(cfg.ConnectTimeout) {
-		return nil, "", errors.New("连接超时")
+		return nil, "", io.ErrWithConnectTimeout
 	}
 	if token.Error() != nil {
 		return nil, "", token.Error()
@@ -36,7 +35,7 @@ func MQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig) (io.ReadWriteCloser, string, err
 	r := &MQTTClient{
 		Client: c,
 		iocfg:  iocfg,
-		ch:     make(chan mqtt.Message, 1000),
+		ch:     make(chan mqtt.Message, io.DefaultChannelSize),
 	}
 	c.Subscribe(iocfg.Subscribe, iocfg.SubscribeQos, func(client mqtt.Client, message mqtt.Message) {
 		r.ch <- message

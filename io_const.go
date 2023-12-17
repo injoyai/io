@@ -16,6 +16,7 @@ const (
 	EB  = 1024 * PB //1EB
 
 	DefaultBufferSize      = KB4              //默认buff大小,4KB
+	DefaultChannelSize     = 100              //默认通道大小
 	DefaultSerial          = "COM3"           //默认串口
 	DefaultPort            = 10086            //默认端口
 	DefaultPortStr         = ":10086"         //默认端口
