@@ -20,7 +20,7 @@ func main() {
 		m := new(p2p.Msg)
 		json.Unmarshal(msg.Bytes(), &m)
 		switch m.Type {
-		case p2p.TypeRegister:
+		case p2p.TypeRegisterReq:
 			fmt.Println("register")
 		}
 	})
