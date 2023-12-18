@@ -17,7 +17,7 @@ type MQTTConfig = mqtt.ClientOptions
 
 // NewMQTTConfig 新建默认配置信息
 func NewMQTTConfig() *MQTTConfig {
-	return mqtt.NewClientOptions()
+	return mqtt.NewClientOptions().SetAutoReconnect(false)
 }
 
 func MQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig) (io.ReadWriteCloser, string, error) {
@@ -52,6 +52,7 @@ func NewMQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig, options ...io.OptionClient) (
 }
 
 func RedialMQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig, options ...io.OptionClient) *io.Client {
+	cfg.SetAutoReconnect(false)
 	return io.Redial(WithMQTT(iocfg, cfg), options...)
 }
 
