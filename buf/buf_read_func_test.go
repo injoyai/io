@@ -77,3 +77,14 @@ func TestNewReadWithStartEnd(t *testing.T) {
 		}
 	}
 }
+
+func TestReadPrefix(t *testing.T) {
+	buf := bufio.NewReader(bytes.NewBuffer([]byte{0x03, 0x11, 0x11, 0x03, 0x03, 0x11, 0x011, 0x04, 0x04, 0x05}))
+	bs, err := ReadPrefix(buf, []byte{0x03, 0x03, 0x11})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(hex.EncodeToString(bs))
+	t.Log(ReadWithAll(buf))
+
+}

@@ -2,6 +2,7 @@ package buf
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 	"time"
 )
@@ -33,6 +34,33 @@ func ReadWithAll(buf *bufio.Reader) (bytes []byte, err error) {
 func ReadWithLine(buf *bufio.Reader) (bytes []byte, err error) {
 	bytes, _, err = buf.ReadLine()
 	return
+}
+
+// ReadPrefix 从流中读取到头部,并返回已读取部分
+func ReadPrefix(buf *bufio.Reader, prefix []byte) ([]byte, error) {
+	cache := []byte(nil)
+	for index := 0; index < len(prefix); {
+		b, err := buf.ReadByte()
+		if err != nil {
+			return cache, err
+		}
+		cache = append(cache, b)
+		if b == prefix[index] {
+			index++
+		} else {
+			for len(cache) > 0 {
+				//only one error in this ReadPrefix ,it is EOF,and not important
+				cache2, _ := ReadPrefix(bufio.NewReader(bytes.NewReader(cache[1:])), prefix)
+				if len(cache2) > 0 {
+					cache = cache2
+					break
+				}
+				cache = cache[1:]
+			}
+			index = len(cache)
+		}
+	}
+	return cache, nil
 }
 
 /*
