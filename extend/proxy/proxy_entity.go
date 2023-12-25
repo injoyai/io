@@ -31,10 +31,9 @@ type Entity struct {
 	io.Logger
 }
 
-// Debug 调试模式
-func (this *Entity) Debug(b ...bool) *Entity {
+// Debug 调试模式,实现Debugger接口
+func (this *Entity) Debug(b ...bool) {
 	this.debug = !(len(b) > 0 && !b[0])
-	return this
 }
 
 // SetWriteFunc 设置写入函数

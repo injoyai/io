@@ -2,7 +2,8 @@ package io
 
 import (
 	"context"
-	"sync/atomic"
+	"sync"
+	"time"
 )
 
 func NewIWriteCloser(writeCloser WriteCloser) *IWriteCloser {
@@ -19,8 +20,8 @@ func NewIWriteCloserWithContext(ctx context.Context, writeCloser WriteCloser) *I
 type IWriteCloser struct {
 	*IWriter
 	*ICloser
-	queue   chan []byte //写入队列
-	running uint32      //是否在运行
+	queue chan []byte //写入队列
+	once  sync.Once   //队列只执行一次
 }
 
 // SetKey 设置唯一标识
@@ -30,10 +31,12 @@ func (this *IWriteCloser) SetKey(key string) *IWriteCloser {
 	return this
 }
 
-func (this *IWriteCloser) Debug(b ...bool) *IWriteCloser {
+// Debug 调试模式
+// 实现Debugger接口
+func (this *IWriteCloser) Debug(b ...bool) {
 	this.IWriter.Logger.Debug(b...)
 	this.ICloser.Logger.Debug(b...)
-	return this
+
 }
 
 // WriteQueue 写入队列
@@ -43,8 +46,19 @@ func (this *IWriteCloser) WriteQueue(p []byte) *IWriteCloser {
 	return this
 }
 
-// TryWriteQueue 尝试写入队列
-func (this *IWriteCloser) TryWriteQueue(p []byte) *IWriteCloser {
+// WriteQueueTimeout 写入队列,超时
+func (this *IWriteCloser) WriteQueueTimeout(p []byte, timeout time.Duration) (int, error) {
+	this.runQueue()
+	select {
+	case this.queue <- p:
+		return len(p), nil
+	case <-time.After(timeout):
+		return 0, ErrWithWriteTimeout
+	}
+}
+
+// WriteQueueTry 尝试写入队列
+func (this *IWriteCloser) WriteQueueTry(p []byte) *IWriteCloser {
 	this.runQueue()
 	select {
 	case this.queue <- p:
@@ -54,10 +68,8 @@ func (this *IWriteCloser) TryWriteQueue(p []byte) *IWriteCloser {
 }
 
 func (this *IWriteCloser) runQueue() {
-	if this.queue == nil {
+	this.once.Do(func() {
 		this.queue = this.NewWriteQueue(this.Ctx())
-	}
-	if atomic.SwapUint32(&this.running, 1) == 0 {
 		go this.For(func(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
@@ -67,5 +79,5 @@ func (this *IWriteCloser) runQueue() {
 				return err
 			}
 		})
-	}
+	})
 }

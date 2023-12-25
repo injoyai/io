@@ -1,6 +1,7 @@
 package io
 
 import (
+	"encoding/base64"
 	"fmt"
 	"github.com/injoyai/logs"
 	"os"
@@ -14,6 +15,12 @@ const (
 	LevelInfo
 	LevelError
 	LevelNone Level = 999
+)
+
+const (
+	codingHEX    = "hex"
+	codingASCII  = "ascii"
+	codingBase64 = "base64"
 )
 
 type Level int
@@ -50,7 +57,7 @@ func newLogger(l Logger) *logger {
 		Logger: l,
 		level:  LevelAll,
 		debug:  true,
-		coding: "ascii",
+		coding: codingASCII,
 	}
 }
 
@@ -65,18 +72,26 @@ func (this *logger) SetLevel(level Level) {
 	this.level = level
 }
 
+// Debug 实现Debugger接口,不用返回值
 func (this *logger) Debug(b ...bool) {
 	this.debug = !(len(b) > 0 && !b[0])
 }
 
+// SetPrintWithHEX 设置字节编码方式hex
 func (this *logger) SetPrintWithHEX() {
-	this.coding = "hex"
+	this.coding = codingHEX
 }
 
+// SetPrintWithASCII 设置字节编码方式ascii
 func (this *logger) SetPrintWithASCII() {
-	this.coding = "ascii"
+	this.coding = codingASCII
 }
 
+func (this *logger) SetPrintWithBase64() {
+	this.coding = codingBase64
+}
+
+// Readln 打印读取到的数据
 func (this *logger) Readln(prefix string, p []byte) {
 	if this.debug && LevelRead >= this.level {
 		switch this.coding {
@@ -88,23 +103,28 @@ func (this *logger) Readln(prefix string, p []byte) {
 	}
 }
 
+// Writeln 打印写入的数据
 func (this *logger) Writeln(prefix string, p []byte) {
 	if this.debug && LevelWrite >= this.level {
 		switch this.coding {
-		case "hex":
+		case codingHEX:
 			this.Logger.Writef("%s%#x\n", prefix, p)
-		case "ascii":
+		case codingASCII:
 			this.Logger.Writef("%s%s\n", prefix, p)
+		case codingBase64:
+			this.Logger.Writef("%s%s\n", prefix, base64.StdEncoding.EncodeToString(p))
 		}
 	}
 }
 
+// Infof 打印信息
 func (this *logger) Infof(format string, v ...interface{}) {
 	if this.debug && LevelInfo >= this.level {
 		this.Logger.Infof(format+"\n", v...)
 	}
 }
 
+// Errorf 打印错误
 func (this *logger) Errorf(format string, v ...interface{}) {
 	if this.debug && LevelError >= this.level {
 		this.Logger.Errorf(format+"\n", v...)
@@ -119,7 +139,7 @@ func (this *logger) Errorf(format string, v ...interface{}) {
 
 // NewLoggerWithWriter 新建输出到writer的日志
 func NewLoggerWithWriter(w Writer) Logger {
-	return &printer{w}
+	return &logWriter{w}
 }
 
 // NewLoggerWithStdout 新建输出到终端的日志
@@ -150,14 +170,16 @@ type Logger interface {
 	Errorf(format string, v ...interface{})
 }
 
-type printer struct{ Writer }
+//==========================================logWriter==========================================
 
-func (p printer) Readf(format string, v ...interface{})  { p.printf(LevelRead, format, v...) }
-func (p printer) Writef(format string, v ...interface{}) { p.printf(LevelWrite, format, v...) }
-func (p printer) Infof(format string, v ...interface{})  { p.printf(LevelInfo, format, v...) }
-func (p printer) Errorf(format string, v ...interface{}) { p.printf(LevelError, format, v...) }
+type logWriter struct{ Writer }
 
-func (p printer) printf(level Level, format string, v ...interface{}) {
+func (p logWriter) Readf(format string, v ...interface{})  { p.printf(LevelRead, format, v...) }
+func (p logWriter) Writef(format string, v ...interface{}) { p.printf(LevelWrite, format, v...) }
+func (p logWriter) Infof(format string, v ...interface{})  { p.printf(LevelInfo, format, v...) }
+func (p logWriter) Errorf(format string, v ...interface{}) { p.printf(LevelError, format, v...) }
+
+func (p logWriter) printf(level Level, format string, v ...interface{}) {
 	timeStr := time.Now().Format("2006-01-02 15:04:05 ")
 	_, err := p.Writer.Write([]byte(fmt.Sprintf(timeStr+"["+level.String()+"] "+format, v...)))
 	logs.PrintErr(err)

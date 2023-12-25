@@ -228,10 +228,10 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 //================================Logger================================
 
 // Debug 调试模式,打印日志
-func (this *Client) Debug(b ...bool) *Client {
+// 为了实现Debugger接口,不需要返回值
+func (this *Client) Debug(b ...bool) {
 	this.IWriter.Logger.Debug(b...)
 	this.IReadCloser.Debug(b...)
-	return this
 }
 
 // SetLogger 设置日志

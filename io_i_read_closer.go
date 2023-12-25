@@ -58,11 +58,10 @@ func (this *IReadCloser) SetReadIntervalTimeout(timeout time.Duration) *IReadClo
 
 //================================Log================================
 
-// Debug debug模式
-func (this *IReadCloser) Debug(b ...bool) *IReadCloser {
+// Debug debug模式,实现Debugger接口,不用返回值
+func (this *IReadCloser) Debug(b ...bool) {
 	this.IReader.Logger.Debug(b...)
 	this.ICloser.Logger.Debug(b...)
-	return this
 }
 
 func (this *IReadCloser) SetLogger(logger Logger) *IReadCloser {

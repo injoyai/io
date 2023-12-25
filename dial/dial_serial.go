@@ -30,7 +30,10 @@ func Serial(cfg *SerialConfig) (io.ReadWriteCloser, string, error) {
 		cfg = &SerialConfig{}
 	}
 	if cfg.Address == "" {
-		cfg.Address = io.DefaultSerial
+		//获取串口列表的第一个
+		if list, _ := GetSerialPortList(); len(list) > 0 {
+			cfg.Address = list[0]
+		}
 	}
 	if cfg.BaudRate == 0 {
 		cfg.BaudRate = 9600
