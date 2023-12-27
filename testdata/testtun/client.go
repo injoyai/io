@@ -10,7 +10,7 @@ import (
 func main() {
 	s, err := listen.NewTCPServer(10086, func(s *io.Server) {
 		s.Debug(true)
-		s.Logger.SetPrintWithASCII()
+		s.Logger.SetPrintWithUTF8()
 	})
 	if err != nil {
 		logs.Error(err)
@@ -18,7 +18,7 @@ func main() {
 	}
 	listen.NewTunnelClient(s, dial.WithTCP(":10088"), "aiot.qianlangtech.com:8200", func(c *io.Client) {
 		c.Debug(false)
-		c.SetPrintWithASCII()
+		c.SetPrintWithUTF8()
 	})
 	logs.Err(s.Run())
 }

@@ -19,8 +19,8 @@ const (
 
 const (
 	codingHEX    = "hex"
-	codingASCII  = "ascii"
 	codingBase64 = "base64"
+	codingUTF8   = "utf8"
 )
 
 type Level int
@@ -57,7 +57,7 @@ func newLogger(l Logger) *logger {
 		Logger: l,
 		level:  LevelAll,
 		debug:  true,
-		coding: codingASCII,
+		coding: codingUTF8,
 	}
 }
 
@@ -82,9 +82,9 @@ func (this *logger) SetPrintWithHEX() {
 	this.coding = codingHEX
 }
 
-// SetPrintWithASCII 设置字节编码方式ascii
-func (this *logger) SetPrintWithASCII() {
-	this.coding = codingASCII
+// SetPrintWithUTF8 设置字节编码方式utf-8
+func (this *logger) SetPrintWithUTF8() {
+	this.coding = codingUTF8
 }
 
 func (this *logger) SetPrintWithBase64() {
@@ -95,10 +95,12 @@ func (this *logger) SetPrintWithBase64() {
 func (this *logger) Readln(prefix string, p []byte) {
 	if this.debug && LevelRead >= this.level {
 		switch this.coding {
-		case "hex":
+		case codingHEX:
 			this.Logger.Readf("%s%#x\n", prefix, p)
-		case "ascii":
+		case codingUTF8:
 			this.Logger.Readf("%s%s\n", prefix, p)
+		case codingBase64:
+			this.Logger.Readf("%s%s\n", prefix, base64.StdEncoding.EncodeToString(p))
 		}
 	}
 }
@@ -109,7 +111,7 @@ func (this *logger) Writeln(prefix string, p []byte) {
 		switch this.coding {
 		case codingHEX:
 			this.Logger.Writef("%s%#x\n", prefix, p)
-		case codingASCII:
+		case codingUTF8:
 			this.Logger.Writef("%s%s\n", prefix, p)
 		case codingBase64:
 			this.Logger.Writef("%s%s\n", prefix, base64.StdEncoding.EncodeToString(p))

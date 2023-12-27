@@ -11,7 +11,7 @@ import (
 func TestNewClient(t *testing.T) {
 	dial.RedialTCP(":10089", func(c *io.Client) {
 		c.Debug()
-		c.SetPrintWithASCII()
+		c.SetPrintWithUTF8()
 		c.SetKey("test")
 		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
 			_, err := c.WriteString("666")

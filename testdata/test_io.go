@@ -74,7 +74,7 @@ func CloseAll(port int) error {
 func ClientRun(addr string) *io.Client {
 	return io.Redial(dial.WithTCP(addr), func(c *io.Client) {
 		c.Debug()
-		c.SetPrintWithASCII()
+		c.SetPrintWithUTF8()
 		c.SetKey("test")
 		c.SetDealFunc(func(c *io.Client, msg io.Message) {
 			logs.Debug(msg.String())

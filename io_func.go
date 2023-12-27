@@ -128,7 +128,7 @@ func NewReadWriter(r Reader, w Writer) ReadWriteCloser {
 	return &readWriter{Reader: r, Writer: w}
 }
 
-// SwapClient 数据交换交换
+// SwapClient 数据交换
 func SwapClient(c1, c2 *Client) {
 	c1.SetReadWithWriter(c2)
 	c1.SetCloseWithCloser(c2)
@@ -145,6 +145,8 @@ func Swap(i1, i2 ReadWriter) error {
 	return err
 }
 
+// Bridge 桥接,桥接两个ReadWriter
+// 例如,桥接串口(客户端)和网口(tcp客户端),可以实现通过串口上网
 func Bridge(i1, i2 ReadWriter) error {
 	return Swap(i1, i2)
 }

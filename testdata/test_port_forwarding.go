@@ -4,7 +4,7 @@ package testdata
 //func NewPortForwardingClient(addr string) error {
 //	return proxy.NewPortForwardingClient(addr, "sn", func(c *io.Client, e *proxy.Entity) {
 //		c.SetRedialMaxTime(time.Second * 3)
-//		c.SetPrintWithASCII()
+//		c.SetPrintWithUTF8()
 //		c.Debug()
 //		e.Debug()
 //	}).Run()

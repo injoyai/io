@@ -9,7 +9,7 @@ import (
 func TestNewTunnelServer(t *testing.T) {
 	s, err := NewTCPServer(20088, func(s *io.Server) {
 		s.Logger.Debug(true)
-		s.Logger.SetPrintWithASCII()
+		s.Logger.SetPrintWithUTF8()
 	})
 	if err != nil {
 		t.Error(err)
@@ -30,7 +30,7 @@ func TestNewTunnelClient(t *testing.T) {
 	}
 	NewTunnelClient(s, dial.WithTCP(":20088"), "", func(c *io.Client) {
 		c.Debug(true)
-		c.SetPrintWithASCII()
+		c.SetPrintWithUTF8()
 	})
 	t.Log(s.Run())
 }

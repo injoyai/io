@@ -83,7 +83,7 @@ func TestRedialSerialF8L10T(t *testing.T) {
 		Timeout:  time.Second * 10,
 	}, func(c *io.Client) {
 		c.Debug()
-		c.SetPrintWithASCII()
+		c.SetPrintWithUTF8()
 		go func() {
 			t.Log(c.WriteRead([]byte("+++")))
 			t.Log(c.WriteRead([]byte("+++")))
@@ -109,7 +109,7 @@ func TestRedialSerialSL101(t *testing.T) {
 		Timeout: time.Second * 10,
 	}, func(c *io.Client) {
 		c.Debug()
-		c.SetPrintWithASCII()
+		c.SetPrintWithUTF8()
 	})
 	defer c.CloseAll()
 	select {}

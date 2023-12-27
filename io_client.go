@@ -251,10 +251,10 @@ func (this *Client) SetPrintWithHEX() *Client {
 	return this
 }
 
-// SetPrintWithASCII 设置打印ASCII
-func (this *Client) SetPrintWithASCII() *Client {
-	this.IWriter.Logger.SetPrintWithASCII()
-	this.IReadCloser.SetPrintWithASCII()
+// SetPrintWithUTF8 设置打印编码utf-8
+func (this *Client) SetPrintWithUTF8() *Client {
+	this.IWriter.Logger.SetPrintWithUTF8()
+	this.IReadCloser.SetPrintWithUTF8()
 	return this
 }
 
@@ -263,6 +263,11 @@ func (this *Client) SetLevel(level Level) *Client {
 	this.IWriter.Logger.SetLevel(level)
 	this.IReadCloser.SetLevel(level)
 	return this
+}
+
+// SetPrintWithAll 设置打印等级为全部
+func (this *Client) SetPrintWithAll() *Client {
+	return this.SetLevel(LevelAll)
 }
 
 // SetPrintWithBase 设置打印ASCII,基础信息

@@ -7,7 +7,7 @@ func ExampleRedial() {
 		c := Redial(dial.TCPFunc(addr),
 			func(c *Client) {
 				c.Debug()             //开启打印日志
-				c.SetPrintWithASCII() //打印日志编码ASCII
+				c.SetPrintWithUTF8() //打印日志编码ASCII
 				c.SetReadWithAll()    //设置读取全部
 				c.SetDealFunc(func(c *Client, msg Message) {
 					//业务逻辑,处理读取到的数据

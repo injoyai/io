@@ -84,9 +84,9 @@ func (this *IReadCloser) SetPrintWithHEX() *IReadCloser {
 	return this
 }
 
-func (this *IReadCloser) SetPrintWithASCII() *IReadCloser {
-	this.IReader.Logger.SetPrintWithASCII()
-	this.ICloser.Logger.SetPrintWithASCII()
+func (this *IReadCloser) SetPrintWithUTF8() *IReadCloser {
+	this.IReader.Logger.SetPrintWithUTF8()
+	this.ICloser.Logger.SetPrintWithUTF8()
 	return this
 }
 

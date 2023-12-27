@@ -14,7 +14,7 @@ func TestTCPServer(t *testing.T) {
 		return
 	}
 	s.Logger.Debug()
-	s.Logger.SetPrintWithASCII()
+	s.Logger.SetPrintWithUTF8()
 	s.Logger.SetLevel(io.LevelAll)
 	s.SetDealFunc(func(c *io.Client, msg io.Message) {
 		//msg.WriteString("HTTP/1.1 308 Moved Permanently\r\nLocation: http://www.baidu.com\r\n")
@@ -27,7 +27,7 @@ func TestTCPServer(t *testing.T) {
 
 func TestRedial(t *testing.T) {
 	dial.RedialTCP(":10086", func(c *io.Client) {
-		c.SetPrintWithASCII()
+		c.SetPrintWithUTF8()
 		c.Debug()
 		c.GoTimerWriter(time.Second*5, func(c *io.IWriter) error {
 			_, err := c.WriteHEX("3a520600030a01000aaa0d")
