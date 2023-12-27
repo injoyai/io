@@ -77,3 +77,29 @@ func main() {
 
 
 ```
+
+#### 如何连接Websocket
+
+```go
+package main
+
+import(
+	"bufio"
+	"github.com/injoyai/io"
+	"github.com/injoyai/io/dial"
+	"os"
+)
+
+func main(){
+	<- dial.RedialWebsocket("http://127.0.0.1:80/ws",nil,
+		func(c *io.Client) {
+			c.Debug()
+			c.Logger.SetPrintWithASCII()
+			c.SetDealFunc(func(c *io.Client, msg io.Message) {
+                //处理数据
+			})
+        }).DoneAll()
+	
+}
+
+```
