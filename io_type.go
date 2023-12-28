@@ -31,11 +31,6 @@ type Closed interface {
 	Closed() bool
 }
 
-// Debugger 是否调试
-type Debugger interface {
-	Debug(b ...bool)
-}
-
 // Publisher 发布者
 type Publisher interface {
 	Publish(topic string, p []byte) error

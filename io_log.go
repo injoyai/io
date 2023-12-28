@@ -2,6 +2,7 @@ package io
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"github.com/injoyai/logs"
 	"os"
@@ -17,25 +18,20 @@ const (
 	LevelNone Level = 999
 )
 
-const (
-	codingHEX    = "hex"
-	codingBase64 = "base64"
-	codingUTF8   = "utf8"
-)
-
 type Level int
 
-var (
-	LevelMap = map[Level]string{
-		LevelWrite: "发送",
-		LevelRead:  "接收",
-		LevelInfo:  "信息",
-		LevelError: "错误",
+func (this Level) Name() string {
+	switch this {
+	case LevelWrite:
+		return "发送"
+	case LevelRead:
+		return "接收"
+	case LevelInfo:
+		return "信息"
+	case LevelError:
+		return "错误"
 	}
-)
-
-func (this Level) String() string {
-	return LevelMap[this]
+	return ""
 }
 
 func defaultLogger() *logger {
@@ -54,81 +50,73 @@ func newLogger(l Logger) *logger {
 		return l2
 	}
 	return &logger{
-		Logger: l,
-		level:  LevelAll,
-		debug:  true,
-		coding: codingUTF8,
+		Logger:   l,
+		level:    LevelAll,
+		Debugger: true,
+		coding:   nil,
 	}
 }
 
 type logger struct {
 	Logger
-	level  Level  //日志等级
-	debug  bool   //是否打印调试
-	coding string //编码
+	Debugger                       //是否打印调试
+	level    Level                 //日志等级
+	coding   func(p []byte) string //编码
 }
 
 func (this *logger) SetLevel(level Level) {
 	this.level = level
 }
 
-// Debug 实现Debugger接口,不用返回值
-func (this *logger) Debug(b ...bool) {
-	this.debug = !(len(b) > 0 && !b[0])
+// SetPrintCoding 设置字节编码方式
+func (this *logger) SetPrintCoding(coding func(p []byte) string) {
+	this.coding = coding
 }
 
 // SetPrintWithHEX 设置字节编码方式hex
 func (this *logger) SetPrintWithHEX() {
-	this.coding = codingHEX
+	this.SetPrintCoding(func(p []byte) string { return hex.EncodeToString(p) })
 }
 
 // SetPrintWithUTF8 设置字节编码方式utf-8
 func (this *logger) SetPrintWithUTF8() {
-	this.coding = codingUTF8
+	this.SetPrintCoding(func(p []byte) string { return string(p) })
 }
 
 func (this *logger) SetPrintWithBase64() {
-	this.coding = codingBase64
+	this.SetPrintCoding(func(p []byte) string { return base64.StdEncoding.EncodeToString(p) })
 }
 
 // Readln 打印读取到的数据
 func (this *logger) Readln(prefix string, p []byte) {
-	if this.debug && LevelRead >= this.level {
-		switch this.coding {
-		case codingHEX:
-			this.Logger.Readf("%s%#x\n", prefix, p)
-		case codingUTF8:
-			this.Logger.Readf("%s%s\n", prefix, p)
-		case codingBase64:
-			this.Logger.Readf("%s%s\n", prefix, base64.StdEncoding.EncodeToString(p))
+	if this.Debugger && LevelRead >= this.level {
+		if this.coding == nil {
+			this.SetPrintWithUTF8()
 		}
+		this.Logger.Readf("%s%s\n", prefix, this.coding(p))
 	}
 }
 
 // Writeln 打印写入的数据
 func (this *logger) Writeln(prefix string, p []byte) {
-	if this.debug && LevelWrite >= this.level {
-		switch this.coding {
-		case codingHEX:
-			this.Logger.Writef("%s%#x\n", prefix, p)
-		case codingUTF8:
-			this.Logger.Writef("%s%s\n", prefix, p)
-		case codingBase64:
-			this.Logger.Writef("%s%s\n", prefix, base64.StdEncoding.EncodeToString(p))
+	if this.Debugger && LevelWrite >= this.level {
+		if this.coding == nil {
+			this.SetPrintWithUTF8()
 		}
+		this.Logger.Writef("%s%s\n", prefix, this.coding(p))
 	}
 }
 
 // Infof 打印信息
 func (this *logger) Infof(format string, v ...interface{}) {
-	if this.debug && LevelInfo >= this.level {
+	if this.Debugger && LevelInfo >= this.level {
 		this.Logger.Infof(format+"\n", v...)
 	}
 }
 
 // Errorf 打印错误
 func (this *logger) Errorf(format string, v ...interface{}) {
-	if this.debug && LevelError >= this.level {
+	if this.Debugger && LevelError >= this.level {
 		this.Logger.Errorf(format+"\n", v...)
 	}
 }
@@ -183,6 +171,6 @@ func (p logWriter) Errorf(format string, v ...interface{}) { p.printf(LevelError
 
 func (p logWriter) printf(level Level, format string, v ...interface{}) {
 	timeStr := time.Now().Format("2006-01-02 15:04:05 ")
-	_, err := p.Writer.Write([]byte(fmt.Sprintf(timeStr+"["+level.String()+"] "+format, v...)))
+	_, err := p.Writer.Write([]byte(fmt.Sprintf(timeStr+"["+level.Name()+"] "+format, v...)))
 	logs.PrintErr(err)
 }
