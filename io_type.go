@@ -61,9 +61,6 @@ type Listener interface {
 // ListenFunc 监听函数
 type ListenFunc func() (Listener, error)
 
-// PrintFunc 打印函数
-type PrintFunc func(msg Message, tag ...string)
-
 // DialFunc 连接函数
 type DialFunc func() (ReadWriteCloser, string, error)
 
@@ -88,8 +85,18 @@ type OptionClient func(c *Client)
 // OptionServer 服务端选项
 type OptionServer func(s *Server)
 
+//=================================Key=================================
+
 type Key struct{ key string }
 
 func (this *Key) GetKey() string { return this.key }
 
 func (this *Key) SetKey(key string) { this.key = key }
+
+//=================================Debugger=================================
+
+type Debugger bool
+
+func (this *Debugger) Debug(b ...bool) {
+	*this = Debugger(len(b) == 0 || b[0])
+}
