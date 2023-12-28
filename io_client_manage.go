@@ -13,7 +13,7 @@ import (
 
 func NewClientManage(ctx context.Context, key string) *ClientManage {
 	e := &ClientManage{
-		Key:             &Key{key},
+		Key:             Key(key),
 		Logger:          defaultLogger(),
 		m:               make(map[string]*Client),
 		mu:              sync.RWMutex{},
@@ -73,7 +73,7 @@ ClientManage
 例如串口,需要统一
 */
 type ClientManage struct {
-	*Key
+	Key
 	ClientOptions
 	Logger          *logger
 	m               map[string]*Client

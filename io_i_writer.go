@@ -19,7 +19,7 @@ func NewIWriter(writer Writer) *IWriter {
 		return c
 	}
 	return &IWriter{
-		Key:      &Key{},
+		Key:      "",
 		Logger:   defaultLogger(),
 		writer:   writer,
 		lastTime: time.Time{},
@@ -28,7 +28,7 @@ func NewIWriter(writer Writer) *IWriter {
 
 // IWriter 写
 type IWriter struct {
-	*Key
+	Key
 	Logger     *logger
 	writer     Writer    //io.Writer
 	writeFunc  WriteFunc //写入函数

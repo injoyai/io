@@ -30,7 +30,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	key := fmt.Sprintf("%p", listener)
 	//新建实例
 	s := &Server{
-		Key:          &Key{key: key},
+		Key:          Key(key),
 		Logger:       defaultLogger(),
 		ICloser:      NewICloserWithContext(ctx, listener),
 		ClientManage: NewClientManage(ctx, key),
@@ -54,7 +54,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 
 // Server 服务端
 type Server struct {
-	*Key
+	Key
 	*ICloser
 	*ClientManage
 

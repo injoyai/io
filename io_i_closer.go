@@ -15,7 +15,7 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 	ctxParent, cancelParent := context.WithCancel(ctx)
 	ctx, cancel := context.WithCancel(ctxParent)
 	return &ICloser{
-		Key:           &Key{},
+		Key:           "",
 		Logger:        defaultLogger(),
 		closer:        closer,
 		redialFunc:    nil,
@@ -31,7 +31,7 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 }
 
 type ICloser struct {
-	*Key
+	Key
 	Logger        *logger
 	closer        Closer             //实例
 	redialFunc    DialFunc           //重连函数

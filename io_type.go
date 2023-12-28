@@ -87,11 +87,11 @@ type OptionServer func(s *Server)
 
 //=================================Key=================================
 
-type Key struct{ key string }
+type Key string
 
-func (this *Key) GetKey() string { return this.key }
+func (this *Key) GetKey() string { return string(*this) }
 
-func (this *Key) SetKey(key string) { this.key = key }
+func (this *Key) SetKey(key string) { *this = Key(key) }
 
 //=================================Debugger=================================
 
