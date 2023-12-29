@@ -32,4 +32,7 @@ func TestReadPrefix(t *testing.T) {
 	t.Log(ReadPrefix(r, []byte("llo"))) //EOF
 	t.Log(ReadPrefix(r, []byte("aaa"))) //EOF
 	t.Log(ReadPrefix(r, []byte("aaa"))) //EOF
+	r = bytes.NewReader([]byte("hello world woworld"))
+	t.Log(ReadPrefix(r, []byte("lo"))) //lo nil
+	t.Log(ReadPrefix(r, []byte("lo"))) // EOF
 }

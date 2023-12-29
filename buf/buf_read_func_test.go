@@ -85,6 +85,9 @@ func TestReadPrefix(t *testing.T) {
 		t.Error(err)
 	}
 	t.Log(hex.EncodeToString(bs))
-	t.Log(ReadWithAll(buf))
-
+	bs, err = ReadWithAll(buf)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(hex.EncodeToString(bs))
 }

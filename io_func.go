@@ -2,13 +2,16 @@ package io
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 )
 
+// NewMessageReader Reader转MessageReader
 func NewMessageReader(r io.Reader, read ReadFunc) MessageReader {
 	return &messageReader{bufio.NewReader(r), read}
 }
 
+// DealMessageReader 处理MessageReader
 func DealMessageReader(r MessageReader, fn DealFunc) error {
 	for {
 		bs, err := r.ReadMessage()
@@ -21,6 +24,7 @@ func DealMessageReader(r MessageReader, fn DealFunc) error {
 	}
 }
 
+// DealReader 处理Reader
 func DealReader(r io.Reader, fn func(buf *bufio.Reader) error) (err error) {
 	buf := bufio.NewReader(r)
 	for ; err == nil; err = fn(buf) {
@@ -29,28 +33,30 @@ func DealReader(r io.Reader, fn func(buf *bufio.Reader) error) (err error) {
 }
 
 // ReadPrefix 读取Reader符合的头部,返回成功(nil),或者错误
-func ReadPrefix(r Reader, prefix []byte) (int, error) {
-	length := 0
-	i := 0
-loop:
-	for {
-		for ; i < len(prefix); i++ {
-			b := make([]byte, 1)
-			if _, err := io.ReadAtLeast(r, b, 1); err != nil {
-				return length, err
-			}
-			length++
-			if b[0] != prefix[i] {
-				if b[0] == prefix[0] {
-					i = 1
-				} else {
-					i = 0
-				}
-				continue loop
-			}
+func ReadPrefix(r Reader, prefix []byte) ([]byte, error) {
+	cache := []byte(nil)
+	for index := 0; index < len(prefix); {
+		b, err := ReadByte(r)
+		if err != nil {
+			return cache, err
 		}
-		return length, nil
+		cache = append(cache, b)
+		if b == prefix[index] {
+			index++
+		} else {
+			for len(cache) > 0 {
+				//only one error in this ReadPrefix ,it is EOF,and not important
+				cache2, _ := ReadPrefix(bytes.NewReader(cache[1:]), prefix)
+				if len(cache2) > 0 {
+					cache = cache2
+					break
+				}
+				cache = cache[1:]
+			}
+			index = len(cache)
+		}
 	}
+	return cache, nil
 }
 
 // ReadByte 读取一字节
