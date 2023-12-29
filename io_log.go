@@ -50,18 +50,22 @@ func newLogger(l Logger) *logger {
 		return l2
 	}
 	return &logger{
-		Logger:   l,
-		level:    LevelAll,
-		Debugger: true,
-		coding:   nil,
+		Logger: l,
+		level:  LevelAll,
+		debug:  true,
+		coding: nil,
 	}
 }
 
 type logger struct {
 	Logger
-	Debugger                       //是否打印调试
-	level    Level                 //日志等级
-	coding   func(p []byte) string //编码
+	debug  bool                  //是否打印调试
+	level  Level                 //日志等级
+	coding func(p []byte) string //编码
+}
+
+func (this *logger) Debug(b ...bool) {
+	this.debug = len(b) == 0 || b[0]
 }
 
 func (this *logger) SetLevel(level Level) {
@@ -89,7 +93,7 @@ func (this *logger) SetPrintWithBase64() {
 
 // Readln 打印读取到的数据
 func (this *logger) Readln(prefix string, p []byte) {
-	if this.Debugger && LevelRead >= this.level {
+	if this.debug && LevelRead >= this.level {
 		if this.coding == nil {
 			this.SetPrintWithUTF8()
 		}
@@ -99,7 +103,7 @@ func (this *logger) Readln(prefix string, p []byte) {
 
 // Writeln 打印写入的数据
 func (this *logger) Writeln(prefix string, p []byte) {
-	if this.Debugger && LevelWrite >= this.level {
+	if this.debug && LevelWrite >= this.level {
 		if this.coding == nil {
 			this.SetPrintWithUTF8()
 		}
@@ -109,14 +113,14 @@ func (this *logger) Writeln(prefix string, p []byte) {
 
 // Infof 打印信息
 func (this *logger) Infof(format string, v ...interface{}) {
-	if this.Debugger && LevelInfo >= this.level {
+	if this.debug && LevelInfo >= this.level {
 		this.Logger.Infof(format+"\n", v...)
 	}
 }
 
 // Errorf 打印错误
 func (this *logger) Errorf(format string, v ...interface{}) {
-	if this.Debugger && LevelError >= this.level {
+	if this.debug && LevelError >= this.level {
 		this.Logger.Errorf(format+"\n", v...)
 	}
 }

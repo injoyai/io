@@ -92,11 +92,3 @@ type Key string
 func (this *Key) GetKey() string { return string(*this) }
 
 func (this *Key) SetKey(key string) { *this = Key(key) }
-
-//=================================Debugger=================================
-
-type Debugger bool
-
-func (this *Debugger) Debug(b ...bool) {
-	*this = Debugger(len(b) == 0 || b[0])
-}
