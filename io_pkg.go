@@ -8,6 +8,7 @@ import (
 	"github.com/injoyai/conv"
 	"github.com/injoyai/logs"
 	"hash/crc32"
+	"io"
 )
 
 /*
@@ -34,15 +35,15 @@ import (
 ^===================================^
 
 包类型:
-.=======================================================================================.
-|bit15				|bit14			|bit13~11				|bit10	|bit9	|bit8		|
-|---------------------------------------------------------------------------------------|
-|数据方向0请求,1响应	|1测试通讯,无内容	|压缩方式,0无,1gzip		|预留						|
-^=======================================================================================^
-|bit7~0																					|
-|---------------------------------------------------------------------------------------|
-|预留																					|
-^=======================================================================================^
+.=======================================================================================================.
+|bit15				|bit14		|bit13~11				|bit10	|bit9	|bit8		|
+|-------------------------------------------------------------------------------------------------------|
+|数据方向0请求,1响应	|预留		|压缩方式,0无,1gzip		|预留						|
+^=======================================================================================================^
+|bit7   								|功能码																				|
+|-------------------------------------------------------------------------------------------------------|
+|数据的读写0读/订阅/接收,1写/发布/发送		|																					|
+^=======================================================================================================^
 */
 
 var (
@@ -51,39 +52,67 @@ var (
 )
 
 const (
-	pkgBaseLength        = 15
-	pkgBitCall    uint16 = 0x00 << 8
-	pkgBitBack    uint16 = 0x80 << 8
-	pkgBitPing    uint16 = 0x40 << 8
+	pkgBaseLength       = 15
+	ControlCall   uint8 = 0x00
+	ControlBack   uint8 = 0x80
+	ControlGzip   uint8 = 0x10
+)
+const (
+	// 内置功能码,待定
+	FunctionRead  uint8 = 0x00
+	FunctionWrite uint8 = 0x80
+
+	FunctionCustom      uint8 = 0x0 //自定义
+	FunctionPing        uint8 = 0x1 //测试连接,无数据
+	FunctionTime        uint8 = 0x2 //时间(时间戳),同步时间
+	FunctionSubscribe   uint8 = 0x3 //订阅
+	FunctionIMEI        uint8 = 0x4 //imei
+	FunctionICCID       uint8 = 0x5 //iccid
+	FunctionIMSI        uint8 = 0x6 //imsi
+	FunctionReload      uint8 = 0x7 //重新加载
+	FunctionReboot      uint8 = 0x8 //重启设备
+	FunctionLinkAddress uint8 = 0x9 //新连接地址
+	FunctionSlave       uint8 = 0xA //设置从站地址,主节点开始,后续一次增加长度,例如主节点是 "1" 分配给子节点就是 "1.1","1.2","1.13"
 )
 
 func NewPkgPing() []byte {
-	//01000000
-	return (&Pkg{Type: pkgBitCall + pkgBitPing}).Bytes()
+	//00000001
+	return (&Pkg{Control: ControlCall, Function: FunctionPing}).Bytes()
 }
 
 func NewPkgPong() []byte {
-	//11000000
-	return (&Pkg{Type: pkgBitBack + pkgBitPing}).Bytes()
+	//10000001
+	return (&Pkg{Control: ControlBack, Function: FunctionPing}).Bytes()
 }
 
 func NewPkg(msgID uint8, data []byte) *Pkg {
+	return NewCallPkg(msgID, data)
+}
+
+func NewCallPkg(msgID uint8, data []byte) *Pkg {
 	return &Pkg{
-		Type:  pkgBitCall,
-		MsgID: msgID,
-		Data:  data,
+		Control:  ControlCall,
+		Function: FunctionCustom,
+		MsgID:    msgID,
+		Data:     data,
 	}
 }
 
+func NewBackPkg(msgID uint8, data []byte) *Pkg {
+	return NewCallPkg(msgID, data).Resp(data)
+}
+
 type Pkg struct {
-	Type  uint16
-	MsgID uint8
-	Data  []byte
+	Control  uint8  //控制码
+	Function uint8  //功能码
+	MsgID    uint8  //消息id
+	Data     []byte //数据内容
 }
 
 // SetCompress 设置压缩方式,1是gzip,其他不压缩
 func (this *Pkg) SetCompress(n uint8) *Pkg {
-	this.Type = this.Type>>14<<14 + uint16(n)<<13>>2 + this.Type<<11>>11
+	this.Control &= 0xCF
+	this.Control |= n
 	return this
 }
 
@@ -93,8 +122,8 @@ func (this *Pkg) String() string {
 
 func (this *Pkg) encodeData() []byte {
 	data := this.Data
-	switch this.Type << 2 >> 13 {
-	case 1:
+	switch this.Control & 0x30 {
+	case ControlGzip:
 		// Gzip 压缩字节
 		buf := bytes.NewBuffer(nil)
 		gzipWriter := gzip.NewWriter(buf)
@@ -107,8 +136,8 @@ func (this *Pkg) encodeData() []byte {
 }
 
 func (this *Pkg) decodeData() error {
-	switch this.Type << 2 >> 13 {
-	case 1:
+	switch this.Control & 0x30 {
+	case ControlGzip:
 		// Gzip 解压字节
 		reader := bytes.NewReader(this.Data)
 		gzipReader, err := gzip.NewReader(reader)
@@ -134,7 +163,7 @@ func (this *Pkg) Bytes() bytes.Entity {
 	dataBytes := this.encodeData()
 	length := uint32(len(dataBytes) + pkgBaseLength)
 	data = append(data, conv.Bytes(length)...)
-	data = append(data, byte(this.Type>>8), byte(this.Type))
+	data = append(data, this.Control, this.Function)
 	data = append(data, this.MsgID)
 	data = append(data, dataBytes...)
 	data = append(data, conv.Bytes(crc32.ChecksumIEEE(data))...)
@@ -144,29 +173,29 @@ func (this *Pkg) Bytes() bytes.Entity {
 
 // Resp 生成响应包
 func (this *Pkg) Resp(bs []byte) *Pkg {
-	this.Type += pkgBitBack + this.Type<<1>>1
+	this.Control |= ControlBack
 	this.Data = bs
 	return this
 }
 
 // IsCall 是否请求数据
 func (this *Pkg) IsCall() bool {
-	return this.Type>>15 == 0
+	return this.Control&0x80 == 0
 }
 
 // IsBack 是否是响应数据
 func (this *Pkg) IsBack() bool {
-	return this.Type>>15 == 1
+	return this.Control&0x80 == 0x80
 }
 
 // IsPing 是否是ping,需要响应pong
 func (this *Pkg) IsPing() bool {
-	return this.Type>>14 == 1
+	return this.IsCall() && this.Function&0x7F == FunctionPing
 }
 
 // IsPong 是否是pong,不需要处理
 func (this *Pkg) IsPong() bool {
-	return this.Type>>14 == 3
+	return this.IsBack() && this.Function&0x7F == FunctionPing
 }
 
 // DecodePkg 按自定义的包解析
@@ -201,9 +230,10 @@ func DecodePkg(bs []byte) (*Pkg, error) {
 	}
 
 	p := &Pkg{
-		Type:  uint16(bs[6])<<8 + uint16(bs[7]),
-		MsgID: bs[8],
-		Data:  bs[9 : length-6],
+		Control:  bs[6],
+		Function: bs[7],
+		MsgID:    bs[8],
+		Data:     bs[9 : length-6],
 	}
 
 	return p, p.decodeData()
@@ -241,21 +271,10 @@ func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 					result = append(result, bs...)
 					length -= 6
 
-					//tcp分包,导致需要多次读取,todo 如果数据错误是否会一直阻塞?
-					for length > 0 {
-						bs = make([]byte, length)
-						n, err = buf.Read(bs)
-						if err != nil {
-							return result, err
-						}
-						result = append(result, bs[:n]...)
-						length -= n
-					}
-					p, err := DecodePkg(result)
-					if err != nil {
-						return result, err
-					}
-					return p.Data, nil
+					bs = make([]byte, length)
+					_, err = io.ReadAtLeast(buf, bs, length)
+					result = append(result, bs...)
+					return result, nil
 
 				}
 			}
