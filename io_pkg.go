@@ -9,6 +9,7 @@ import (
 	"github.com/injoyai/logs"
 	"hash/crc32"
 	"io"
+	"time"
 )
 
 /*
@@ -198,6 +199,35 @@ func (this *Pkg) IsPong() bool {
 	return this.IsBack() && this.Function&0x7F == FunctionPing
 }
 
+func (this *Pkg) IsRead() bool {
+	return this.Function&0x80 == 0
+}
+
+func (this *Pkg) IsWrite() bool {
+	return this.Function&0x80 == 0x80
+}
+
+func (this *Pkg) GetFunction() uint8 {
+	return this.Function & 0x7F
+}
+
+func (this *Pkg) ReadWriteTag(c *Client, key string) error {
+	if this.IsCall() {
+		if this.IsRead() {
+			if _, err := c.Write(this.Resp(conv.Bytes(c.Tag().GetString(key))).Bytes()); err != nil {
+				return err
+			}
+		}
+		if this.IsWrite() {
+			c.Tag().Set(key, string(this.Data))
+			if _, err := c.Write(this.Resp(nil).Bytes()); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // DecodePkg 按自定义的包解析
 func DecodePkg(bs []byte) (*Pkg, error) {
 
@@ -238,6 +268,51 @@ func DecodePkg(bs []byte) (*Pkg, error) {
 
 	return p, p.decodeData()
 
+}
+
+func DealWithPkg(c *Client, bs Message) (*Pkg, error) {
+
+	p, err := DecodePkg(bs)
+	if err != nil {
+		return nil, err
+	}
+	switch p.GetFunction() {
+	case FunctionPing:
+		if p.IsCall() {
+			if _, err := c.Write(p.Resp(nil).Bytes()); err != nil {
+				return nil, err
+			}
+		}
+	case FunctionTime:
+		if p.IsCall() && p.IsRead() {
+			now := conv.Bytes(time.Now().UnixMilli())
+			if _, err := c.Write(p.Resp(now).Bytes()); err != nil {
+				return nil, err
+			}
+		}
+
+	case FunctionIMEI:
+		if err := p.ReadWriteTag(c, "imei"); err != nil {
+			return nil, err
+		}
+
+	case FunctionICCID:
+		if err := p.ReadWriteTag(c, "iccid"); err != nil {
+			return nil, err
+		}
+
+	case FunctionIMSI:
+		if err := p.ReadWriteTag(c, "imsi"); err != nil {
+			return nil, err
+		}
+
+	case FunctionSlave:
+		if err := p.ReadWriteTag(c, "salve"); err != nil {
+			return nil, err
+		}
+
+	}
+	return p, nil
 }
 
 func WriteWithPkg(req []byte) ([]byte, error) {
