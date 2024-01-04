@@ -30,10 +30,10 @@ func NewIWriter(writer Writer) *IWriter {
 type IWriter struct {
 	Key
 	Logger     *logger
-	writer     Writer    //io.Writer
-	writeFunc  WriteFunc //写入函数
-	lastTime   time.Time //最后写入时间
-	bytesCount int64     //写入的字节数
+	writer     Writer                         //io.Writer
+	writeFunc  func(p []byte) ([]byte, error) //写入函数
+	lastTime   time.Time                      //最后写入时间
+	bytesCount int64                          //写入的字节数
 }
 
 //================================Nature================================

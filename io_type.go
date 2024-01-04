@@ -1,8 +1,6 @@
 package io
 
 import (
-	"bufio"
-	"context"
 	"github.com/injoyai/base/bytes"
 	"time"
 )
@@ -53,8 +51,8 @@ type MessageReadWriteCloser interface {
 }
 
 type Listener interface {
+	Closer
 	Accept() (ReadWriteCloser, string, error)
-	Close() error
 	Addr() string
 }
 
@@ -64,21 +62,6 @@ type ListenFunc func() (Listener, error)
 // DialFunc 连接函数
 type DialFunc func() (ReadWriteCloser, string, error)
 
-// ReadFunc 读取函数
-type ReadFunc func(buf *bufio.Reader) ([]byte, error)
-
-// WriteFunc 写入函数
-type WriteFunc func(p []byte) ([]byte, error)
-
-// DealFunc 数据处理函数
-type DealFunc func(msg Message) error
-
-// CloseFunc 关闭函数
-type CloseFunc func(ctx context.Context, msg Message)
-
-// WriteDeadline 写入超时时间,例如tcp关闭
-type WriteDeadline func(t time.Time) error
-
 // OptionClient 客户端选项
 type OptionClient func(c *Client)
 
@@ -86,6 +69,21 @@ type OptionClient func(c *Client)
 type OptionServer func(s *Server)
 
 //=================================Key=================================
+
+// ReadFunc 读取函数
+type ReadFunc func(p []byte) (int, error)
+
+func (this ReadFunc) Read(p []byte) (int, error) { return this(p) }
+
+// WriteFunc 写入函数
+type WriteFunc func(p []byte) (int, error)
+
+func (this WriteFunc) Write(p []byte) (int, error) { return this(p) }
+
+// CloseFunc 关闭函数
+type CloseFunc func() error
+
+func (this CloseFunc) Close() error { return this() }
 
 type Key string
 

@@ -60,11 +60,11 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 }
 
 type ClientOptions struct {
-	beforeFunc func(*Client) error          //连接前置事件,onConnect()
-	closeFunc  func(c *Client, msg Message) //断开连接事件,onClose()
-	dealFunc   func(c *Client, msg Message) //数据处理方法,onMessage()
-	readFunc   buf.ReadFunc                 //数据读取方法,onRead()
-	writeFunc  WriteFunc                    //数据发送函数,包装下原始数据,onWrite()
+	beforeFunc func(*Client) error            //连接前置事件,onConnect()
+	closeFunc  func(c *Client, msg Message)   //断开连接事件,onClose()
+	dealFunc   func(c *Client, msg Message)   //数据处理方法,onMessage()
+	readFunc   buf.ReadFunc                   //数据读取方法,onRead()
+	writeFunc  func(p []byte) ([]byte, error) //数据发送函数,包装下原始数据,onWrite()
 }
 
 /*
@@ -432,7 +432,7 @@ func (this *ClientManage) _dealFunc(c *Client, msg Message) {
 	}
 }
 
-func (this *ClientManage) _closeFunc(closeFunc ...CloseFunc) func(ctx context.Context, c *Client, msg Message) {
+func (this *ClientManage) _closeFunc(closeFunc ...func(ctx context.Context, msg Message)) func(ctx context.Context, c *Client, msg Message) {
 	return func(ctx context.Context, c *Client, msg Message) {
 		defer func() {
 			for _, f := range closeFunc {

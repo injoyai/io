@@ -27,12 +27,12 @@ func NewIReader(r Reader) *IReader {
 type IReader struct {
 	Key
 	Logger     *logger
-	mReader    MessageReader //接口MessageReader,兼容Reader
-	buf        *bufio.Reader //buffer
-	readFunc   ReadFunc      //读取函数
-	lastChan   chan Message  //读取最新数据chan
-	lastTime   time.Time     //最后读取数据时间
-	bytesCount int64         //读取的字节数
+	mReader    MessageReader                           //接口MessageReader,兼容Reader
+	buf        *bufio.Reader                           //buffer
+	readFunc   func(buf *bufio.Reader) ([]byte, error) //读取函数
+	lastChan   chan Message                            //读取最新数据chan
+	lastTime   time.Time                               //最后读取数据时间
+	bytesCount int64                                   //读取的字节数
 }
 
 //================================Nature================================

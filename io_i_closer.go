@@ -33,16 +33,16 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 type ICloser struct {
 	Key
 	Logger        *logger
-	closer        Closer             //实例
-	redialFunc    DialFunc           //重连函数
-	redialMaxTime time.Duration      //最大尝试退避重连时间
-	closeFunc     CloseFunc          //关闭函数
-	closeErr      error              //错误信息
-	closed        uint32             //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
-	ctx           context.Context    //子级上下文
-	cancel        context.CancelFunc //子级上下文
-	ctxParent     context.Context    //父级上下文,主动关闭时,用于关闭redial
-	cancelParent  context.CancelFunc //父级上下文,主动关闭时,用于关闭redial
+	closer        Closer                                 //实例
+	redialFunc    DialFunc                               //重连函数
+	redialMaxTime time.Duration                          //最大尝试退避重连时间
+	closeFunc     func(ctx context.Context, msg Message) //关闭函数
+	closeErr      error                                  //错误信息
+	closed        uint32                                 //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
+	ctx           context.Context                        //子级上下文
+	cancel        context.CancelFunc                     //子级上下文
+	ctxParent     context.Context                        //父级上下文,主动关闭时,用于关闭redial
+	cancelParent  context.CancelFunc                     //父级上下文,主动关闭时,用于关闭redial
 }
 
 //================================CloseFunc================================
@@ -54,7 +54,7 @@ func (this *ICloser) SetLogger(logger Logger) *ICloser {
 }
 
 // GetCloseFunc 获取关闭函数
-func (this *ICloser) GetCloseFunc() CloseFunc {
+func (this *ICloser) GetCloseFunc() func(ctx context.Context, msg Message) {
 	return this.closeFunc
 }
 

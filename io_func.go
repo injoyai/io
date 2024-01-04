@@ -7,12 +7,12 @@ import (
 )
 
 // NewMessageReader Reader转MessageReader
-func NewMessageReader(r io.Reader, read ReadFunc) MessageReader {
+func NewMessageReader(r io.Reader, read func(buf *bufio.Reader) ([]byte, error)) MessageReader {
 	return &messageReader{bufio.NewReader(r), read}
 }
 
 // DealMessageReader 处理MessageReader
-func DealMessageReader(r MessageReader, fn DealFunc) error {
+func DealMessageReader(r MessageReader, fn func(msg Message) error) error {
 	for {
 		bs, err := r.ReadMessage()
 		if err != nil {
@@ -165,7 +165,7 @@ func Bridge(i1, i2 ReadWriter) error {
 
 type messageReader struct {
 	buf  *bufio.Reader
-	read ReadFunc
+	read func(buf *bufio.Reader) ([]byte, error)
 }
 
 func (this *messageReader) ReadMessage() ([]byte, error) {
