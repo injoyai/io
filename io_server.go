@@ -66,7 +66,7 @@ type Server struct {
 	closeTime time.Time  //关闭时间
 }
 
-//================================Nature================================
+//================================Logger================================
 
 func (this *Server) Debug(b ...bool) {
 	this.Logger.Debug(b...)
@@ -81,6 +81,44 @@ func (this *Server) SetLogger(logger Logger) *Server {
 	this.ClientManage.Logger = l
 	return this
 }
+
+func (this *Server) SetPrintWithUTF8() *Server {
+	this.Logger.SetPrintWithUTF8()
+	this.ICloser.Logger.SetPrintWithUTF8()
+	this.ClientManage.Logger.SetPrintWithUTF8()
+	return this
+}
+
+func (this *Server) SetPrintWithHEX() *Server {
+	this.Logger.SetPrintWithHEX()
+	this.ICloser.Logger.SetPrintWithHEX()
+	this.ClientManage.Logger.SetPrintWithHEX()
+	return this
+}
+
+func (this *Server) SetLevel(level Level) *Server {
+	this.Logger.SetLevel(level)
+	this.ICloser.Logger.SetLevel(level)
+	this.ClientManage.Logger.SetLevel(level)
+	return this
+}
+
+// SetPrintWithAll 设置打印等级为全部
+func (this *Server) SetPrintWithAll() *Server {
+	return this.SetLevel(LevelAll)
+}
+
+// SetPrintWithBase 设置打印ASCII,基础信息
+func (this *Server) SetPrintWithBase() *Server {
+	return this.SetLevel(LevelInfo)
+}
+
+// SetPrintWithErr 设置打印错误信息
+func (this *Server) SetPrintWithErr() *Server {
+	return this.SetLevel(LevelError)
+}
+
+//================================Nature================================
 
 func (this *Server) Tag() *maps.Safe {
 	return this.tag

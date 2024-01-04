@@ -270,12 +270,12 @@ func (this *Client) SetPrintWithAll() *Client {
 	return this.SetLevel(LevelAll)
 }
 
-// SetPrintWithBase 设置打印ASCII,基础信息
+// SetPrintWithBase 设置打印基础信息
 func (this *Client) SetPrintWithBase() *Client {
 	return this.SetLevel(LevelInfo)
 }
 
-// SetPrintWithErr 设置打印ASCII,错误信息
+// SetPrintWithErr 设置打印错误信息
 func (this *Client) SetPrintWithErr() *Client {
 	return this.SetLevel(LevelError)
 }
