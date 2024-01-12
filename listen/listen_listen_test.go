@@ -1,6 +1,7 @@
 package listen
 
 import (
+	"errors"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 	"testing"
@@ -70,4 +71,22 @@ func TestIOSpeed(t *testing.T) {
 			//t.Log(msg)
 		})
 	}).DoneAll()
+}
+
+func TestServerErr(t *testing.T) {
+	s, err := NewTCPServer(1)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	go func() {
+		t.Error(s.Run())
+		t.Error(s.Err())
+	}()
+	go func() {
+		<-time.After(time.Second * 5)
+		s.CloseWithErr(errors.New("测试错误"))
+	}()
+	t.Error(s.Err())
+	select {}
 }

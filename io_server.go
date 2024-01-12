@@ -68,6 +68,12 @@ type Server struct {
 
 //================================Logger================================
 
+func (this *Server) SetKey(key string) {
+	this.Key.SetKey(key)
+	this.ICloser.Key.SetKey(key)
+	this.ClientManage.Key.SetKey(key)
+}
+
 func (this *Server) Debug(b ...bool) {
 	this.Logger.Debug(b...)
 	this.ICloser.Logger.Debug(b...)
@@ -225,6 +231,7 @@ func (this *Server) Run() error {
 		c, key, err := this.listener.Accept()
 		if err != nil {
 			this.CloseWithErr(err)
+			return this.Err() //使用最初的错误信息,否则会返回"use closed xxx"
 			return err
 		}
 
