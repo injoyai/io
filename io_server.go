@@ -121,6 +121,9 @@ func (this *Server) SetPrintWithErr() *Server {
 //================================Nature================================
 
 func (this *Server) Tag() *maps.Safe {
+	if this.tag == nil {
+		this.tag = maps.NewSafe()
+	}
 	return this.tag
 }
 
