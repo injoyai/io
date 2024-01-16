@@ -133,6 +133,9 @@ func (this *logger) Errorf(format string, v ...interface{}) {
 
 // NewLoggerWithWriter 新建输出到writer的日志
 func NewLoggerWithWriter(w Writer) Logger {
+	if w == nil {
+		w = &null{}
+	}
 	return &logWriter{w}
 }
 
@@ -174,6 +177,9 @@ func (p logWriter) Infof(format string, v ...interface{})  { p.printf(LevelInfo,
 func (p logWriter) Errorf(format string, v ...interface{}) { p.printf(LevelError, format, v...) }
 
 func (p logWriter) printf(level Level, format string, v ...interface{}) {
+	if p.Writer == nil {
+		return
+	}
 	timeStr := time.Now().Format("2006-01-02 15:04:05 ")
 	_, err := p.Writer.Write([]byte(fmt.Sprintf(timeStr+"["+level.Name()+"] "+format, v...)))
 	logs.PrintErr(err)

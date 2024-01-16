@@ -235,3 +235,21 @@ func (this TryChan) Write(p []byte) (int, error) {
 		return 0, nil
 	}
 }
+
+//====================
+
+// Count 统计写入字节数量
+type Count struct {
+	io.Writer
+	count int64
+}
+
+func (this *Count) Count() int64 {
+	return this.count
+}
+
+func (this *Count) Write(p []byte) (int, error) {
+	n, err := this.Writer.Write(p)
+	this.count += int64(n)
+	return n, err
+}

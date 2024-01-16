@@ -9,6 +9,25 @@ import (
 
 //================================Websocket================================
 
+type WebsocketConfig struct {
+	Dial   *websocket.Dialer
+	Url    string
+	Header http.Header
+}
+
+func (this *WebsocketConfig) DialFunc() (io.ReadWriteCloser, string, error) {
+	if this.Dial == nil {
+		this.Dial = websocket.DefaultDialer
+	}
+	c, _, err := this.Dial.Dial(this.Url, this.Header)
+	return &WebsocketClient{Conn: c}, func() string {
+		if u, err := gourl.Parse(this.Url); err == nil {
+			return u.Path
+		}
+		return this.Url
+	}(), err
+}
+
 // Websocket 连接
 func Websocket(url string, header http.Header) (io.ReadWriteCloser, string, error) {
 	c, _, err := websocket.DefaultDialer.Dial(url, header)
