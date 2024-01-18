@@ -86,6 +86,7 @@ type Client struct {
 	*IReadCloser
 	*IWriter
 
+	pointer    *string         //唯一标识,指针地址
 	i          ReadWriteCloser //接口,实例,传入的原始参数
 	tag        *maps.Safe      //标签,用于记录连接的一些信息
 	createTime time.Time       //创建时间
@@ -118,9 +119,18 @@ func (this *Client) ReadWriteCloser() io.ReadWriteCloser {
 	return this.i
 }
 
+// ID 获取唯一标识,不可改,溯源,不用因为改了key而出现数据错误的bug
+func (this *Client) ID() string {
+	return this.Pointer()
+}
+
 // Pointer 获取指针地址
 func (this *Client) Pointer() string {
-	return fmt.Sprintf("%p", this.ReadWriteCloser())
+	if this.pointer == nil {
+		pointer := fmt.Sprintf("%p", this.ReadWriteCloser())
+		this.pointer = &pointer
+	}
+	return *this.pointer
 }
 
 // CreateTime 创建时间

@@ -76,6 +76,7 @@ type ClientManage struct {
 	Key
 	ClientOptions
 	Logger          *logger
+	mid             sync.Map
 	m               map[string]*Client
 	mu              sync.RWMutex
 	maxClientNum    int             //限制最大客户端数
@@ -84,7 +85,6 @@ type ClientManage struct {
 	readChan        chan Message    //数据通道,最多存100条
 	timeout         time.Duration   //超时时间,小于0是不超时
 	timeoutInterval time.Duration   //超时检测间隔
-
 }
 
 // SetReadFunc 设置数据读取
@@ -239,10 +239,19 @@ func (this *ClientManage) SetClient(c *Client) {
 		this.mu.Lock()
 		this.m[c.GetKey()] = c
 		this.mu.Unlock()
+		this.mid.Store(c.Pointer(), c)
 		c.Run()
 
 	}(c)
 
+}
+
+func (this *ClientManage) GetClientByID(id string) *Client {
+	v, ok := this.mid.Load(id)
+	if ok {
+		return v.(*Client)
+	}
+	return nil
 }
 
 // GetClient 获取客户端
@@ -401,9 +410,11 @@ func (this *ClientManage) SetClientKey(newClient *Client, newKey string) {
 	if oldClient := this.GetClient(newKey); oldClient != nil {
 		//判断指针地址是否一致,不一致则关闭
 		if oldClient.Pointer() != newClient.Pointer() {
+			this.mid.Delete(oldClient.Pointer())
 			oldClient.CloseAll()
 		}
 	}
+	this.mid.Store(newClient.Pointer(), newClient)
 	//更新新的客户端
 	this.mu.Lock()
 	defer this.mu.Unlock()
@@ -444,6 +455,7 @@ func (this *ClientManage) _closeFunc(closeFunc ...func(ctx context.Context, msg 
 		if this.closeFunc != nil {
 			defer this.closeFunc(c, msg)
 		}
+		this.mid.Delete(c.Pointer())
 		this.mu.Lock()
 		defer this.mu.Unlock()
 		//获取老的连接
