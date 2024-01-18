@@ -218,7 +218,7 @@ func (this *Server) Run() error {
 	}()
 
 	this.startTime = time.Now()
-	this.Logger.Infof("[%s] 开启服务成功...", this.GetKey())
+	this.Logger.Infof("[%s] 开启服务成功...\n", this.GetKey())
 
 	//执行监听连接
 	for {
@@ -238,7 +238,7 @@ func (this *Server) Run() error {
 		//新建客户端,并配置
 		x := NewClientWithContext(this.Ctx(), c).SetKey(key)
 		x.Tag().Set("address", key)
-		this.Logger.Infof("[%s] 新的客户端连接...", key)
+		this.Logger.Infof("[%s] 新的客户端连接...\n", key)
 		this.ClientManage.SetClient(x)
 
 	}

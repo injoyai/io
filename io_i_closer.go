@@ -250,7 +250,7 @@ func (this *ICloser) closeWithErr(closeErr error, fn ...func(Closer) error) (err
 		//生成错误信息
 		msg := Message(this.closeErr.Error())
 		//打印错误信息
-		this.Logger.Errorf("[%s] %s", this.GetKey(), msg.String())
+		this.Logger.Errorf("[%s] %s\n", this.GetKey(), msg.String())
 		//执行用户设置的错误函数
 		if this.closeFunc != nil {
 			//需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
@@ -283,7 +283,7 @@ func (this *ICloser) MustDial(ctx context.Context) (ReadWriteCloser, string) {
 			if t > this.redialMaxTime {
 				t = this.redialMaxTime
 			}
-			this.Logger.Errorf("[%s] %v,等待%d秒重试", key, dealErr(err), t/time.Second)
+			this.Logger.Errorf("[%s] %v,等待%d秒重试\n", key, dealErr(err), t/time.Second)
 			timer.Reset(t)
 		}
 	}

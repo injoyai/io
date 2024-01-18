@@ -114,14 +114,21 @@ func (this *logger) Writeln(prefix string, p []byte) {
 // Infof 打印信息
 func (this *logger) Infof(format string, v ...interface{}) {
 	if this.debug && LevelInfo >= this.level {
-		this.Logger.Infof(format+"\n", v...)
+		this.Logger.Infof(format, v...)
 	}
 }
 
 // Errorf 打印错误
 func (this *logger) Errorf(format string, v ...interface{}) {
 	if this.debug && LevelError >= this.level {
-		this.Logger.Errorf(format+"\n", v...)
+		this.Logger.Errorf(format, v...)
+	}
+}
+
+// Printf 自定义打印
+func (this *logger) Printf(format string, v ...interface{}) {
+	if this.debug {
+		this.Logger.Printf(format, v...)
 	}
 }
 
@@ -165,6 +172,7 @@ type Logger interface {
 	Writef(format string, v ...interface{})
 	Infof(format string, v ...interface{})
 	Errorf(format string, v ...interface{})
+	Printf(format string, v ...interface{})
 }
 
 //==========================================logWriter==========================================
@@ -175,6 +183,14 @@ func (p logWriter) Readf(format string, v ...interface{})  { p.printf(LevelRead,
 func (p logWriter) Writef(format string, v ...interface{}) { p.printf(LevelWrite, format, v...) }
 func (p logWriter) Infof(format string, v ...interface{})  { p.printf(LevelInfo, format, v...) }
 func (p logWriter) Errorf(format string, v ...interface{}) { p.printf(LevelError, format, v...) }
+
+func (p logWriter) Printf(format string, v ...interface{}) {
+	if p.Writer == nil {
+		return
+	}
+	_, err := p.Writer.Write([]byte(fmt.Sprintf(format, v...)))
+	logs.PrintErr(err)
+}
 
 func (p logWriter) printf(level Level, format string, v ...interface{}) {
 	if p.Writer == nil {

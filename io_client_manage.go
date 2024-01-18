@@ -219,7 +219,7 @@ func (this *ClientManage) SetClient(c *Client) {
 		//前置操作,例如等待注册数据,不符合的返回错误则关闭连接
 		if this.beforeFunc != nil {
 			if err := this.beforeFunc(c); err != nil {
-				this.Logger.Errorf("[%s] %v", c.GetKey(), err)
+				this.Logger.Errorf("[%s] %v\n", c.GetKey(), err)
 				_ = c.Close()
 				return
 			}
