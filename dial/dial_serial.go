@@ -1,6 +1,7 @@
 package dial
 
 import (
+	"context"
 	"github.com/goburrow/serial"
 	"github.com/injoyai/io"
 	"github.com/injoyai/logs"
@@ -53,7 +54,7 @@ func Serial(cfg *SerialConfig) (io.ReadWriteCloser, string, error) {
 
 // WithSerial 打开串口函数
 func WithSerial(cfg *SerialConfig) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return Serial(cfg) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return Serial(cfg) }
 }
 
 func NewSerial(cfg *SerialConfig, options ...io.OptionClient) (*io.Client, error) {

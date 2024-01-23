@@ -37,7 +37,7 @@ func NewDial(dial DialFunc, options ...OptionClient) (*Client, error) {
 
 // NewDialWithContext 尝试连接,返回*Client和错误,需要输入上下文
 func NewDialWithContext(ctx context.Context, dial DialFunc, options ...OptionClient) (*Client, error) {
-	c, key, err := dial()
+	c, key, err := dial(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -45,8 +45,11 @@ func NewDialWithContext(ctx context.Context, dial DialFunc, options ...OptionCli
 		c.SetKey(key)
 		c.SetRedialFunc(dial)
 		c.SetOptions(options...)
-		//用户控制输出,需要在SetOptions之后打印
-		c.Logger.Infof("[%s] 连接服务端成功...\n", c.GetKey())
+		if !c.Closed() {
+			//如果在option关闭的话,会先打印关闭,再打印连接成功,所以判断下连接是否还在
+			//用户控制输出,需要在SetOptions之后打印
+			c.Logger.Infof("[%s] 连接服务端成功...\n", c.GetKey())
+		}
 	})
 	return cli, nil
 }

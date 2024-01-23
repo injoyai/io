@@ -1,6 +1,7 @@
 package dial
 
 import (
+	"context"
 	"github.com/injoyai/io"
 	"golang.org/x/crypto/ssh"
 	"strings"
@@ -116,7 +117,7 @@ func SSH(cfg *SSHConfig) (io.ReadWriteCloser, string, error) {
 }
 
 func WithSSH(cfg *SSHConfig) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return SSH(cfg) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return SSH(cfg) }
 }
 
 func NewSSH(cfg *SSHConfig, options ...io.OptionClient) (*io.Client, error) {

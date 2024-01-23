@@ -73,7 +73,7 @@ func Test(n int) {
 		}
 
 		totalDeal := 0
-		go listen.RunTCPServer(10086, func(s *io.Server) {
+		go listen.RunTCPServer(20145, func(s *io.Server) {
 			s.Logger.SetLevel(io.LevelError)
 			s.SetReadFunc(readAll)
 			s.SetDealFunc(func(c *io.Client, msg io.Message) {
@@ -85,7 +85,7 @@ func Test(n int) {
 			})
 		})
 		<-time.After(time.Second)
-		<-dial.RedialTCP("127.0.0.1:10086", func(c *io.Client) {
+		<-dial.RedialTCP("127.0.0.1:20145", func(c *io.Client) {
 			c.SetPrintWithBase()
 			data := make([]byte, length)
 			start = time.Now()

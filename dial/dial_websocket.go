@@ -1,6 +1,7 @@
 package dial
 
 import (
+	"context"
 	"github.com/gorilla/websocket"
 	"github.com/injoyai/io"
 	"net/http"
@@ -10,16 +11,16 @@ import (
 //================================Websocket================================
 
 type WebsocketConfig struct {
-	Dial   *websocket.Dialer
+	Dialer *websocket.Dialer
 	Url    string
 	Header http.Header
 }
 
-func (this *WebsocketConfig) DialFunc() (io.ReadWriteCloser, string, error) {
-	if this.Dial == nil {
-		this.Dial = websocket.DefaultDialer
+func (this *WebsocketConfig) Dial() (io.ReadWriteCloser, string, error) {
+	if this.Dialer == nil {
+		this.Dialer = websocket.DefaultDialer
 	}
-	c, _, err := this.Dial.Dial(this.Url, this.Header)
+	c, _, err := this.Dialer.Dial(this.Url, this.Header)
 	return &WebsocketClient{Conn: c}, func() string {
 		if u, err := gourl.Parse(this.Url); err == nil {
 			return u.Path
@@ -40,7 +41,7 @@ func Websocket(url string, header http.Header) (io.ReadWriteCloser, string, erro
 }
 
 func WithWebsocket(url string, header http.Header) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return Websocket(url, header) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return Websocket(url, header) }
 }
 
 func NewWebsocket(url string, header http.Header, options ...io.OptionClient) (*io.Client, error) {

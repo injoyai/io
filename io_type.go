@@ -1,6 +1,7 @@
 package io
 
 import (
+	"context"
 	"github.com/injoyai/base/bytes"
 	"time"
 )
@@ -60,7 +61,7 @@ type Listener interface {
 type ListenFunc func() (Listener, error)
 
 // DialFunc 连接函数
-type DialFunc func() (ReadWriteCloser, string, error)
+type DialFunc func(ctx context.Context) (ReadWriteCloser, string, error)
 
 // OptionClient 客户端选项
 type OptionClient func(c *Client)

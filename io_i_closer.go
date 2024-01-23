@@ -274,7 +274,7 @@ func (this *ICloser) MustDial(ctx context.Context) (ReadWriteCloser, string) {
 				//未设置重连函数
 				return nil, ""
 			}
-			readWriteCloser, key, err := this.redialFunc()
+			readWriteCloser, key, err := this.redialFunc(ctx)
 			if err == nil {
 				//上下文关闭
 				return readWriteCloser, key
@@ -287,4 +287,9 @@ func (this *ICloser) MustDial(ctx context.Context) (ReadWriteCloser, string) {
 			timer.Reset(t)
 		}
 	}
+}
+
+func (this *ICloser) MustDialFunc(ctx context.Context) (ReadWriteCloser, string, error) {
+	r, key := this.MustDial(ctx)
+	return r, key, nil
 }

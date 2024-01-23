@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/injoyai/base/g"
 	"github.com/injoyai/base/maps"
@@ -161,7 +162,7 @@ type peer struct {
 }
 
 func (this *peer) getClient(addr string) (*io.Client, error) {
-	return this.GetClientOrDial(addr, func() (io.ReadWriteCloser, string, error) {
+	return this.GetClientOrDial(addr, func(ctx context.Context) (io.ReadWriteCloser, string, error) {
 		c, err := this.Listener().(*listen.UDPServer).NewUDPClient(addr)
 		return c, addr, err
 	})

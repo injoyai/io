@@ -1,6 +1,7 @@
 package dial
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -37,14 +38,21 @@ func MQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig) (io.ReadWriteCloser, string, err
 		iocfg:  iocfg,
 		ch:     make(chan mqtt.Message, io.DefaultChannelSize),
 	}
-	c.Subscribe(iocfg.Subscribe, iocfg.SubscribeQos, func(client mqtt.Client, message mqtt.Message) {
-		r.ch <- message
-	})
-	return r, cfg.Servers[0].Host, token.Error()
+	var err error
+	for _, v := range iocfg.Subscribe {
+		token := c.Subscribe(v.Topic, v.Qos, func(client mqtt.Client, message mqtt.Message) {
+			r.ch <- message
+		})
+		token.Wait()
+		if token.Error() != nil {
+			err = token.Error()
+		}
+	}
+	return r, cfg.Servers[0].Host, err
 }
 
 func WithMQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return MQTT(iocfg, cfg) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return MQTT(iocfg, cfg) }
 }
 
 func NewMQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig, options ...io.OptionClient) (*io.Client, error) {
@@ -73,15 +81,32 @@ func (this *MQTTClient) ReadMessage() ([]byte, error) {
 }
 
 func (this *MQTTClient) Write(p []byte) (int, error) {
-	token := this.Client.Publish(this.iocfg.Publish, this.iocfg.PublishQos, this.iocfg.Retained, p)
-	token.Wait()
-	return len(p), token.Error()
+	var err error
+	for _, v := range this.iocfg.Publish {
+		token := this.Client.Publish(v.Topic, v.Qos, v.Retained, p)
+		token.Wait()
+		if token.Error() != nil {
+			err = token.Error()
+		}
+	}
+	return len(p), err
 }
 
 func (this *MQTTClient) Close() error {
-	token := this.Client.Unsubscribe(this.iocfg.Subscribe)
-	token.Wait()
-	return token.Error()
+	var err error
+	for _, v := range this.iocfg.Subscribe {
+		token := this.Client.Unsubscribe(v.Topic)
+		token.Wait()
+		if token.Error() != nil {
+			err = token.Error()
+		}
+	}
+	return err
+}
+
+type MQTTIOConfig struct {
+	Subscribe []MQTTSubscribe
+	Publish   []MQTTPublish
 }
 
 type MQTTBaseConfig struct {
@@ -107,14 +132,6 @@ func (this *MQTTBaseConfig) init() {
 	}
 }
 
-type MQTTIOConfig struct {
-	Subscribe    string
-	SubscribeQos uint8
-	Publish      string
-	PublishQos   uint8
-	Retained     bool
-}
-
 func WithMQTTBase(cfg *MQTTBaseConfig) *MQTTConfig {
 	cfg.init()
 	return mqtt.NewClientOptions().
@@ -124,8 +141,8 @@ func WithMQTTBase(cfg *MQTTBaseConfig) *MQTTConfig {
 		SetPassword(cfg.Password).
 		SetConnectTimeout(cfg.Timeout).
 		SetKeepAlive(cfg.KeepAlive).
-		SetAutoReconnect(true). //自动重连
-		SetCleanSession(false). //重连后恢复session
+		SetAutoReconnect(false). //自动重连
+		SetCleanSession(false).  //重连后恢复session
 		SetTLSConfig(func() *tls.Config {
 			if !cfg.TLS {
 				return nil
@@ -147,4 +164,21 @@ func WithMQTTBase(cfg *MQTTBaseConfig) *MQTTConfig {
 				Certificates:       []tls.Certificate{clientKeyPair},
 			}
 		}())
+}
+
+/*
+
+
+
+ */
+
+type MQTTPublish struct {
+	Topic    string
+	Qos      uint8
+	Retained bool
+}
+
+type MQTTSubscribe struct {
+	Topic string
+	Qos   uint8
 }

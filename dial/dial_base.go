@@ -1,6 +1,7 @@
 package dial
 
 import (
+	"context"
 	"errors"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
@@ -9,6 +10,14 @@ import (
 	"os"
 	"time"
 )
+
+func New(dial io.DialFunc, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(dial, options...)
+}
+
+func Redial(dial io.DialFunc, options ...io.OptionClient) *io.Client {
+	return io.Redial(dial, options...)
+}
 
 //================================TCPDial================================
 
@@ -24,11 +33,11 @@ func TCPTimeout(addr string, timeout time.Duration) (io.ReadWriteCloser, string,
 
 // WithTCP 连接函数
 func WithTCP(addr string) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return TCP(addr) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return TCP(addr) }
 }
 
 func WithTCPTimeout(addr string, timeout time.Duration) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return TCPTimeout(addr, timeout) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return TCPTimeout(addr, timeout) }
 }
 
 // NewTCP 新建TCP连接
@@ -55,11 +64,11 @@ func UDPTimeout(addr string, timeout time.Duration) (io.ReadWriteCloser, string,
 
 // WithUDP 连接函数
 func WithUDP(addr string) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return UDP(addr) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return UDP(addr) }
 }
 
 func WithUDPTimeout(addr string, timeout time.Duration) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return UDPTimeout(addr, timeout) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return UDPTimeout(addr, timeout) }
 }
 
 func NewUDP(addr string, options ...io.OptionClient) (*io.Client, error) {
@@ -109,7 +118,7 @@ func File(path string) (io.ReadWriteCloser, string, error) {
 
 // WithFile 打开文件函数
 func WithFile(path string) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return File(path) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return File(path) }
 }
 
 func NewFile(path string, options ...io.OptionClient) (*io.Client, error) {
@@ -129,7 +138,7 @@ func Memory(key string) (io.ReadWriteCloser, string, error) {
 }
 
 func WithMemory(key string) io.DialFunc {
-	return func() (io.ReadWriteCloser, string, error) { return Memory(key) }
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return Memory(key) }
 }
 
 func NewMemory(key string, options ...io.OptionClient) (*io.Client, error) {
