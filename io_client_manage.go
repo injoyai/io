@@ -19,7 +19,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 		mu:              sync.RWMutex{},
 		ctx:             ctx,
 		dealQueue:       chans.NewEntityWithContext(ctx, 1, 1000),
-		readChan:        make(chan Message, 100),
+		readChan:        make(chan Message, DefaultChannelSize),
 		timeout:         DefaultKeepAlive * 3,
 		timeoutInterval: DefaultTimeoutInterval,
 		ClientOptions: ClientOptions{

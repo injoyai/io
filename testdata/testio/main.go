@@ -34,7 +34,7 @@ func Test(n int) {
 				}
 				totalDeal += msg.Len()
 				if totalDeal >= length {
-					logs.Debugf("[处理]传输耗时: %0.1fMB/s", float64(totalDeal/(1<<20))/time.Now().Sub(start).Seconds())
+					logs.Debugf("[处理]传输耗时: %0.1fMB/s\n", float64(totalDeal/(1<<20))/time.Now().Sub(start).Seconds())
 				}
 			})
 		})
@@ -52,7 +52,7 @@ func Test(n int) {
 			defer func() {
 				totalRead += len(bytes)
 				if totalRead >= length {
-					logs.Debugf("[读取]传输耗时: %0.1fMB/s", float64(totalRead/(1<<20))/time.Now().Sub(start).Seconds())
+					logs.Debugf("[读取]传输耗时: %0.1fMB/s\n", float64(totalRead/(1<<20))/time.Now().Sub(start).Seconds())
 				}
 			}()
 
@@ -79,7 +79,7 @@ func Test(n int) {
 			s.SetDealFunc(func(c *io.Client, msg io.Message) {
 				totalDeal += msg.Len()
 				if totalDeal >= length {
-					logs.Debugf("[处理]传输耗时: %0.1fMB/s", float64(totalDeal/(1<<20))/time.Now().Sub(start).Seconds())
+					logs.Debugf("[处理]传输耗时: %0.1fMB/s\n", float64(totalDeal/(1<<20))/time.Now().Sub(start).Seconds())
 					os.Exit(1)
 				}
 			})
@@ -90,7 +90,7 @@ func Test(n int) {
 			data := make([]byte, length)
 			start = time.Now()
 			c.Write(data)
-			logs.Debugf("[发送]传输耗时: %0.1fMB/s", float64(length/(1<<20))/time.Now().Sub(start).Seconds())
+			logs.Debugf("[发送]传输耗时: %0.1fMB/s\n", float64(length/(1<<20))/time.Now().Sub(start).Seconds())
 			start = time.Now()
 			c.SetDealFunc(func(c *io.Client, msg io.Message) {
 				logs.Debug(msg)

@@ -36,3 +36,9 @@ func TestReadPrefix(t *testing.T) {
 	t.Log(ReadPrefix(r, []byte("lo"))) //lo nil
 	t.Log(ReadPrefix(r, []byte("lo"))) // EOF
 }
+
+func TestSplitWithLength(t *testing.T) {
+	t.Log(SplitWithLength([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, 4))
+	t.Log(SplitWithLength([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, 1))
+	t.Log(SplitWithLength([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, 0))
+}

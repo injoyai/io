@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/extend/rpc"
 	"github.com/injoyai/logs"
@@ -17,12 +16,14 @@ func main() {
 		logs.Err(err)
 		return
 	}
-	s.Bind("/test", func(ctx context.Context, msg *conv.Map) (interface{}, error) {
+	s.Bind("/test", func(ctx context.Context, c *io.Client, msg *io.Model) (interface{}, error) {
 		<-time.After(time.Millisecond * 100)
-		return msg.String(), nil
+		return msg.Data, nil
 	})
 	go s.Run()
-	c := rpc.NewClient("127.0.0.1:8080", time.Second, func(c *io.Client) {
+	c := rpc.NewClient(&rpc.ClientConfig{
+		Address: "127.0.0.1:8080",
+	}, func(c *io.Client) {
 		c.Debug(false)
 		//c.SetPrintWithErr()
 	})

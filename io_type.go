@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+type Bytes = Message
 type Message = bytes.Entity
 
 type TimeoutWriter interface {

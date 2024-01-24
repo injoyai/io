@@ -83,7 +83,7 @@ func (this *SimpleKeyVal) Bytes() []byte {
 	data := []byte(nil)
 	data = append(data, byte(len(this.Key)))
 	data = append(data, this.Key...)
-	val := conv.String(this.Val)
+	val := conv.Bytes(this.Val)
 	data = append(data, byte(len(val)))
 	data = append(data, val...)
 	return data

@@ -1,6 +1,8 @@
 package io
 
-import "net/http"
+import (
+	"net/http"
+)
 
 type Model struct {
 	Type string      `json:"type"`           //请求类型,例如测试连接ping,写入数据write... 推荐请求和响应通过code区分

@@ -253,3 +253,19 @@ func (this *Count) Write(p []byte) (int, error) {
 	this.count += int64(n)
 	return n, err
 }
+
+//====================
+
+// SplitWithLength 按最大长度分割字节
+func SplitWithLength(p []byte, max uint64) [][]byte {
+	if max == 0 {
+		return [][]byte{}
+	}
+	list := [][]byte(nil)
+	for uint64(len(p)) > max {
+		list = append(list, p[:max])
+		p = p[max:]
+	}
+	list = append(list, p)
+	return list
+}

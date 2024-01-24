@@ -19,22 +19,7 @@ func dealFunc(bind *maps.Safe, wait *wait.Entity, c *io.Client, msg io.Message) 
 		c.CloseWithErr(err)
 		return
 	}
-	cm := conv.NewMap(req.Data)
-	switch req.Type {
-	case io.Register:
-		if req.IsRequest() {
-			c.Tag().Set(io.Register, true)
-			c.WriteAny(req.Resp(
-				http.StatusOK,
-				g.Map{"key": conv.String(g.UUID())},
-				"注册成功",
-			))
-		} else {
-			c.Tag().Set(io.Register, true)
-			c.Tag().Set(io.Register+".key", cm.GetString("key"))
-		}
-		return
-	}
+
 	if req.IsRequest() {
 		h, ok := bind.Get(req.Type)
 		if !ok {
@@ -42,14 +27,14 @@ func dealFunc(bind *maps.Safe, wait *wait.Entity, c *io.Client, msg io.Message) 
 			return
 		}
 		//协程处理,防止阻塞
-		go func(c *io.Client, h Handler, m *io.Model, cm *conv.Map) {
-			data, err := h(context.Background(), cm)
+		go func(c *io.Client, h Handler, m *io.Model) {
+			data, err := h(context.Background(), c, m)
 			c.WriteAny(m.Resp(
 				conv.SelectInt(err == nil, http.StatusOK, http.StatusInternalServerError),
 				data,
 				conv.New(err).String("成功"),
 			))
-		}(c, h.(Handler), req, cm)
+		}(c, h.(Handler), req)
 		return
 	}
 	//响应数据

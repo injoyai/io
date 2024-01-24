@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"github.com/injoyai/base/g"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/base/maps/wait"
 	"github.com/injoyai/conv"
@@ -10,7 +11,7 @@ import (
 	"time"
 )
 
-type Handler func(ctx context.Context, msg *conv.Map) (interface{}, error)
+type Handler func(ctx context.Context, c *io.Client, msg *io.Model) (interface{}, error)
 
 type Server struct {
 	*io.Server
@@ -49,5 +50,15 @@ func NewServer(port int, waitTimeout time.Duration, option ...io.OptionServer) (
 	s.SetDealFunc(ser.dealFunc)
 	s.SetTimeout(io.DefaultKeepAlive * 3)
 	s.SetTimeoutInterval(io.DefaultKeepAlive)
+	ser.Bind(io.Register, func(ctx context.Context, c *io.Client, msg *io.Model) (interface{}, error) {
+		key := g.UUID()
+		m := conv.NewMap(msg.Data)
+		c.Tag().Set(io.Register, true)
+		c.Tag().Set(io.Register+".key", key)
+		c.Tag().Set(io.Register+".name", m.GetString("name"))
+		c.Tag().Set(io.Register+".memo", m.GetString("memo"))
+		c.Tag().Set(io.Register+".version", m.GetString("version"))
+		return g.Map{"key": key}, nil
+	})
 	return ser, nil
 }

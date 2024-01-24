@@ -131,7 +131,7 @@ func ScanSerial(addr string, timeout time.Duration, write []byte) (*SerialConfig
 					if err == nil {
 						return cfg, resp
 					}
-					logs.Errf("%v %v", cfg, err)
+					logs.Errf("%v %v\n", cfg, err)
 				}
 			}
 		}
