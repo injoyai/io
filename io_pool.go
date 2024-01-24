@@ -1,6 +1,7 @@
 package io
 
 import (
+	"github.com/injoyai/conv"
 	"sync"
 	"sync/atomic"
 )
@@ -24,7 +25,7 @@ type Pool struct {
 	putNum  uint64
 }
 
-func (this *Pool) Num() int {
+func (this *Pool) Len() int {
 	return len(this.pool)
 }
 
@@ -63,8 +64,19 @@ func (this *Pool) Put(c *Client) {
 		atomic.AddUint64(&this.putNum, 1)
 		this.mu.Lock()
 		defer this.mu.Unlock()
-		this.pool[c.GetKey()] = c
+		this.pool[c.Pointer()] = c
 	}
+}
+
+func (this *Pool) PutNew(num int) error {
+	for i := 0; i < num; i++ {
+		c, err := this.new()
+		if err != nil {
+			return err
+		}
+		this.Put(c)
+	}
+	return nil
 }
 
 // Write 实现io.Writer接口
@@ -77,6 +89,11 @@ func (this *Pool) Write(p []byte) (int, error) {
 	return c.Write(p)
 }
 
+// WriteAny 实现io.AnyWriter接口
+func (this *Pool) WriteAny(any interface{}) (int, error) {
+	return this.Write(conv.Bytes(any))
+}
+
 // Close 实现io.Closer接口
 func (this *Pool) Close() error {
 	for _, v := range this.pool {
@@ -84,4 +101,8 @@ func (this *Pool) Close() error {
 	}
 	this.pool = make(map[string]*Client)
 	return nil
+}
+
+func (this *Pool) Closed() bool {
+	return false
 }

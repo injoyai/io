@@ -3,8 +3,9 @@ package io
 import "time"
 
 const (
-	Ping = "ping"
-	Pong = "pong"
+	Ping     = "ping"
+	Pong     = "pong"
+	Register = "register"
 
 	B   = 1         //1B
 	KB  = 1024 * B  //1KB

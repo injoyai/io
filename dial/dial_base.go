@@ -50,6 +50,10 @@ func RedialTCP(addr string, options ...io.OptionClient) *io.Client {
 	return io.Redial(WithTCP(addr), options...)
 }
 
+func RedialTCPTimeout(addr string, timeout time.Duration, options ...io.OptionClient) *io.Client {
+	return io.Redial(WithTCPTimeout(addr, timeout), options...)
+}
+
 //================================UDPDial================================
 
 // UDP 连接

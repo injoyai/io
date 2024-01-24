@@ -184,6 +184,7 @@ func (this *ICloser) Err() error {
 // Closed 是否已关闭
 func (this *ICloser) Closed() bool {
 	//方便业务逻辑 xxx==nil || xxx.Closed
+	//对象是nil,也能调用对象的方法,不能调用对象的字段
 	if this == nil {
 		return true
 	}

@@ -349,8 +349,14 @@ func ReadWithPkg(buf *bufio.Reader) (result []byte, err error) {
 					bs = make([]byte, length)
 					_, err = io.ReadAtLeast(buf, bs, length)
 					result = append(result, bs...)
-					return result, nil
 
+					//return result, nil
+
+					p, err := DecodePkg(result)
+					if err != nil {
+						return nil, err
+					}
+					return p.Data, nil
 				}
 			}
 		}
