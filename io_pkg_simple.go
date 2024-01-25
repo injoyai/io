@@ -8,12 +8,6 @@ import (
 	"io"
 )
 
-const (
-	SimpleRead      = 0x01
-	SimpleWrite     = 0x02
-	SimpleSubscribe = 0x03
-)
-
 /*
 
 简易封装包
@@ -29,7 +23,7 @@ const (
 .=======================================================================================.
 |bit7				|bit6			|bit5~0												|
 |---------------------------------------------------------------------------------------|
-|数据方向0请求,1响应	|响应是否有错误	|预留
+|数据方向0请求,1响应	|响应是否有错误	|1读取,2写入,3订阅								    |
 ^=======================================================================================^
 
 
@@ -45,10 +39,45 @@ const (
 
 */
 
+type SimpleControl struct {
+	IsResponse bool
+	IsErr      bool
+	Type       uint8
+}
+
+func (this SimpleControl) Byte() uint8 {
+	b := this.Type
+	if this.IsResponse {
+		b |= 0x80
+	}
+	if this.IsErr {
+		b |= 0x40
+	}
+	return b
+}
+
+const (
+	SimpleNone      = 0x00 //自定义
+	SimpleRead      = 0x01 //读取
+	SimpleWrite     = 0x02 //写入
+	SimpleSubscribe = 0x03 //订阅
+
+)
+
 type Simple struct {
-	Control uint8 //控制码,基本信息,方向,错误等
-	Type    uint8 //类型,1读,2写,3订阅
-	Data    []SimpleKeyVal
+	Control SimpleControl //控制码,基本信息,方向,错误等 类型,1读,2写,3订阅
+	Data    SimpleData    //数据
+}
+
+func (this *Simple) Bytes() g.Bytes {
+	bs := []byte{0x68}
+	data := this.Data.Bytes()
+	length := uint16(len(data) + 3)
+	bs = append(bs, conv.Bytes(length)...) //后续数据长度
+	bs = append(bs, this.Control.Byte())   //控制码
+	bs = append(bs, data...)               //数据
+	bs = append(bs, this.sum(bs))          //校验
+	return bs
 }
 
 func (this *Simple) sum(bs []byte) byte {
@@ -59,34 +88,32 @@ func (this *Simple) sum(bs []byte) byte {
 	return sum
 }
 
-func (this *Simple) Bytes() g.Bytes {
-	bs := []byte{0x68}
+type SimpleData map[string][]byte
+
+func (this SimpleData) Bytes() g.Bytes {
 	data := []byte(nil)
-	for _, v := range this.Data {
-		data = append(data, v.Bytes()...)
+	for k, v := range this {
+		data = append(data, byte(len(k)))
+		data = append(data, k...)
+		data = append(data, byte(len(v)))
+		data = append(data, v...)
 	}
-	length := uint16(len(data) + 3)
-	bs = append(bs, conv.Bytes(length)...) //后续数据长度
-	bs = append(bs, this.Control)          //控制码
-	bs = append(bs, this.Type)             //数据类型
-	bs = append(bs, data...)               //数据
-	bs = append(bs, this.sum(bs))          //校验
-	return bs
-}
-
-type SimpleKeyVal struct {
-	Key string
-	Val interface{}
-}
-
-func (this *SimpleKeyVal) Bytes() []byte {
-	data := []byte(nil)
-	data = append(data, byte(len(this.Key)))
-	data = append(data, this.Key...)
-	val := conv.Bytes(this.Val)
-	data = append(data, byte(len(val)))
-	data = append(data, val...)
 	return data
+}
+
+func (this SimpleData) SMap() map[string]string {
+	data := map[string]string{}
+	for k, v := range this {
+		data[k] = string(v)
+	}
+	return data
+}
+
+func NewSimple(control SimpleControl, data SimpleData) *Simple {
+	return &Simple{
+		Control: control,
+		Data:    data,
+	}
 }
 
 func DecodeSimple(bs []byte) (*Simple, error) {
@@ -97,32 +124,37 @@ func DecodeSimple(bs []byte) (*Simple, error) {
 		return nil, fmt.Errorf("帧头错误,预期(0x68),得到(%x)", bs[0])
 	}
 	length := conv.Int(bs[1:3])
-	if len(bs) != length+3 {
-		return nil, fmt.Errorf("数据总长度错误,预期(%d),得到(%d)", length+3, len(bs))
+	if len(bs) != length+2 {
+		return nil, fmt.Errorf("数据总长度错误,预期(%d),得到(%d)", length+2, len(bs))
 	}
 	p := &Simple{
-		Control: bs[3],
-		Type:    bs[4],
-		Data:    make([]SimpleKeyVal, 0),
+		Control: SimpleControl{
+			IsResponse: bs[3]&0x80 == 1,
+			IsErr:      bs[3]&0x40 == 1,
+			Type:       bs[3] & 0x3F,
+		},
+		Data: map[string][]byte{},
 	}
 	sum := p.sum(bs[:len(bs)-1])
 	if sum != bs[len(bs)-1] {
 		return nil, fmt.Errorf("数据校验错误,预期(%x),得到(%x)", sum, bs[len(bs)-1])
 	}
 
-	data := bs[5 : length-1]
+	data := bs[4 : len(bs)-1]
 	for len(data) > 0 {
-		kv := SimpleKeyVal{}
 		keyLen := data[0]
 		if len(data) < int(1+keyLen) {
 			break
 		}
-		kv.Key = string(data[1 : 1+keyLen])
+		k := string(data[1 : 1+keyLen])
+
 		valLen := data[1+keyLen]
 		if len(data) < int(1+keyLen+1+valLen) {
 			break
 		}
-		kv.Val = string(data[1+keyLen+1 : 1+keyLen+1+valLen])
+		v := data[1+keyLen+1 : 1+keyLen+1+valLen]
+		p.Data[k] = v
+
 		data = data[1+keyLen+1+valLen:]
 	}
 

@@ -39,17 +39,17 @@ func (this *Server) Listen(Type, port string, options ...io.OptionServer) (*io.S
 			this.bridgeClient.Del(c.GetKey())
 		})
 		s.SetDealFunc(func(c *io.Client, msg io.Message) {
-			list := io.NewFrameBridgeBytes(
-				c.Tag().GetBytes("ip"),
-				c.Tag().GetUint16("port"),
-				msg,
-			)
-			for _, bs := range list {
+			for _, bs := range io.SplitWithLength(msg, 65500) {
 				val, _ := this.bridgeClient.GetOrSetByHandler(Type+"."+port, func() (interface{}, error) {
 					return []*io.Client(nil), nil
 				})
 				for _, v := range val.([]*io.Client) {
-					v.Write(bs)
+					v.Write(io.NewSimple(io.SimpleControl{Type: io.SimpleWrite}, io.SimpleData{
+						"listenPort": []byte(port),
+						"ip":         c.Tag().GetBytes("ip"),
+						"port":       c.Tag().GetBytes("port"),
+						"msg":        bs,
+					}).Bytes())
 				}
 			}
 		})
@@ -75,22 +75,23 @@ func NewServer(port int, options ...io.OptionServer) (*Server, error) {
 		return nil
 	})
 	ser.bridge.SetDealFunc(func(c2 *io.Client, msg io.Message) {
-		p, err := io.DecodeBridge(msg)
+		p, err := io.DecodeSimple(msg)
 		if err != nil {
 			ser.bridge.Logger.Errorf("decode bridge error:%v", err)
 			return
 		}
-		l := ser.Get(io.TCP, conv.String(p.ListenPort))
+		m := p.Data.SMap()
+		l := ser.Get(io.TCP, m["listenPort"])
 		if l == nil {
 			//todo 不存在怎么处理
 			return
 		}
-		c := l.GetClient(p.Address())
+		c := l.GetClient(m["ip"] + ":" + m["port"])
 		if c == nil {
 			//todo 不存在怎么处理
 			return
 		}
-		if _, err := c.Write(p.Data); err != nil {
+		if _, err := c.Write(p.Data["msg"]); err != nil {
 			//todo 错误怎么处理
 			return
 		}
