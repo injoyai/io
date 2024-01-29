@@ -269,3 +269,10 @@ func SplitWithLength(p []byte, max uint64) [][]byte {
 	list = append(list, p)
 	return list
 }
+
+// ReadLeast 读取最少least字节,除非返回错误
+func ReadLeast(r io.Reader, least int) ([]byte, error) {
+	buf := make([]byte, least)
+	n, err := io.ReadAtLeast(r, buf, least)
+	return buf[:n], err
+}

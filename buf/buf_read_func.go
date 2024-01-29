@@ -63,6 +63,13 @@ func ReadPrefix(buf *bufio.Reader, prefix []byte) ([]byte, error) {
 	return cache, nil
 }
 
+// ReadLeast 读取至少x字节,除非返回错误
+func ReadLeast(r *bufio.Reader, min int) ([]byte, error) {
+	buf := make([]byte, min)
+	n, err := io.ReadAtLeast(r, buf, min)
+	return buf[:n], err
+}
+
 /*
 
 
