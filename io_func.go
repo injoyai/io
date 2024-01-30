@@ -79,29 +79,38 @@ func ReadBytes(r Reader, length int) ([]byte, error) {
 	return bs[:n], err
 }
 
-/*
-
-
-
-
- */
-
 // CopyWith 复制数据,每次固定4KB,并提供函数监听
-func CopyWith(w Writer, r Reader, fn func(buf []byte)) (int, error) {
+func CopyWith(w Writer, r Reader, fn func(buf []byte)) (int64, error) {
 	return CopyNWith(w, r, DefaultBufferSize, fn)
 }
 
+// CopyWithPlan 复制数据,返回进度情况
+func CopyWithPlan(w Writer, r Reader, f func(p *Plan)) (int64, error) {
+	p := &Plan{
+		Index:   0,
+		Current: 0,
+		Total:   0,
+		Bytes:   nil,
+	}
+	return CopyWith(w, r, func(buf []byte) {
+		p.Index++
+		p.Current += int64(len(buf))
+		p.Bytes = buf
+		f(p)
+	})
+}
+
 // CopyNWith 复制数据,每次固定大小,并提供函数监听
-func CopyNWith(w Writer, r Reader, n int64, fn func(buf []byte)) (int, error) {
+func CopyNWith(w Writer, r Reader, n int64, fn func(buf []byte)) (int64, error) {
 	buff := bufio.NewReader(r)
-	length := 0
+	length := int64(0)
 	buf := make([]byte, n)
 	for {
 		num, err := buff.Read(buf)
 		if err != nil && err != io.EOF {
 			return length, err
 		}
-		length += num
+		length += int64(num)
 		if fn != nil {
 			fn(buf[:num])
 		}
@@ -112,26 +121,6 @@ func CopyNWith(w Writer, r Reader, n int64, fn func(buf []byte)) (int, error) {
 			return length, nil
 		}
 	}
-}
-
-/*
-
-
-
- */
-
-// MultiCloser 多个关闭合并
-func MultiCloser(closer ...Closer) Closer {
-	return &multiCloser{closer: closer}
-}
-
-// PublisherToWriter Publisher to Writer
-func PublisherToWriter(p Publisher, topic string) Writer {
-	return &publishToWriter{topic: topic, Publisher: p}
-}
-
-func NewReadWriter(r Reader, w Writer) ReadWriteCloser {
-	return &readWriter{Reader: r, Writer: w}
 }
 
 // SwapClient 数据交换
@@ -156,105 +145,6 @@ func Swap(i1, i2 ReadWriter) error {
 func Bridge(i1, i2 ReadWriter) error {
 	return Swap(i1, i2)
 }
-
-/*
-
-
-
- */
-
-type messageReader struct {
-	buf  *bufio.Reader
-	read func(buf *bufio.Reader) ([]byte, error)
-}
-
-func (this *messageReader) ReadMessage() ([]byte, error) {
-	return this.read(this.buf)
-}
-
-type multiCloser struct {
-	closer []Closer
-}
-
-func (this *multiCloser) Close() (err error) {
-	for _, v := range this.closer {
-		if er := v.Close(); er != nil {
-			err = er
-		}
-	}
-	return
-}
-
-type publishToWriter struct {
-	topic string
-	Publisher
-}
-
-func (this *publishToWriter) Write(p []byte) (int, error) {
-	err := this.Publisher.Publish(this.topic, p)
-	return len(p), err
-}
-
-type readWriter struct {
-	Reader
-	Writer
-}
-
-func (this *readWriter) Close() error { return nil }
-
-type Read func(p []byte) (int, error)
-
-func (this Read) Read(p []byte) (int, error) {
-	return this(p)
-}
-
-type Write func(p []byte) (int, error)
-
-func (this Write) Write(p []byte) (int, error) {
-	return this(p)
-}
-
-//=================
-
-// MustChan chan []byte 实现 io.Writer,必须等到写入成功为止
-type MustChan chan []byte
-
-func (this MustChan) Write(p []byte) (int, error) {
-	this <- p
-	return len(p), nil
-}
-
-// TryChan chan []byte 实现 io.Writer,尝试写入,不管是否成功
-type TryChan chan []byte
-
-func (this TryChan) Write(p []byte) (int, error) {
-	select {
-	case this <- p:
-		return len(p), nil
-	default:
-		return 0, nil
-	}
-}
-
-//====================
-
-// Count 统计写入字节数量
-type Count struct {
-	io.Writer
-	count int64
-}
-
-func (this *Count) Count() int64 {
-	return this.count
-}
-
-func (this *Count) Write(p []byte) (int, error) {
-	n, err := this.Writer.Write(p)
-	this.count += int64(n)
-	return n, err
-}
-
-//====================
 
 // SplitWithLength 按最大长度分割字节
 func SplitWithLength(p []byte, max uint64) [][]byte {

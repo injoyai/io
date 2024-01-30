@@ -7,17 +7,17 @@ import (
 )
 
 func TestSwap(t *testing.T) {
-	r1 := NewReadWriter(Read(func(p []byte) (int, error) {
+	r1 := NewReadWriter(ReadFunc(func(p []byte) (int, error) {
 		<-time.After(time.Second)
 		return copy(p, []byte("r1")), nil
-	}), Write(func(p []byte) (int, error) {
+	}), WriteFunc(func(p []byte) (int, error) {
 		t.Log(string(p))
 		return len(p), nil
 	}))
-	r2 := NewReadWriter(Read(func(p []byte) (int, error) {
+	r2 := NewReadWriter(ReadFunc(func(p []byte) (int, error) {
 		<-time.After(time.Second)
 		return copy(p, []byte("r2")), nil
-	}), Write(func(p []byte) (int, error) {
+	}), WriteFunc(func(p []byte) (int, error) {
 		t.Log(string(p))
 		return len(p), nil
 	}))

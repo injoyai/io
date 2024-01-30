@@ -43,24 +43,34 @@ func dealErr(err error) error {
 func defaultDealErr(err error) error {
 	if err != nil {
 		s := err.Error()
-		if err == io.EOF {
-			//return ErrRemoteClose
-		} else if strings.Contains(s, "An existing connection was forcibly closed by the remote host") {
+		switch {
+		case err == io.EOF:
+
+		case strings.Contains(s, "An existing connection was forcibly closed by the remote host"):
 			return ErrRemoteCloseUnusual
-		} else if strings.Contains(s, "use of closed network connection") {
-			if strings.Contains(s, "close tcp") {
+
+		case strings.Contains(s, "use of closed network connection"):
+			switch {
+			case strings.Contains(s, "close tcp"):
 				return ErrCloseClose
-			} else if strings.Contains(s, "write tcp") {
+
+			case strings.Contains(s, "write tcp"):
 				return ErrWriteClosed
-			} else if strings.Contains(s, "read tcp") {
+
+			case strings.Contains(s, "read tcp"):
 				return ErrReadClosed
+
 			}
-		} else if strings.Contains(s, "bind: An operation on a socket could not be performed because the system lacked sufficient buffer space or because a queue was full") {
+
+		case strings.Contains(s, "bind: An operation on a socket could not be performed because the system lacked sufficient buffer space or because a queue was full"):
 			return ErrPortNull
-		} else if strings.Contains(s, "connectex: No connection could be made because the target machine actively refused it.") {
+
+		case strings.Contains(s, "connectex: No connection could be made because the target machine actively refused it."):
 			return ErrRemoteOff
-		} else if strings.Contains(s, "A socket operation was attempted to an unreachable network") {
+
+		case strings.Contains(s, "A socket operation was attempted to an unreachable network"):
 			return ErrNetworkUnusual
+
 		}
 	}
 	return err

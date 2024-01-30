@@ -101,11 +101,6 @@ func (this *IWriter) WriteSplit(p []byte, length int) (int, error) {
 
 // WriteString 写入字符串,实现io.StringWriter
 func (this *IWriter) WriteString(s string) (int, error) {
-	return this.WriteASCII(s)
-}
-
-// WriteASCII 写入ascii码数据
-func (this *IWriter) WriteASCII(s string) (int, error) {
 	return this.Write([]byte(s))
 }
 

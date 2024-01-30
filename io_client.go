@@ -215,10 +215,10 @@ func (this *Client) GoTimerWriteBytes(interval time.Duration, p []byte) {
 	})
 }
 
-// GoTimerWriteASCII 协程,定时写入字符数据
-func (this *Client) GoTimerWriteASCII(interval time.Duration, s string) {
+// GoTimerWriteString 协程,定时写入字符数据
+func (this *Client) GoTimerWriteString(interval time.Duration, s string) {
 	this.GoTimerWriter(interval, func(w *IWriter) error {
-		_, err := w.WriteASCII(s)
+		_, err := w.WriteString(s)
 		return err
 	})
 }
