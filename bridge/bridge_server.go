@@ -118,7 +118,7 @@ func NewServer(port int, options ...io.OptionServer) (*Server, error) {
 		//判断订阅客户端的消息类型
 		switch p.Control.Type {
 		case io.SimpleSubscribe:
-			c2.Logger.Infof("订阅[%s]", listenKey)
+			c2.Logger.Infof("[%s] 订阅[%s]\n", c2.GetKey(), listenKey)
 			c2.Tag().Set("listenType", listenType)
 			c2.Tag().Set("listenPort", listenPort)
 			c2.Tag().Set("listenKey", listenKey)
