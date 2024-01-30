@@ -124,6 +124,12 @@ func (this *ClientManage) SetReadWriteWithPkg() {
 	this.SetWriteFunc(WriteWithPkg)
 }
 
+// SetReadWriteWithSimple 设置读写为简易包
+func (this *ClientManage) SetReadWriteWithSimple() {
+	this.SetReadFunc(ReadWithSimple)
+	this.SetWriteFunc(WriteWithSimple)
+}
+
 // SetDealQueueNum 设置数据处理队列协程数量,并发处理
 // 例如处理方式是进行数据转发(或处理较慢)时,会出现阻塞,后续数据等待过长
 func (this *ClientManage) SetDealQueueNum(n int) {

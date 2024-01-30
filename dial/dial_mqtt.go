@@ -101,6 +101,7 @@ func (this *MQTTClient) Close() error {
 			err = token.Error()
 		}
 	}
+	this.Client.Disconnect(0)
 	return err
 }
 

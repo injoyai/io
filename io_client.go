@@ -332,6 +332,13 @@ func (this *Client) SetReadWriteWithPkg() *Client {
 	return this
 }
 
+// SetReadWriteWithSimple 设置读写为简易包
+func (this *Client) SetReadWriteWithSimple() *Client {
+	this.IWriter.SetWriteFunc(WriteWithSimple)
+	this.IReader.SetReadFunc(ReadWithSimple)
+	return nil
+}
+
 // SetReadWriteWithStartEnd 设置读取写入数据根据包头包尾
 func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *Client {
 	this.IWriter.SetWriteWithStartEnd(packageStart, packageEnd)
