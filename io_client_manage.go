@@ -452,6 +452,7 @@ func (this *ClientManage) _dealFunc(c *Client, msg Message) {
 func (this *ClientManage) _closeFunc(closeFunc ...func(ctx context.Context, msg Message)) func(ctx context.Context, c *Client, msg Message) {
 	return func(ctx context.Context, c *Client, msg Message) {
 		defer func() {
+			c.CloseAll()
 			for _, f := range closeFunc {
 				if f != nil {
 					f(ctx, msg)
