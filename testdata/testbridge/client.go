@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/injoyai/io/bridge"
+	"github.com/injoyai/io/extend/bridge"
 	"github.com/injoyai/logs"
 )
 

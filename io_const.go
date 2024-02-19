@@ -50,7 +50,19 @@ const (
 )
 
 const (
-	TypeConnect = 0x01 // "connect" 建立连接
-	TypeWrite   = 0x02 // "write" 写入数据
-	TypeClose   = 0x03 // "close" 关闭连接
+	OprPing      = 0x00 // "ping" 心跳
+	OprRead      = 0x01 // "read" 读取数据
+	OprWrite     = 0x02 // "write" 写入数据
+	OprSubscribe = 0x03 // "subscribe" 订阅数据
+	OprConnect   = 0x04 // "connect" 建立连接
+	OprClose     = 0x05 // "close" 关闭连接
+)
+
+const (
+	FliedKey     = "key"
+	FliedCode    = "code"
+	FliedData    = "data"
+	FliedMsg     = "msg"
+	FliedAddress = "address"
+	FliedError   = "error"
 )

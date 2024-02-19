@@ -31,30 +31,27 @@ func (this *Server) Listen(Type, port string, options ...io.OptionServer) (*io.S
 		s.SetBeforeFunc(func(c *io.Client) error {
 			conn := c.ReadWriteCloser().(net.Conn)
 			addr := conn.RemoteAddr().String()
-			//list := strings.Split(addr, ":")
-			//port := list[len(list)-1]
-			//ip := net.ParseIP(strings.Join(list[:len(list)-1], ":"))
-			//c.Tag().Set("ip", ip)
-			//c.Tag().Set("port", port)
-			c.Tag().Set("address", addr)
+			c.Tag().Set(io.FliedAddress, addr)
 			return nil
 		})
 		s.SetCloseFunc(func(c *io.Client, msg io.Message) {
 			this.bridgeClient.Del(c.GetKey())
 		})
+		msgID := uint8(0)
 		s.SetDealFunc(func(c *io.Client, msg io.Message) {
 			//处理客户端上来的数据
 			for _, bs := range io.SplitWithLength(msg, 65500) {
+				msgID++
 				val, _ := this.bridgeClient.GetOrSetByHandler(listenKey, func() (interface{}, error) {
 					return []*io.Client(nil), nil
 				})
 				for _, v := range val.([]*io.Client) {
 					//向订阅者发送客户端上来的数据
-					v.Write(io.NewSimple(io.SimpleControl{Type: io.SimpleWrite}, io.SimpleData{
-						"key":  []byte(listenKey),
-						"addr": c.Tag().GetBytes("address"),
-						"data": bs,
-					}).Bytes())
+					v.Write(io.NewSimple(io.SimpleControl{Type: io.OprWrite}, io.SimpleData{
+						io.FliedKey:     []byte(listenKey),
+						io.FliedAddress: c.Tag().GetBytes(io.FliedAddress),
+						io.FliedData:    bs,
+					}, msgID).Bytes())
 				}
 			}
 		})
@@ -109,29 +106,29 @@ func NewServer(port int, options ...io.OptionServer) (*Server, error) {
 			return
 		}
 
-		listenType := string(p.Data["listenType"]) //监听服务的类型
-		listenPort := string(p.Data["listenPort"]) //监听服务的端口
+		listenType := string(p.Data[FliedListenType]) //监听服务的类型
+		listenPort := string(p.Data[FliedListenPort]) //监听服务的端口
 		listenKey := listenType + "." + listenPort
-		address := string(p.Data["address"]) //客户端的地址
-		data := p.Data["msg"]                //消息内容
+		address := string(p.Data[io.FliedAddress]) //客户端的地址
+		data := p.Data[io.FliedMsg]                //消息内容
 
 		//判断订阅客户端的消息类型
 		switch p.Control.Type {
-		case io.SimpleSubscribe:
+		case io.OprSubscribe:
 			c2.Logger.Infof("[%s] 订阅[%s]\n", c2.GetKey(), listenKey)
-			c2.Tag().Set("listenType", listenType)
-			c2.Tag().Set("listenPort", listenPort)
-			c2.Tag().Set("listenKey", listenKey)
+			c2.Tag().Set(FliedListenType, listenType)
+			c2.Tag().Set(FliedListenPort, listenPort)
+			c2.Tag().Set(FliedListenKey, listenKey)
 			v, _ := ser.bridgeClient.GetOrSetByHandler(listenKey, func() (interface{}, error) {
 				return []*io.Client{}, nil
 			})
 			ser.bridgeClient.Set(listenKey, append(v.([]*io.Client), c2))
-			_, err := c2.Write(p.Resp(io.SimpleData{"code": conv.Bytes(uint16(200))}).Bytes())
+			_, err := c2.Write(p.Resp(io.SimpleData{io.FliedCode: conv.Bytes(uint16(200))}).Bytes())
 			if err != nil {
 				ser.bridge.Logger.Errorf("订阅[%s]失败: %v", listenKey, err)
 			}
 
-		case io.SimpleWrite:
+		case io.OprWrite:
 			l := ser.Listener.MustGet(listenKey)
 			if l == nil {
 				_, err := c2.Write(p.Resp(nil, fmt.Errorf("监听服务[%s.%s]未开启", listenType, listenPort)).Bytes())

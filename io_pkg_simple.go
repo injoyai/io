@@ -56,16 +56,8 @@ func (this SimpleControl) Byte() uint8 {
 	return b
 }
 
-const (
-	SimpleNone      = 0x00 //自定义
-	SimpleRead      = 0x01 //读取
-	SimpleWrite     = 0x02 //写入
-	SimpleSubscribe = 0x03 //订阅
-
-)
-
 type Simple struct {
-	Control SimpleControl //控制码,基本信息,方向,错误等 类型,1读,2写,3订阅
+	Control SimpleControl //控制码,基本信息,方向,错误等 类型,1读,2写,3订阅,4通知
 	MsgID   uint8         //消息序号
 	Data    SimpleData    //数据
 }
@@ -77,7 +69,7 @@ func (this *Simple) Resp(data SimpleData, err ...error) *Simple {
 	this.Control.IsResponse = true
 	if len(err) > 0 && err[0] != nil {
 		this.Control.IsErr = true
-		data["error"] = conv.Bytes(err[0])
+		data[FliedError] = conv.Bytes(err[0])
 	}
 	this.Data = data
 	return this
@@ -122,6 +114,14 @@ func (this SimpleData) SMap() map[string]string {
 		data[k] = string(v)
 	}
 	return data
+}
+
+func NewSimplePing() *Simple {
+	return &Simple{
+		Control: SimpleControl{
+			Type: OprPing,
+		},
+	}
 }
 
 func NewSimple(control SimpleControl, data SimpleData, msgID ...uint8) *Simple {

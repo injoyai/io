@@ -23,7 +23,7 @@ func TestDecodeSimple(t *testing.T) {
 func TestNewSimple(t *testing.T) {
 	p := &Simple{
 		Control: SimpleControl{
-			Type: SimpleRead,
+			Type: OprRead,
 		},
 		Data: SimpleData{
 			"key1": []byte("val1"),

@@ -15,9 +15,9 @@ type Client struct {
 }
 
 func (this *Client) Subscribe(Type string, port string) error {
-	_, err := this.Write(io.NewSimple(io.SimpleControl{Type: io.SimpleSubscribe}, io.SimpleData{
-		"listenType": []byte(Type),
-		"listenPort": []byte(port),
+	_, err := this.Write(io.NewSimple(io.SimpleControl{Type: io.OprSubscribe}, io.SimpleData{
+		FliedListenType: []byte(Type),
+		FliedListenPort: []byte(port),
 	}, 3).Bytes())
 	if err != nil {
 		return err
@@ -34,6 +34,7 @@ func RedialClient(address string, option ...func(c *Client)) *Client {
 		cli.Client = c
 		c.Logger.SetPrintWithUTF8()
 		c.SetReadWriteWithSimple()
+		c.SetKeepAlive(io.DefaultKeepAlive, io.NewSimplePing().Bytes())
 		c.SetDealFunc(func(c *io.Client, msg io.Message) {
 			p, err := io.DecodeSimple(msg)
 			if err != nil {
@@ -42,19 +43,19 @@ func RedialClient(address string, option ...func(c *Client)) *Client {
 			}
 
 			switch p.Control.Type {
-			case io.SimpleSubscribe:
+			case io.OprSubscribe:
 
 				if p.Control.IsResponse {
 					if p.Control.IsErr {
-						cli.wait.Done("3", nil, errors.New(string(p.Data["error"])))
+						cli.wait.Done("3", nil, errors.New(string(p.Data[io.FliedError])))
 						return
 					}
 					cli.wait.Done("3", nil)
 				}
 
-			case io.SimpleWrite:
+			case io.OprWrite:
 
-				log.Printf("[接收] [%s] %s", string(p.Data["addr"]), string(p.Data["data"]))
+				log.Printf("[接收] [%s] %s", string(p.Data[io.FliedAddress]), string(p.Data[io.FliedData]))
 
 			}
 		})
