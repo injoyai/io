@@ -13,7 +13,7 @@ func NewICloser(closer Closer) *ICloser {
 
 func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 	ctxParent, cancelParent := context.WithCancel(ctx)
-	ctx, cancel := context.WithCancel(ctxParent)
+	ctxChild, cancelChild := context.WithCancel(ctxParent)
 	return &ICloser{
 		Key:           "",
 		Logger:        defaultLogger(),
@@ -23,8 +23,8 @@ func NewICloserWithContext(ctx context.Context, closer Closer) *ICloser {
 		closeFunc:     nil,
 		closeErr:      nil,
 		closed:        0,
-		ctx:           ctx,
-		cancel:        cancel,
+		ctx:           ctxChild,
+		cancel:        cancelChild,
 		ctxParent:     ctxParent,
 		cancelParent:  cancelParent,
 	}
