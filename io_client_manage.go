@@ -365,7 +365,7 @@ func (this *ClientManage) WriteClientAll(p []byte) {
 func (this *ClientManage) TryWriteClientAll(p []byte) {
 	for _, c := range this.GetClientMap() {
 		//写入到队列,避免阻塞,加入不了则丢弃数据
-		c.TryWriteQueue(p)
+		c.WriteQueueTry(p)
 	}
 }
 

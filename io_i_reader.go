@@ -47,12 +47,12 @@ func (this *IReader) BytesCount() int64 {
 	return this.bytesCount
 }
 
-//================================Read================================
-
 // Buffer 极大的增加读取速度
 func (this *IReader) Buffer() *bufio.Reader {
 	return this.buf
 }
+
+//================================Read================================
 
 // Read io.reader
 func (this *IReader) Read(p []byte) (int, error) {

@@ -1,11 +1,12 @@
 package io
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io/buf"
+	"sync"
 	"time"
 )
 
@@ -31,7 +32,10 @@ type IWriter struct {
 	Key
 	Logger     *logger
 	writer     Writer                         //io.Writer
-	writeFunc  func(p []byte) ([]byte, error) //写入函数
+	writeFunc  func(p []byte) ([]byte, error) //写入函数,处理写入内容
+	err        error                          //
+	queue      chan []byte                    //写入队列
+	queueOnce  sync.Once                      //队列初始化
 	lastTime   time.Time                      //最后写入时间
 	bytesCount int64                          //写入的字节数
 }
@@ -54,8 +58,25 @@ func (this *IWriter) BytesCount() int64 {
 	return this.bytesCount
 }
 
+//================================Write================================
+
 // Write 写入字节,实现io.Writer
 func (this *IWriter) Write(p []byte) (n int, err error) {
+	//记录错误,用于队列的判断
+	defer func() {
+		if err != nil {
+			this.err = err
+			if this.queue != nil {
+				for {
+					select {
+					case <-this.queue:
+					default:
+						return
+					}
+				}
+			}
+		}
+	}()
 	if this.writeFunc != nil {
 		p, err = this.writeFunc(p)
 		if err != nil {
@@ -150,6 +171,57 @@ func (this *IWriter) WriteChan(c chan interface{}) (int64, error) {
 	return total, nil
 }
 
+//================================Queue================================
+
+func (this *IWriter) WriteQueue(p []byte) (int, error) {
+	if this.err != nil {
+		return 0, this.err
+	}
+	this.initQueue()
+	this.queue <- p
+	return len(p), nil
+}
+
+func (this *IWriter) WriteQueueTry(p []byte) (int, error) {
+	if this.err != nil {
+		return 0, this.err
+	}
+	this.initQueue()
+	select {
+	case this.queue <- p:
+		return len(p), nil
+	default:
+		return 0, errors.New("队列已满")
+	}
+}
+
+func (this *IWriter) WriteQueueTimeout(p []byte, timeout time.Duration) (int, error) {
+	if this.err != nil {
+		return 0, this.err
+	}
+	this.initQueue()
+	select {
+	case this.queue <- p:
+		return len(p), nil
+	case <-time.After(timeout):
+		return 0, ErrWithWriteTimeout
+	}
+}
+
+func (this *IWriter) initQueue() {
+	this.queueOnce.Do(func() {
+		this.queue = make(chan []byte, DefaultChannelSize)
+		go func() {
+			//defer close(queue) 自动回收
+			for p := range this.queue {
+				if _, err := this.Write(p); err != nil {
+					return
+				}
+			}
+		}()
+	})
+}
+
 //================================WriteFunc================================
 
 // SetWriteFunc 设置写入函数,封装数据包,same SetWriteBeforeFunc
@@ -171,21 +243,4 @@ func (this *IWriter) SetWriteWithNil() *IWriter {
 // SetWriteWithStartEnd 设置写入函数,增加头尾
 func (this *IWriter) SetWriteWithStartEnd(start, end []byte) *IWriter {
 	return this.SetWriteFunc(buf.NewWriteWithStartEnd(start, end))
-}
-
-// NewWriteQueue 新建写入队列
-func (this *IWriter) NewWriteQueue(ctx context.Context, length ...int) chan []byte {
-	queue := make(chan []byte, conv.GetDefaultInt(100, length...))
-	go func(ctx context.Context) {
-		//defer close(queue) 自动回收
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case p := <-queue:
-				this.Write(p)
-			}
-		}
-	}(ctx)
-	return queue
 }

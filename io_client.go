@@ -161,27 +161,6 @@ func (this *Client) GetKey() string {
 	return this.IReadCloser.GetKey()
 }
 
-// WriteQueue 按队列写入
-func (this *Client) WriteQueue(p []byte) *Client {
-	queue, _ := this.Tag().GetOrSetByHandler(writeQueueKey, func() (interface{}, error) {
-		return this.IWriter.NewWriteQueue(this.Ctx()), nil
-	})
-	queue.(chan []byte) <- p
-	return this
-}
-
-// TryWriteQueue 尝试按队列写入,加入不了会丢弃
-func (this *Client) TryWriteQueue(p []byte) *Client {
-	queue, _ := this.Tag().GetOrSetByHandler(writeQueueKey, func() (interface{}, error) {
-		return this.IWriter.NewWriteQueue(this.Ctx()), nil
-	})
-	select {
-	case queue.(chan []byte) <- p:
-	default:
-	}
-	return this
-}
-
 // WriteReadWithTimeout 同步写读,超时
 func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error) {
 	if _, err = this.Write(request); err != nil {
