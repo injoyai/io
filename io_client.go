@@ -66,7 +66,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser, options ...Opt
 		return c
 	}
 	c := &Client{
-		Key:         "",
+		//Key:         "",
 		IReadCloser: NewIReadCloserWithContext(ctx, i),
 		IWriter:     NewIWriter(i),
 		i:           i,
@@ -85,7 +85,7 @@ Client 通用IO客户端
 可以作为普通的io.ReadWriteCloser(Run函数不执行)
 */
 type Client struct {
-	Key
+	//Key
 	*IReadCloser
 	*IWriter
 
