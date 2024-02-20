@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-const (
-	writeQueueKey = "_write_queue"
-)
-
 // NewIWriter 新建写
 func NewIWriter(writer Writer) *IWriter {
 	if c, ok := writer.(*IWriter); ok && c != nil {
@@ -33,7 +29,7 @@ type IWriter struct {
 	Logger     *logger
 	writer     Writer                         //io.Writer
 	writeFunc  func(p []byte) ([]byte, error) //写入函数,处理写入内容
-	err        error                          //
+	err        error                          //写入错误信息
 	queue      chan []byte                    //写入队列
 	queueOnce  sync.Once                      //队列初始化
 	lastTime   time.Time                      //最后写入时间

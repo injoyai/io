@@ -18,6 +18,10 @@ const (
 	LevelNone Level = 999
 )
 
+var (
+	nullLogger = NewLoggerWithWriter(&null{})
+)
+
 type Level int
 
 func (this Level) Name() string {
@@ -43,11 +47,11 @@ func NewLogger(l Logger) *logger {
 }
 
 func newLogger(l Logger) *logger {
-	if l == nil {
-		l = NewLoggerNull()
-	}
 	if l2, ok := l.(*logger); ok {
 		return l2
+	}
+	if l == nil {
+		l = nullLogger
 	}
 	return &logger{
 		Logger: l,
@@ -162,9 +166,9 @@ func NewLoggerChan() (Logger, chan []byte) {
 	return NewLoggerWithChan(c), c
 }
 
-// NewLoggerNull 新建无输出的日志
-func NewLoggerNull() Logger {
-	return NewLoggerWithWriter(&null{})
+// NullLogger 无输出的日志
+func NullLogger() Logger {
+	return nullLogger
 }
 
 type Logger interface {

@@ -15,9 +15,13 @@ func NewIReader(r Reader) *IReader {
 		lastChan: make(chan Message),
 		lastTime: time.Now(),
 	}
-	if v, ok := r.(MessageReader); ok {
+	switch v := r.(type) {
+	case MessageReader:
 		i.mReader = v
-	} else {
+	case *bufio.Reader:
+		//需要自定义大小的话,传入*bufio.Reader类型
+		i.buf = v
+	default:
 		//todo 优化缓存大小可配置
 		i.buf = bufio.NewReaderSize(r, DefaultBufferSize)
 	}

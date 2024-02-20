@@ -18,22 +18,21 @@ func NewIReadCloserWithContext(ctx context.Context, readCloser ReadCloser) *IRea
 		return c
 	}
 	return &IReadCloser{
-		IReader:  NewIReader(readCloser),
-		ICloser:  NewICloserWithContext(ctx, readCloser),
-		running:  0,
-		timeout:  0,
-		readSign: make(chan struct{}),
+		IReader:      NewIReader(readCloser),
+		ICloser:      NewICloserWithContext(ctx, readCloser),
+		running:      0,
+		timeout:      0,
+		timeoutReset: make(chan struct{}),
 	}
 }
 
 type IReadCloser struct {
 	*IReader
 	*ICloser
-	dealFunc func(msg Message) //处理数据函数
-	running  uint32            //是否在运行
-	timeout  time.Duration     //超时时间,读取
-	readSign chan struct{}     //读取到数据信号,配合超时机制使用
-	queue    *chans.Entity     //协程队列,可选
+	dealFunc     func(msg Message) //处理数据函数
+	running      uint32            //是否在运行
+	timeout      time.Duration     //超时时间,读取
+	timeoutReset chan struct{}     //超时重置
 }
 
 //================================Nature================================
@@ -117,20 +116,14 @@ func (this *IReadCloser) SetDealWithChan(c chan Message) *IReadCloser {
 	})
 }
 
-// SetDealQueueFunc 设置协程队列处理数据
+// SetDealWithQueue 设置协程队列处理数据
 // @num 协程数量
-// @no 协程序号
-// @count 当前协程执行次数
-// @msg 消息内容
-func (this *IReadCloser) SetDealQueueFunc(num int, fn func(msg Message)) *IReadCloser {
-	if this.queue == nil {
-		this.queue = chans.NewEntity(num).SetHandler(func(ctx context.Context, no, count int, data interface{}) {
-			fn(data.(Message))
-		})
-	} else {
-		this.queue.SetNum(num)
-	}
-	this.SetDealFunc(func(msg Message) { this.queue.Do(msg) })
+// @fn 处理函数
+func (this *IReadCloser) SetDealWithQueue(num int, fn func(msg Message)) *IReadCloser {
+	queue := chans.NewEntity(num).SetHandler(func(ctx context.Context, no, count int, data interface{}) {
+		fn(data.(Message))
+	})
+	this.SetDealFunc(func(msg Message) { queue.Do(msg) })
 	return this
 }
 
@@ -150,18 +143,21 @@ func (this *IReadCloser) Run() error {
 
 	//todo is a good idea ?
 	if this.timeout > 0 {
-		go func() {
+		go func(ctx context.Context) {
 			timer := time.NewTimer(this.timeout)
 			defer timer.Stop()
 			for {
 				timer.Reset(this.timeout)
 				select {
+				case <-ctx.Done():
+					return
 				case <-timer.C:
 					_ = this.CloseWithErr(ErrWithReadTimeout)
-				case <-this.readSign:
+					return
+				case <-this.timeoutReset:
 				}
 			}
-		}()
+		}(this.ICloser.Ctx())
 	}
 
 	readFunc := func(ctx context.Context) (err error) {
@@ -172,7 +168,7 @@ func (this *IReadCloser) Run() error {
 		}
 		//尝试加入通道,超时定时器重置
 		select {
-		case this.readSign <- struct{}{}:
+		case this.timeoutReset <- struct{}{}:
 		default:
 		}
 		//处理数据

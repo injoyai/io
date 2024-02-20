@@ -216,8 +216,9 @@ func (this *ICloser) Close() error {
 func (this *ICloser) TryCloseWithDeadline() error {
 	return this.closeWithErr(ErrHandClose, func(closer Closer) error {
 		switch c := closer.(type) {
-		case interface{ SetWriteDeadline(t time.Time) error }:
-			return c.SetWriteDeadline(time.Time{})
+		case interface{ SetDeadline(t time.Time) error }:
+			//例如net.Conn,表示没有数据读或者写,则关闭连接
+			return c.SetDeadline(time.Time{})
 		default:
 			return closer.Close()
 		}
@@ -240,7 +241,7 @@ func (this *ICloser) closeWithErr(closeErr error, fn ...func(Closer) error) (err
 		this.closeErr = dealErr(closeErr)
 		//关闭子级上下文
 		this.cancel()
-		//关闭实例
+		//关闭实例,可自定义关闭方式,例如设置超时
 		if len(fn) == 0 {
 			err = this.closer.Close()
 		} else {
@@ -257,6 +258,9 @@ func (this *ICloser) closeWithErr(closeErr error, fn ...func(Closer) error) (err
 			//需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
 			this.closeFunc(this.CtxAll(), msg)
 		}
+		//如果执行到了这里,则说明没有重试,则关闭父级上下文
+		//重复关闭会怎么样? 测试可以重复关闭
+		this.cancelParent()
 	}
 	return
 }
