@@ -40,7 +40,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 				return
 			default:
 				now := time.Now()
-				for _, v := range e.GetClientMap() {
+				for _, v := range e.CopyClientMap() {
 					if e.timeout > 0 && now.Sub(v.IReadCloser.LastTime()) > e.timeout {
 						_ = v.CloseWithErr(ErrWithReadTimeout)
 					}
@@ -298,9 +298,9 @@ func (this *ClientManage) GetClientLen() int {
 }
 
 // GetClientMap 获取客户端map,元数据,注意安全
-func (this *ClientManage) GetClientMap() map[string]*Client {
-	return this.m
-}
+//func (this *ClientManage) GetClientMap() map[string]*Client {
+//	return this.m
+//}
 
 // CopyClientMap 复制所有客户端数据
 func (this *ClientManage) CopyClientMap() map[string]*Client {
@@ -344,18 +344,20 @@ func (this *ClientManage) WriteClient(key string, p []byte) (bool, error) {
 
 // WriteClientAll 广播,发送数据给所有连接,加入到连接的队列
 func (this *ClientManage) WriteClientAll(p []byte) {
-	for _, c := range this.GetClientMap() {
+	this.RangeClient(func(key string, c *Client) bool {
 		//写入到队列,避免阻塞
 		c.WriteQueue(p)
-	}
+		return true
+	})
 }
 
 // TryWriteClientAll 广播,发送数据给所有连接,尝试加入到连接的队列
 func (this *ClientManage) TryWriteClientAll(p []byte) {
-	for _, c := range this.GetClientMap() {
+	this.RangeClient(func(key string, c *Client) bool {
 		//写入到队列,避免阻塞,加入不了则丢弃数据
 		c.WriteQueueTry(p)
-	}
+		return true
+	})
 }
 
 // WriteClientAny 写入任意一个客户端数据
