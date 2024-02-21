@@ -226,7 +226,7 @@ func (this *Client) Debug(b ...bool) {
 
 // SetLogger 设置日志
 func (this *Client) SetLogger(logger Logger) *Client {
-	l := newLogger(logger)
+	l := NewLogger(logger)
 	this.Logger = l
 	this.IWriter.Logger = l
 	this.IReadCloser.IReader.Logger = l
@@ -282,14 +282,20 @@ func (this *Client) SetOptions(options ...OptionClient) *Client {
 
 // SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
 func (this *Client) SetDealFunc(fn func(c *Client, msg Message)) *Client {
+	pingLen := len(Ping)
+	pongLen := len(Pong)
 	this.IReadCloser.SetDealFunc(func(msg Message) {
-		switch msg.String() {
-		case Ping:
-			this.WriteString(Pong)
-		case Pong:
-		default:
-			fn(this, msg)
+		//先判断长度,减少字节转字符的内存分配,最好用指针的方式(直接用字节的指针)
+		if msg.Len() == pingLen || msg.Len() == pongLen {
+			switch msg.String() {
+			case Ping:
+				this.WriteString(Pong)
+				return
+			case Pong:
+				return
+			}
 		}
+		fn(this, msg)
 	})
 	return this
 }

@@ -64,7 +64,7 @@ func (this *IReadCloser) Debug(b ...bool) {
 }
 
 func (this *IReadCloser) SetLogger(logger Logger) *IReadCloser {
-	l := newLogger(logger)
+	l := NewLogger(logger)
 	this.IReader.Logger = l
 	this.ICloser.Logger = l
 	return this

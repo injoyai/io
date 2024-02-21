@@ -40,7 +40,7 @@ type IWriter struct {
 
 // SetLogger 设置日志
 func (this *IWriter) SetLogger(logger Logger) *IWriter {
-	this.Logger = newLogger(logger)
+	this.Logger = NewLogger(logger)
 	return this
 }
 

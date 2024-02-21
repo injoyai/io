@@ -48,7 +48,7 @@ func NewServer(port int, waitTimeout time.Duration, option ...io.OptionServer) (
 	}
 	s.SetReadWriteWithPkg()
 	s.SetDealFunc(ser.dealFunc)
-	s.SetTimeout(io.DefaultKeepAlive * 3)
+	s.SetTimeout(io.DefaultTimeout)
 	s.SetTimeoutInterval(io.DefaultKeepAlive)
 	ser.Bind(io.Register, func(ctx context.Context, c *io.Client, msg *io.Model) (interface{}, error) {
 		key := g.UUID()

@@ -23,7 +23,7 @@ func NewIReader(r Reader) *IReader {
 		i.buf = v
 	default:
 		//todo 优化缓存大小可配置
-		i.buf = bufio.NewReaderSize(r, DefaultBufferSize)
+		i.buf = bufio.NewReaderSize(r, DefaultBufferSize+1)
 	}
 	i.SetReadFunc(buf.ReadWithAll)
 	return i

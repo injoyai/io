@@ -19,7 +19,8 @@ const (
 )
 
 var (
-	nullLogger = NewLoggerWithWriter(&null{})
+	nullLogger   = NewLoggerWithWriter(&null{})
+	stdoutLogger = NewLoggerWithWriter(os.Stdout)
 )
 
 type Level int
@@ -39,14 +40,15 @@ func (this Level) Name() string {
 }
 
 func defaultLogger() *logger {
-	return newLogger(NewLoggerWithStdout())
+	return NewLogger(stdoutLogger)
+}
+
+// NewLoggerWithNull 无输出的日志
+func NewLoggerWithNull() *logger {
+	return NewLogger(nullLogger)
 }
 
 func NewLogger(l Logger) *logger {
-	return newLogger(l)
-}
-
-func newLogger(l Logger) *logger {
 	if l2, ok := l.(*logger); ok {
 		return l2
 	}
@@ -150,11 +152,6 @@ func NewLoggerWithWriter(w Writer) Logger {
 	return &logWriter{w}
 }
 
-// NewLoggerWithStdout 新建输出到终端的日志
-func NewLoggerWithStdout() Logger {
-	return NewLoggerWithWriter(os.Stdout)
-}
-
 // NewLoggerWithChan 新建输出到指定通道的日志
 func NewLoggerWithChan(c chan []byte) Logger {
 	return NewLoggerWithWriter(TryChan(c))
@@ -164,11 +161,6 @@ func NewLoggerWithChan(c chan []byte) Logger {
 func NewLoggerChan() (Logger, chan []byte) {
 	c := make(chan []byte, 10)
 	return NewLoggerWithChan(c), c
-}
-
-// NullLogger 无输出的日志
-func NullLogger() Logger {
-	return nullLogger
 }
 
 type Logger interface {

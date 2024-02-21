@@ -81,7 +81,7 @@ func (this *Server) Debug(b ...bool) {
 }
 
 func (this *Server) SetLogger(logger Logger) *Server {
-	l := newLogger(logger)
+	l := NewLogger(logger)
 	this.Logger = l
 	this.ICloser.Logger = l
 	this.ClientManage.Logger = l

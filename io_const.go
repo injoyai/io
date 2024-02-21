@@ -16,14 +16,15 @@ const (
 	PB  = 1024 * TB //1PB
 	EB  = 1024 * PB //1EB
 
-	DefaultBufferSize      = KB4              //默认buff大小,4KB
-	DefaultChannelSize     = 100              //默认通道大小
-	DefaultPort            = 10086            //默认端口
-	DefaultPortStr         = ":10086"         //默认端口
-	DefaultConnectTimeout  = time.Second * 2  //默认连接时间
-	DefaultKeepAlive       = time.Minute * 10 //默认保持连接时间
-	DefaultTimeoutInterval = time.Minute      //默认离线检查间隔
-	DefaultResponseTimeout = time.Second * 10 //默认响应超时时间
+	DefaultBufferSize      = KB                   //默认buff大小,1KB
+	DefaultChannelSize     = 100                  //默认通道大小
+	DefaultPort            = 10086                //默认端口
+	DefaultPortStr         = ":10086"             //默认端口
+	DefaultConnectTimeout  = time.Second * 2      //默认连接时间
+	DefaultKeepAlive       = time.Minute * 10     //默认保持连接时间
+	DefaultTimeout         = DefaultKeepAlive * 3 //默认超时时间,3个keepalive时间
+	DefaultTimeoutInterval = time.Minute          //默认离线检查间隔
+	DefaultResponseTimeout = time.Second * 10     //默认响应超时时间
 
 )
 

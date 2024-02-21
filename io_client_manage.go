@@ -18,7 +18,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 		mu:              sync.RWMutex{},
 		ctx:             ctx,
 		readChan:        make(chan Message, DefaultChannelSize),
-		timeout:         DefaultKeepAlive * 3,
+		timeout:         DefaultTimeout,
 		timeoutInterval: DefaultTimeoutInterval,
 		ClientOptions: ClientOptions{
 			beforeFunc: nil,

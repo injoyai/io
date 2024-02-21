@@ -4,7 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"sync"
 	"time"
+)
+
+const (
+	DefaultBufferSize = 1024
 )
 
 type (
@@ -12,12 +17,17 @@ type (
 	WriteFunc func(req []byte) ([]byte, error)
 )
 
+var buffPool = sync.Pool{New: func() interface{} {
+	return make([]byte, DefaultBufferSize)
+}}
+
 // ReadWithAll 默认读取函数,读取全部数据
 func ReadWithAll(buf *bufio.Reader) (bytes []byte, err error) {
 	//read,单次读取大小不影响速度
-	num := 4096
+	num := DefaultBufferSize
+	data := buffPool.Get().([]byte)
+	defer buffPool.Put(data)
 	for {
-		data := make([]byte, num)
 		length, err := buf.Read(data)
 		if err != nil {
 			return nil, err

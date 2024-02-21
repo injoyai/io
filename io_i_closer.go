@@ -49,7 +49,7 @@ type ICloser struct {
 
 // SetLogger 设置日志
 func (this *ICloser) SetLogger(logger Logger) *ICloser {
-	this.Logger = newLogger(logger)
+	this.Logger = NewLogger(logger)
 	return this
 }
 
@@ -120,7 +120,7 @@ func (this *ICloser) timer(ctx context.Context, dealErr func(error) error, inter
 	if interval > 0 {
 		timer := time.NewTimer(interval)
 		defer timer.Stop()
-		for {
+		for i := 0; ; i++ {
 			timer.Reset(interval)
 			select {
 			case <-ctx.Done():
