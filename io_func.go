@@ -96,7 +96,9 @@ func CopyWithPlan(w Writer, r Reader, f func(p *Plan)) (int64, error) {
 		p.Index++
 		p.Current += int64(len(buf))
 		p.Bytes = buf
-		f(p)
+		if f != nil {
+			f(p)
+		}
 	})
 }
 
