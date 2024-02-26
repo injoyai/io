@@ -184,7 +184,7 @@ func (this *Server) SetCloseFunc(fn func(c *Client, msg Message)) *Server {
 // Swap 和一个IO交换数据
 func (this *Server) Swap(i ReadWriteCloser) *Server {
 	c := NewClient(i)
-	c.SetReadWithAll()
+	c.SetReadWith1KB()
 	return this.SwapClient(c)
 }
 

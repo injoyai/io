@@ -84,7 +84,7 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 	ser := &Server{}
 	_, err := io.NewServer(dial, func(s *io.Server) {
 		//读取全部数据
-		s.SetReadWithAll()
+		s.SetReadWithKB(1)
 		//s.SetPrintFunc(func(msg io.Message, tag ...string) {
 		//	io.PrintWithASCII(msg.Bytes(), append([]string{"PR|S"}, tag...)...)
 		//})

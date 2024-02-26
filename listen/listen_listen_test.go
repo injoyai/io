@@ -55,7 +55,7 @@ func TestIOSpeed(t *testing.T) {
 	go RunTCPServer(io.DefaultPort, func(s *io.Server) {
 		s.Logger.SetLevel(io.LevelInfo)
 		s.Logger.Debug(false)
-		s.SetReadWithAll() //100毫秒
+		s.SetReadWith1KB() //100毫秒
 		s.SetReadWithMB(1) //65毫秒
 		s.SetDealFunc(func(c *io.Client, msg io.Message) {
 			t.Log("数据长度: ", msg.Len())

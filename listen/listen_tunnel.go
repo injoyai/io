@@ -62,7 +62,7 @@ func NewTunnelClient(s *io.Server, tunDial io.DialFunc, proxyAddr string, option
 		}
 
 		{
-			client.SetReadWithAll()
+			client.SetReadWith1KB()
 			client.SetDealFunc(func(c *io.Client, msg io.Message) {
 				//写入数据
 				tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
@@ -121,7 +121,7 @@ func NewTunnelServer(s *io.Server) {
 					default:
 						c, err = dial.NewTCP(string(m.Data), func(c *io.Client) {
 							c.Debug(false)
-							c.SetReadWithAll()
+							c.SetReadWith1KB()
 							c.SetDealFunc(func(c *io.Client, msg io.Message) {
 								//写入数据
 								tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))

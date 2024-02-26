@@ -4,41 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"io"
-	"sync"
 	"time"
-)
-
-const (
-	DefaultBufferSize = 1024
 )
 
 type (
 	ReadFunc  func(buf *bufio.Reader) (bytes []byte, err error)
 	WriteFunc func(req []byte) ([]byte, error)
 )
-
-var buffPool = sync.Pool{New: func() interface{} {
-	return make([]byte, DefaultBufferSize)
-}}
-
-// ReadWithAll 默认读取函数,读取全部数据
-func ReadWithAll(buf *bufio.Reader) (bytes []byte, err error) {
-	//read,单次读取大小不影响速度
-	num := DefaultBufferSize
-	data := buffPool.Get().([]byte)
-	defer buffPool.Put(data)
-	for {
-		length, err := buf.Read(data)
-		if err != nil {
-			return nil, err
-		}
-		bytes = append(bytes, data[:length]...)
-		if length < num || buf.Buffered() == 0 {
-			//缓存没有剩余的数据
-			return bytes, err
-		}
-	}
-}
 
 // ReadWithLine 读取一行
 func ReadWithLine(buf *bufio.Reader) (bytes []byte, err error) {
@@ -73,11 +45,23 @@ func ReadPrefix(buf *bufio.Reader, prefix []byte) ([]byte, error) {
 	return cache, nil
 }
 
+// ReadMost 读取至多x字节
+func ReadMost(r *bufio.Reader, max int) ([]byte, error) {
+	buf := make([]byte, max)
+	n, err := r.Read(buf)
+	return buf[:n], err
+}
+
 // ReadLeast 读取至少x字节,除非返回错误
 func ReadLeast(r *bufio.Reader, min int) ([]byte, error) {
 	buf := make([]byte, min)
 	n, err := io.ReadAtLeast(r, buf, min)
 	return buf[:n], err
+}
+
+// Read1KB 读取1KB数据
+func Read1KB(buf *bufio.Reader) ([]byte, error) {
+	return ReadMost(buf, 1024)
 }
 
 /*
@@ -86,19 +70,27 @@ func ReadLeast(r *bufio.Reader, min int) ([]byte, error) {
 
  */
 
-func NewReadWithKB(n uint) func(buf *bufio.Reader) ([]byte, error) {
+func NewReadWithB(n int) func(buf *bufio.Reader) ([]byte, error) {
+	data := make([]byte, n)
 	return func(buf *bufio.Reader) ([]byte, error) {
-		bytes := make([]byte, n<<10)
-		length, err := buf.Read(bytes)
-		return bytes[:length], err
+		length, err := buf.Read(data)
+		return data[:length], err
+	}
+}
+
+func NewReadWithKB(n uint) func(buf *bufio.Reader) ([]byte, error) {
+	data := make([]byte, n<<10)
+	return func(buf *bufio.Reader) ([]byte, error) {
+		length, err := buf.Read(data)
+		return data[:length], err
 	}
 }
 
 func NewReadWithMB(n uint) func(buf *bufio.Reader) ([]byte, error) {
+	data := make([]byte, n<<20)
 	return func(buf *bufio.Reader) ([]byte, error) {
-		bytes := make([]byte, n<<20)
-		length, err := buf.Read(bytes)
-		return bytes[:length], err
+		length, err := buf.Read(data)
+		return data[:length], err
 	}
 }
 
@@ -139,3 +131,38 @@ func NewReadWithTimeout(timeout time.Duration) ReadFunc {
 func NewReadWithFrame(f *Frame) ReadFunc {
 	return f.ReadMessage
 }
+
+/*
+
+
+
+ */
+
+//var buffPool = sync.Pool{New: func() interface{} {
+//	return make([]byte, DefaultBufferSize)
+//}}
+
+//// ReadWithAll 默认读取函数,读取全部数据
+//// todo 有个bug,当发送的字节数是缓存的倍数时候,会继续读取,但是没有后续数据,会一直阻塞
+//func ReadWithAll(buf *bufio.Reader) (bytes []byte, err error) {
+//	//read,单次读取大小不影响速度
+//	num := DefaultBufferSize
+//	data := buffPool.Get().([]byte)
+//	defer buffPool.Put(data)
+//	for {
+//		length, err := buf.Read(data)
+//		if err != nil {
+//			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+//				//时间内读取不到新数据了
+//				bytes = append(bytes, data[:length]...)
+//				return
+//			}
+//			return nil, err
+//		}
+//		bytes = append(bytes, data[:length]...)
+//		if length < num || buf.Buffered() == 0 {
+//			//缓存没有剩余的数据,todo 但是不确定后续是否有数据,后续没数据则会阻塞
+//			return bytes, nil
+//		}
+//	}
+//}

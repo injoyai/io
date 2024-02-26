@@ -27,7 +27,7 @@ func TestNewSerial(t *testing.T) {
 	//c.SetPrintFunc(func(msg io.Message, tag ...string) {
 	//	logs.Debug(tag, msg)
 	//})
-	c.SetReadWithAll()
+	c.SetReadWith1KB()
 	t.Log(c.Run())
 
 	select {}
@@ -47,7 +47,7 @@ func TestNewSerial2(t *testing.T) {
 	//c.SetPrintFunc(func(msg io.Message, tag ...string) {
 	//	logs.Debug(tag, msg)
 	//})
-	c.SetReadWithAll()
+	c.SetReadWith1KB()
 	go c.Run()
 
 	//_, err = c.Write([]byte("+++"))

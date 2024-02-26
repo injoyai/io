@@ -112,7 +112,7 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 			proxyClient.Debug(this.debug)
 			proxyClient.SetLogger(this.Logger)
 			proxyClient.SetKey(msg.Addr)
-			proxyClient.SetReadFunc(buf.ReadWithAll)
+			proxyClient.SetReadFunc(buf.Read1KB) //(buf.ReadWithAll)
 			proxyClient.SetDealFunc(func(c *io.Client, m io.Message) {
 				this.AddMessage(msg.Response(m.Bytes()))
 			})

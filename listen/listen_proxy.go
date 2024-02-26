@@ -9,7 +9,7 @@ func NewProxyServer(listen io.ListenFunc, dial io.DialFunc, options ...io.Option
 	return io.NewServer(listen, func(s *io.Server) {
 		s.Logger.Debug(false)
 		s.SetOptions(options...)
-		s.SetReadWithAll()
+		s.SetReadWith1KB()
 		s.SetBeforeFunc(func(client *io.Client) error {
 			_, err := io.NewDial(dial, func(c *io.Client) {
 				c.Debug(false)

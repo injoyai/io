@@ -24,7 +24,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 			beforeFunc: nil,
 			closeFunc:  nil,
 			dealFunc:   nil,
-			readFunc:   buf.ReadWithAll,
+			readFunc:   buf.Read1KB,
 			writeFunc:  nil,
 		},
 	}
@@ -89,15 +89,19 @@ func (this *ClientManage) SetReadWithKB(n uint) {
 	this.SetReadFunc(buf.NewReadWithKB(n))
 }
 
+func (this *ClientManage) SetReadWith1KB() {
+	this.SetReadFunc(buf.Read1KB)
+}
+
 // SetReadWithMB 设置读取固定字节长度
 func (this *ClientManage) SetReadWithMB(n uint) {
 	this.SetReadFunc(buf.NewReadWithMB(n))
 }
 
-// SetReadWithAll 设置客户端读取函数:读取全部
-func (this *ClientManage) SetReadWithAll() {
-	this.SetReadFunc(buf.ReadWithAll)
-}
+//// SetReadWithAll 设置客户端读取函数:读取全部
+//func (this *ClientManage) SetReadWithAll() {
+//	this.SetReadFunc(buf.ReadWithAll)
+//}
 
 // SetWriteFunc 设置客户端的数据发送函数
 func (this *ClientManage) SetWriteFunc(fn func([]byte) ([]byte, error)) {

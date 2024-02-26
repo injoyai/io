@@ -29,7 +29,7 @@ func (this *messageReader) SetReadFunc(fn ReadFunc) *messageReader {
 // ReadMessage 读取数据 实现接口 MessageReader
 func (this *messageReader) ReadMessage() ([]byte, error) {
 	if this.readFunc == nil {
-		this.readFunc = ReadWithAll
+		this.readFunc = Read1KB
 	}
 	return this.readFunc(this.buf)
 }

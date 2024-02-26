@@ -2,8 +2,10 @@ package io
 
 import (
 	"bufio"
+	"errors"
 	"github.com/injoyai/io/buf"
 	"io"
+	"net"
 	"time"
 )
 
@@ -12,6 +14,7 @@ func NewIReader(r Reader) *IReader {
 	i := &IReader{
 		Key:      "",
 		Logger:   defaultLogger(),
+		reader:   r,
 		lastChan: make(chan Message),
 		lastTime: time.Now(),
 	}
@@ -25,13 +28,14 @@ func NewIReader(r Reader) *IReader {
 		//todo 优化缓存大小可配置
 		i.buf = bufio.NewReaderSize(r, DefaultBufferSize+1)
 	}
-	i.SetReadFunc(buf.ReadWithAll)
+	i.SetReadFunc(buf.Read1KB)
 	return i
 }
 
 type IReader struct {
 	Key
 	Logger     *logger
+	reader     Reader
 	mReader    MessageReader                           //接口MessageReader,兼容Reader
 	buf        *bufio.Reader                           //buffer
 	readFunc   func(buf *bufio.Reader) ([]byte, error) //读取函数
@@ -69,9 +73,9 @@ func (this *IReader) ReadByte() (byte, error) {
 	return this.Buffer().ReadByte()
 }
 
-// ReadAll 读取全部数据
-func (this *IReader) ReadAll() ([]byte, error) {
-	return buf.ReadWithAll(this.Buffer())
+// Read1KB 读取全部数据
+func (this *IReader) Read1KB() ([]byte, error) {
+	return buf.Read1KB(this.Buffer())
 }
 
 // ReadMessage 实现MessageReader接口
@@ -109,15 +113,15 @@ func (this *IReader) CopyTo(writer Writer) (int64, error) {
 //================================ReadFunc================================
 
 // SetReadFunc 设置读取函数
-func (this *IReader) SetReadFunc(fn func(*bufio.Reader) ([]byte, error)) *IReader {
+func (this *IReader) SetReadFunc(fn func(r *bufio.Reader) ([]byte, error)) *IReader {
 	this.readFunc = func(reader *bufio.Reader) (bs []byte, err error) {
 		switch true {
 		case this.mReader != nil:
 			//特殊处理MessageReader
 			bs, err = this.mReader.ReadMessage()
 		case fn == nil:
-			//默认读取全部
-			bs, err = buf.ReadWithAll(reader)
+			//默认读取1kb字节
+			bs, err = buf.Read1KB(reader)
 		default:
 			//按用户设置函数
 			bs, err = fn(reader)
@@ -147,9 +151,9 @@ func (this *IReader) SetReadWithPkg() *IReader {
 	return this.SetReadFunc(ReadWithPkg)
 }
 
-// SetReadWithAll 一次性全部读取
-func (this *IReader) SetReadWithAll() *IReader {
-	return this.SetReadFunc(buf.ReadWithAll)
+// SetReadWith1KB 每次读取1字节
+func (this *IReader) SetReadWith1KB() {
+	this.SetReadFunc(buf.Read1KB)
 }
 
 // SetReadWithKB 读取固定字节长度
@@ -171,6 +175,35 @@ func (this *IReader) SetReadWithWriter(writer io.Writer) *IReader {
 	return this.SetReadFunc(buf.NewReadWithWriter(writer))
 }
 
+// SetReadWithTimeout 根据超时时间读取数据(需要及时读取,避免阻塞产生粘包),需要支持SetReadDeadline(t time.Time) error接口
+func (this *IReader) SetReadWithTimeout(timeout time.Duration) error {
+	if timeout <= 0 {
+		return errors.New("无效超时时间")
+	}
+	i, ok := this.reader.(interface{ SetReadDeadline(t time.Time) error })
+	if !ok {
+		return errors.New("无法设置超时时间")
+	}
+	buff := make([]byte, 1024)
+	this.SetReadFunc(func(r *bufio.Reader) ([]byte, error) {
+		result := []byte(nil)
+		for {
+			n, err := r.Read(buff)
+			result = append(result, buff[:n]...)
+			if err != nil {
+				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+					return result, nil
+				}
+				return nil, err
+			}
+			if err := i.SetReadDeadline(time.Now().Add(timeout)); err != nil {
+				return nil, err
+			}
+		}
+	})
+	return nil
+}
+
 // Bridge 桥接模式,等同SetReadWithWriter
 func (this *IReader) Bridge(w ...io.Writer) *IReader {
 	return this.SetReadFunc(buf.NewReadWithWriter(MultiWriter(w...)))
@@ -179,11 +212,6 @@ func (this *IReader) Bridge(w ...io.Writer) *IReader {
 // SetReadWithLenFrame 根据动态长度读取数据
 func (this *IReader) SetReadWithLenFrame(f *buf.LenFrame) *IReader {
 	return this.SetReadFunc(buf.NewReadWithLen(f))
-}
-
-// SetReadWithTimeout 根据超时时间读取数据(需要及时读取,避免阻塞产生粘包)
-func (this *IReader) SetReadWithTimeout(timeout time.Duration) *IReader {
-	return this.SetReadFunc(buf.NewReadWithTimeout(timeout))
 }
 
 // SetReadWithFrame 适配预大部分读取
