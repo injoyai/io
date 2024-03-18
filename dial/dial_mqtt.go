@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
@@ -21,7 +22,7 @@ func NewMQTTConfig() *MQTTConfig {
 	return mqtt.NewClientOptions().SetAutoReconnect(false)
 }
 
-func MQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig) (io.ReadWriteCloser, string, error) {
+func MQTT(cfg *MQTTConfig, topic *MQTTTopic) (io.ReadWriteCloser, string, error) {
 	if cfg == nil {
 		cfg = NewMQTTConfig()
 	}
@@ -35,11 +36,11 @@ func MQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig) (io.ReadWriteCloser, string, err
 	}
 	r := &MQTTClient{
 		Client: c,
-		iocfg:  iocfg,
+		topic:  topic,
 		ch:     make(chan mqtt.Message, io.DefaultChannelSize),
 	}
 	var err error
-	for _, v := range iocfg.Subscribe {
+	for _, v := range topic.Subscribe {
 		token := c.Subscribe(v.Topic, v.Qos, func(client mqtt.Client, message mqtt.Message) {
 			r.ch <- message
 		})
@@ -51,22 +52,22 @@ func MQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig) (io.ReadWriteCloser, string, err
 	return r, cfg.Servers[0].Host, err
 }
 
-func WithMQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig) io.DialFunc {
-	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return MQTT(iocfg, cfg) }
+func WithMQTT(cfg *MQTTConfig, topic *MQTTTopic) io.DialFunc {
+	return func(ctx context.Context) (io.ReadWriteCloser, string, error) { return MQTT(cfg, topic) }
 }
 
-func NewMQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig, options ...io.OptionClient) (*io.Client, error) {
-	return io.NewDial(WithMQTT(iocfg, cfg), options...)
+func NewMQTT(cfg *MQTTConfig, topic *MQTTTopic, options ...io.OptionClient) (*io.Client, error) {
+	return io.NewDial(WithMQTT(cfg, topic), options...)
 }
 
-func RedialMQTT(iocfg *MQTTIOConfig, cfg *MQTTConfig, options ...io.OptionClient) *io.Client {
+func RedialMQTT(cfg *MQTTConfig, topic *MQTTTopic, options ...io.OptionClient) *io.Client {
 	cfg.SetAutoReconnect(false)
-	return io.Redial(WithMQTT(iocfg, cfg), options...)
+	return io.Redial(WithMQTT(cfg, topic), options...)
 }
 
 type MQTTClient struct {
 	mqtt.Client
-	iocfg *MQTTIOConfig
+	topic *MQTTTopic
 	ch    chan mqtt.Message
 }
 
@@ -76,13 +77,16 @@ func (this *MQTTClient) Read(p []byte) (int, error) {
 
 func (this *MQTTClient) ReadMessage() ([]byte, error) {
 	msg := <-this.ch
+	if msg == nil {
+		return nil, errors.New("已关闭")
+	}
 	defer msg.Ack()
 	return msg.Payload(), nil
 }
 
 func (this *MQTTClient) Write(p []byte) (int, error) {
 	var err error
-	for _, v := range this.iocfg.Publish {
+	for _, v := range this.topic.Publish {
 		token := this.Client.Publish(v.Topic, v.Qos, v.Retained, p)
 		token.Wait()
 		if token.Error() != nil {
@@ -94,7 +98,7 @@ func (this *MQTTClient) Write(p []byte) (int, error) {
 
 func (this *MQTTClient) Close() error {
 	var err error
-	for _, v := range this.iocfg.Subscribe {
+	for _, v := range this.topic.Subscribe {
 		token := this.Client.Unsubscribe(v.Topic)
 		token.Wait()
 		if token.Error() != nil {
@@ -102,10 +106,11 @@ func (this *MQTTClient) Close() error {
 		}
 	}
 	this.Client.Disconnect(0)
+	close(this.ch)
 	return err
 }
 
-type MQTTIOConfig struct {
+type MQTTTopic struct {
 	Subscribe []MQTTSubscribe
 	Publish   []MQTTPublish
 }

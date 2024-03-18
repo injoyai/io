@@ -12,8 +12,8 @@ type (
 	WriteFunc func(req []byte) ([]byte, error)
 )
 
-// ReadWithLine 读取一行
-func ReadWithLine(buf *bufio.Reader) (bytes []byte, err error) {
+// ReadLine 读取一行
+func ReadLine(buf *bufio.Reader) (bytes []byte, err error) {
 	bytes, _, err = buf.ReadLine()
 	return
 }
@@ -62,6 +62,10 @@ func ReadLeast(r *bufio.Reader, min int) ([]byte, error) {
 // Read1KB 读取1KB数据
 func Read1KB(buf *bufio.Reader) ([]byte, error) {
 	return ReadMost(buf, 1024)
+}
+
+func ReadDefault(buf *bufio.Reader) ([]byte, error) {
+	return buf.ReadBytes('\n')
 }
 
 /*
