@@ -10,7 +10,7 @@ func main() {
 
 	s, err := listen.NewTCPProxyServer(22, "192.168.10.26:22", func(s *io.Server) {
 		s.Debug(true)
-		s.Logger.SetLevel(io.LevelInfo)
+		s.SetLevel(io.LevelInfo)
 	})
 	if err != nil {
 		logs.Err(err)

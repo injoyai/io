@@ -17,7 +17,7 @@ func TestClient(addr string) {
 	for range chans.Count(1000, time.Millisecond*10) {
 		dial.RedialTCP(addr, func(c *io.Client) {
 			c.Debug()
-			c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
+			c.GoTimerWriter(time.Second*3, func(c *io.Client) error {
 				_, err := c.WriteString(time.Now().String())
 				return err
 			})
@@ -30,7 +30,7 @@ func TestClient(addr string) {
 //
 //	go proxy.NewTCPClient(":10089", func(c *io.Client, e *proxy.Entity) {
 //		c.Debug()
-//		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
+//		c.GoTimerWriter(time.Second*3, func(c *io.Client) error {
 //			e.AddMessage(proxy.NewWriteMessage("key", "http://www.baidu.com", nil))
 //			return nil
 //		})

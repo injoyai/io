@@ -11,7 +11,7 @@ import (
 func main() {
 	s, err := listen.NewTCPServer(10089)
 	logs.PanicErr(err)
-	s.Logger.SetPrintWithHEX()
+	s.SetPrintWithHEX()
 	s.SetReadWriteWithPkg()
 	s.SetDealFunc(func(c *io.Client, msg io.Message) {
 		//logs.Debug(msg.String())
@@ -19,9 +19,9 @@ func main() {
 	go s.Run()
 
 	<-dial.RedialTCP("127.0.0.1:10089", func(c *io.Client) {
-		c.Logger.SetPrintWithHEX()
+		c.SetPrintWithHEX()
 		c.SetReadWriteWithPkg()
-		c.GoTimerWriter(time.Second*5, func(w *io.IWriter) error {
+		c.GoTimerWriter(time.Second*5, func(w *io.Client) error {
 			_, err := w.WriteString("666")
 			return err
 		})

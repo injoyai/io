@@ -13,7 +13,7 @@ func TestNewClient(t *testing.T) {
 		c.Debug()
 		c.SetPrintWithUTF8()
 		c.SetKey("test")
-		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
+		c.GoTimerWriter(time.Second*3, func(c *io.Client) error {
 			_, err := c.WriteString("666")
 			return err
 		})

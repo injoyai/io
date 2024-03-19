@@ -9,12 +9,12 @@ import (
 )
 
 func main() {
-	bs := make([]byte, io.DefaultBufferSize+1)
+	bs := make([]byte, io.DefaultBufferSize)
 	go listen.RunTCPServer(10099, func(s *io.Server) {
 		s.Debug(false)
 		s.SetDealFunc(func(c *io.Client, msg io.Message) {
 			s.SetReadWith1KB()
-			if msg.Len() == io.DefaultBufferSize+1 {
+			if msg.Len() == io.DefaultBufferSize {
 				logs.Debug(msg.GetLast())
 			}
 		})
@@ -22,9 +22,9 @@ func main() {
 	<-dial.RedialTCP("127.0.0.1:10099", func(c *io.Client) {
 		c.Debug(false)
 		n := byte(0)
-		c.GoTimerWriter(time.Second, func(w *io.IWriter) error {
+		c.GoTimerWriter(time.Second, func(w *io.Client) error {
 			n++
-			bs[io.DefaultBufferSize] = n
+			bs[io.DefaultBufferSize-1] = n
 			_, err := w.Write(bs)
 			return err
 		})

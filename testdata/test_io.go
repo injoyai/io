@@ -34,7 +34,7 @@ func NewServer(port int) error {
 	if err != nil {
 		return err
 	}
-	s.Logger.Debug()
+	s.Debug()
 	return s.Run()
 }
 
@@ -42,7 +42,7 @@ func NewServer(port int) error {
 func CloseAll(port int) error {
 
 	s, err := listen.NewTCPServer(port, func(s *io.Server) {
-		s.Logger.Debug()
+		s.Debug()
 	})
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func TimeoutClient(port int, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	s.Logger.Debug()
+	s.Debug()
 	return s.Run()
 }
 
@@ -109,7 +109,7 @@ func TimeoutServer(port int, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	s.Logger.Debug()
+	s.Debug()
 	s.SetTimeout(timeout)
 	return s.Run()
 }
@@ -117,14 +117,14 @@ func TimeoutServer(port int, timeout time.Duration) error {
 // GoFor 测试客户端的GoFor函数
 func GoFor(port int) error {
 	s, err := listen.NewTCPServer(port, func(s *io.Server) {
-		s.Logger.Debug()
+		s.Debug()
 	})
 	if err != nil {
 		return err
 	}
 	c := dial.RedialTCP(fmt.Sprintf(":%d", port), func(c *io.Client) {
 		c.Debug()
-		c.GoTimerWriter(time.Second*3, func(c *io.IWriter) error {
+		c.GoTimerWriter(time.Second*3, func(c *io.Client) error {
 			_, err := c.WriteString("666")
 			return err
 		})
@@ -141,7 +141,7 @@ func GoFor(port int) error {
 // ServerMaxClient 测试服务端最大连接数
 func ServerMaxClient(port int) error {
 	s, err := listen.NewTCPServer(port, func(s *io.Server) {
-		s.Logger.Debug()
+		s.Debug()
 		s.SetMaxClient(1)
 	})
 	if err != nil {
@@ -167,7 +167,7 @@ func ClientCtxParent(port int) error {
 	c := io.Redial(dial.WithTCP(fmt.Sprintf(":%d", port)),
 		func(c *io.Client) {
 			c.Debug()
-			c.GoTimerWriter(time.Second, func(c *io.IWriter) error {
+			c.GoTimerWriter(time.Second, func(c *io.Client) error {
 				_, err := c.WriteString("666")
 				return err
 			})
@@ -199,7 +199,7 @@ func Pool(port int) error {
 	}
 	io.NewPool(dial.WithTCP(fmt.Sprintf(":%d", port)), func(c *io.Client) {
 		c.Debug()
-		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
+		c.GoTimerWriter(time.Second*10, func(c *io.Client) error {
 			_, err := c.WriteString("666")
 			return err
 		})
@@ -216,7 +216,7 @@ func PoolWrite(port int) (*io.Pool, error) {
 	}
 	p := io.NewPool(dial.WithTCP(fmt.Sprintf(":%d", port)), func(c *io.Client) {
 		c.Debug()
-		c.GoTimerWriter(time.Second*10, func(c *io.IWriter) error {
+		c.GoTimerWriter(time.Second*10, func(c *io.Client) error {
 			_, err := c.WriteString("666")
 			return err
 		})

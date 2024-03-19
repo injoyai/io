@@ -102,7 +102,7 @@ func NewServer(port int, options ...io.OptionServer) (*Server, error) {
 	ser.bridge.SetDealFunc(func(c2 *io.Client, msg io.Message) {
 		p, err := io.DecodeSimple(msg)
 		if err != nil {
-			ser.bridge.Logger.Errorf("decode bridge error:%v", err)
+			ser.bridge.Errorf("decode bridge error:%v", err)
 			return
 		}
 
@@ -115,7 +115,7 @@ func NewServer(port int, options ...io.OptionServer) (*Server, error) {
 		//判断订阅客户端的消息类型
 		switch p.Control.Type {
 		case io.OprSubscribe:
-			c2.Logger.Infof("[%s] 订阅[%s]\n", c2.GetKey(), listenKey)
+			c2.Infof("[%s] 订阅[%s]\n", c2.GetKey(), listenKey)
 			c2.Tag().Set(FliedListenType, listenType)
 			c2.Tag().Set(FliedListenPort, listenPort)
 			c2.Tag().Set(FliedListenKey, listenKey)
@@ -125,7 +125,7 @@ func NewServer(port int, options ...io.OptionServer) (*Server, error) {
 			ser.bridgeClient.Set(listenKey, append(v.([]*io.Client), c2))
 			_, err := c2.Write(p.Resp(io.SimpleData{io.FliedCode: conv.Bytes(uint16(200))}).Bytes())
 			if err != nil {
-				ser.bridge.Logger.Errorf("订阅[%s]失败: %v", listenKey, err)
+				ser.bridge.Errorf("订阅[%s]失败: %v", listenKey, err)
 			}
 
 		case io.OprWrite:

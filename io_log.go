@@ -78,6 +78,18 @@ func (this *logger) SetLevel(level Level) {
 	this.level = level
 }
 
+func (this *logger) SetLevelAll() {
+	this.SetLevel(LevelAll)
+}
+
+func (this *logger) SetLevelError() {
+	this.SetLevel(LevelError)
+}
+
+func (this *logger) SetLevelInfo() {
+	this.SetLevel(LevelInfo)
+}
+
 // SetPrintCoding 设置字节编码方式
 func (this *logger) SetPrintCoding(coding func(p []byte) string) {
 	this.coding = coding

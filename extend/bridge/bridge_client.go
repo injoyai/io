@@ -32,13 +32,13 @@ func RedialClient(address string, option ...func(c *Client)) *Client {
 	}
 	dial.RedialTCP(address, func(c *io.Client) {
 		cli.Client = c
-		c.Logger.SetPrintWithUTF8()
+		c.SetPrintWithUTF8()
 		c.SetReadWriteWithSimple()
 		c.SetKeepAlive(io.DefaultKeepAlive, io.NewSimplePing().Bytes())
 		c.SetDealFunc(func(c *io.Client, msg io.Message) {
 			p, err := io.DecodeSimple(msg)
 			if err != nil {
-				c.Logger.Errorf("decode bridge error: %v", err)
+				c.Errorf("decode bridge error: %v", err)
 				return
 			}
 

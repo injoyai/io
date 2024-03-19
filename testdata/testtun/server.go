@@ -9,7 +9,7 @@ import (
 func main() {
 	s, err := listen.NewTCPServer(10088, func(s *io.Server) {
 		s.Debug(true)
-		s.Logger.SetPrintWithUTF8()
+		s.SetPrintWithUTF8()
 	})
 	if err != nil {
 		logs.Err(err)

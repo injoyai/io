@@ -27,7 +27,7 @@ func Test(n int) {
 		length := 1000 << 20 //传输的数据大小
 		totalDeal := 0
 		listen.RunTCPServer(10086, func(s *io.Server) {
-			s.Logger.SetLevel(io.LevelInfo)
+			s.SetLevel(io.LevelInfo)
 			s.SetDealFunc(func(c *io.Client, msg io.Message) {
 				if start.IsZero() {
 					start = time.Now()
@@ -74,7 +74,7 @@ func Test(n int) {
 
 		totalDeal := 0
 		go listen.RunTCPServer(20145, func(s *io.Server) {
-			s.Logger.SetLevel(io.LevelError)
+			s.SetLevel(io.LevelError)
 			s.SetReadFunc(readAll)
 			s.SetDealFunc(func(c *io.Client, msg io.Message) {
 				totalDeal += msg.Len()
@@ -86,7 +86,7 @@ func Test(n int) {
 		})
 		<-time.After(time.Second)
 		<-dial.RedialTCP("127.0.0.1:20145", func(c *io.Client) {
-			c.SetPrintWithBase()
+			c.SetLevelInfo()
 			data := make([]byte, length)
 			start = time.Now()
 			c.Write(data)

@@ -12,7 +12,7 @@ func main() {
 
 	s, err := listen.NewTCPServer(10089)
 	logs.PanicErr(err)
-	s.Logger.SetPrintWithHEX()
+	s.SetPrintWithHEX()
 	s.SetReadFunc(io.ReadWithSimple)
 	s.SetWriteFunc(io.WriteWithSimple)
 	s.SetDealFunc(func(c *io.Client, msg io.Message) {
@@ -21,7 +21,7 @@ func main() {
 	go s.Run()
 
 	<-dial.RedialTCP("127.0.0.1:10089", func(c *io.Client) {
-		c.GoTimerWriter(time.Second*5, func(w *io.IWriter) error {
+		c.GoTimerWriter(time.Second*5, func(w *io.Client) error {
 			p := &io.Simple{
 				Control: io.SimpleControl{
 					IsResponse: false,

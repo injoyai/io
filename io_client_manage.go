@@ -41,7 +41,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 			default:
 				now := time.Now()
 				for _, v := range e.CopyClientMap() {
-					if e.timeout > 0 && now.Sub(v.IReadCloser.LastTime()) > e.timeout {
+					if e.timeout > 0 && now.Sub(v.ReadTime()) > e.timeout {
 						_ = v.CloseWithErr(ErrWithReadTimeout)
 					}
 				}
@@ -421,7 +421,8 @@ func (this *ClientManage) SetClientKey(newClient *Client, newKey string) {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 	delete(this.m, newClient.GetKey())
-	this.m[newKey] = newClient.SetKey(newKey)
+	newClient.SetKey(newKey)
+	this.m[newKey] = newClient
 }
 
 /*

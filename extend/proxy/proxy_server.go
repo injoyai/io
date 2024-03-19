@@ -26,7 +26,7 @@ type Server struct {
 }
 
 func (this *Server) Debug(b ...bool) {
-	this.s.Logger.Debug(b...)
+	this.s.Debug(b...)
 }
 
 func (this *Server) Run() error {
@@ -90,7 +90,7 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 		//})
 		ser = &Server{s: s, e: New(), dealFunc: func(msg *CMessage) error {
 			m := "未设置处理函数"
-			s.Logger.Errorf("[PR|S] 未设置处理函数\n")
+			s.Errorf("[PR|S] 未设置处理函数\n")
 			//s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
 			return errors.New(m)
 		}}

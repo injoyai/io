@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/injoyai/base/maps"
+	"github.com/injoyai/base/safe"
 	"sync/atomic"
 	"time"
 )
@@ -31,21 +32,21 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	//新建实例
 	s := &Server{
 		Key:          Key(key),
-		Logger:       defaultLogger(),
-		ICloser:      NewICloserWithContext(ctx, listener),
+		logger:       defaultLogger(),
+		Closer:       safe.NewCloser(),
 		ClientManage: NewClientManage(ctx, key),
 		tag:          maps.NewSafe(),
 		listener:     listener,
 	}
-	s.SetLogger(s.Logger)
 	//开启基础信息打印
 	s.Debug()
 	//设置关闭函数
-	s.ICloser.SetCloseFunc(func(ctx context.Context, msg Message) {
+	s.Closer.SetCloseFunc(func() error {
 		//关闭listener
 		s.listener.Close()
 		//关闭已连接的客户端,关闭listener后,客户端还能正常通讯
-		s.ClientManage.CloseClientAll()
+		s.ClientManage.Close()
+		return nil
 	})
 	//预设服务处理
 	s.SetOptions(options...)
@@ -55,10 +56,9 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 // Server 服务端
 type Server struct {
 	Key
-	*ICloser
 	*ClientManage
-
-	Logger    *logger
+	*logger
+	*safe.Closer
 	tag       *maps.Safe //tag
 	listener  Listener   //listener
 	running   uint32     //是否在运行
@@ -66,80 +66,18 @@ type Server struct {
 	closeTime time.Time  //关闭时间
 }
 
-//================================Logger================================
-
-func (this *Server) SetKey(key string) {
-	this.Key.SetKey(key)
-	this.ICloser.Key.SetKey(key)
-	this.ClientManage.Key.SetKey(key)
-}
-
-func (this *Server) Debug(b ...bool) {
-	this.Logger.Debug(b...)
-	this.ICloser.Logger.Debug(b...)
-	this.ClientManage.Logger.Debug(b...)
-}
+//================================Nature================================
 
 func (this *Server) SetLogger(logger Logger) *Server {
-	l := NewLogger(logger)
-	this.Logger = l
-	this.ICloser.Logger = l
-	this.ClientManage.Logger = l
+	this.logger = NewLogger(logger)
 	return this
 }
-
-func (this *Server) SetPrintWithUTF8() *Server {
-	this.Logger.SetPrintWithUTF8()
-	this.ICloser.Logger.SetPrintWithUTF8()
-	this.ClientManage.Logger.SetPrintWithUTF8()
-	return this
-}
-
-func (this *Server) SetPrintWithHEX() *Server {
-	this.Logger.SetPrintWithHEX()
-	this.ICloser.Logger.SetPrintWithHEX()
-	this.ClientManage.Logger.SetPrintWithHEX()
-	return this
-}
-
-func (this *Server) SetLevel(level Level) *Server {
-	this.Logger.SetLevel(level)
-	this.ICloser.Logger.SetLevel(level)
-	this.ClientManage.Logger.SetLevel(level)
-	return this
-}
-
-// SetPrintWithAll 设置打印等级为全部
-func (this *Server) SetPrintWithAll() *Server {
-	return this.SetLevel(LevelAll)
-}
-
-// SetPrintWithBase 设置打印ASCII,基础信息
-func (this *Server) SetPrintWithBase() *Server {
-	return this.SetLevel(LevelInfo)
-}
-
-// SetPrintWithErr 设置打印错误信息
-func (this *Server) SetPrintWithErr() *Server {
-	return this.SetLevel(LevelError)
-}
-
-//================================Nature================================
 
 func (this *Server) Tag() *maps.Safe {
 	if this.tag == nil {
 		this.tag = maps.NewSafe()
 	}
 	return this.tag
-}
-
-func (this *Server) SetTag(key, value interface{}) *Server {
-	this.Tag().Set(key, value)
-	return this
-}
-
-func (this *Server) GetTag(key interface{}) (interface{}, bool) {
-	return this.Tag().Get(key)
 }
 
 func (this *Server) StartTime() time.Time {
@@ -164,16 +102,8 @@ func (this *Server) Listener() Listener {
 	return this.listener
 }
 
-// Timer 定时执行
-func (this *Server) Timer(interval time.Duration, do OptionServer) {
-	go this.ICloser.Timer(interval, func() error {
-		do(this)
-		return nil
-	})
-}
-
 func (this *Server) Close() error {
-	return this.ICloser.Close()
+	return this.Closer.Close()
 }
 
 func (this *Server) SetCloseFunc(fn func(c *Client, msg Message)) *Server {
@@ -218,13 +148,14 @@ func (this *Server) Run() error {
 	}()
 
 	this.startTime = time.Now()
-	this.Logger.Infof("[%s] 开启服务成功...\n", this.GetKey())
+	this.Infof("[%s] 开启服务成功...\n", this.GetKey())
 
 	//执行监听连接
 	for {
 		select {
-		case <-this.Done():
+		case <-this.ctx.Done():
 			return this.Err()
+
 		default:
 		}
 
@@ -232,13 +163,14 @@ func (this *Server) Run() error {
 		if err != nil {
 			this.CloseWithErr(err)
 			return this.Err() //使用最初的错误信息,否则会返回"use closed xxx"
-			return err
+			//return err
 		}
 
 		//新建客户端,并配置
-		x := NewClientWithContext(this.Ctx(), c).SetKey(key)
+		x := NewClientWithContext(this.ctx, c)
+		x.SetKey(key)
 		x.Tag().Set("address", key)
-		this.Logger.Infof("[%s] 新的客户端连接...\n", key)
+		this.Infof("[%s] 新的客户端连接...\n", key)
 		this.ClientManage.SetClient(x)
 
 	}

@@ -7,7 +7,7 @@ import (
 // NewProxyServer 监听连接,并代理新连接
 func NewProxyServer(listen io.ListenFunc, dial io.DialFunc, options ...io.OptionServer) (*io.Server, error) {
 	return io.NewServer(listen, func(s *io.Server) {
-		s.Logger.Debug(false)
+		s.Debug(false)
 		s.SetOptions(options...)
 		s.SetReadWith1KB()
 		s.SetBeforeFunc(func(client *io.Client) error {

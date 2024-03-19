@@ -21,11 +21,11 @@ func main() {
 		func(c *io.Client) {
 			c.Debug()             //开启打印日志
 			c.SetPrintWithUTF8() //打印日志编码ASCII
-			c.SetReadWithAll()    //设置读取方式,一次读取全部
+			c.SetReadWith1KB()    //设置读取方式,一次读取全部
 			c.SetDealFunc(func(c *io.Client, msg io.Message) {
 				// todo 业务逻辑,处理读取到的数据
 			})
-			c.GoTimerWriter(time.Minute, func(w *io.IWriter) error {
+			c.GoTimerWriter(time.Minute, func(w *io.Client) error {
 				_,err:= w.WriteString("心跳") //定时发送心跳
 				return err
 			})
@@ -54,11 +54,7 @@ func main() {
 		User:     os.Args[2],
 		Password: os.Args[3],
 	})
-	if err != nil {
-		logs.Err(err)
-		return
-	}
-	c.Logger.Debug(false)
+	c.Debug(false)
 	c.SetDealFunc(func(c *io.Client, msg io.Message) {
 		fmt.Print(msg.String())
 	})
@@ -94,7 +90,7 @@ func main(){
 	<- dial.RedialWebsocket("http://127.0.0.1:80/ws",nil,
 		func(c *io.Client) {
 			c.Debug()
-			c.Logger.SetPrintWithUTF8()
+			c.SetPrintWithUTF8()
 			c.SetDealFunc(func(c *io.Client, msg io.Message) {
                 //处理数据
 			})

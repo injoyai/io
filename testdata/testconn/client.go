@@ -12,9 +12,9 @@ func main() {
 		go dial.NewTCP("127.0.0.1:12000", func(c *io.Client) {
 			//closeTime := time.Now().Add(time.Second * time.Duration(rand.Intn(10)+10))
 			c.Debug(false)
-			c.Logger.SetLevel(io.LevelError)
+			c.SetLevel(io.LevelError)
 			go c.Run()
-			c.GoTimerWriter(time.Second*2, func(w *io.IWriter) error {
+			c.GoTimerWriter(time.Second*2, func(w *io.Client) error {
 				//if time.Since(closeTime) < 0 {
 				//	return c.Close()
 				//}

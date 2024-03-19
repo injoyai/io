@@ -2,11 +2,13 @@ package main
 
 import (
 	"github.com/injoyai/io/dial"
+	"github.com/injoyai/logs"
 	"time"
 )
 
 func main() {
-	c, _ := dial.NewTCP(":10086")
+	c, err := dial.NewTCP(":10086")
+	logs.PanicErr(err)
 	c.Redial()
 	c.Close()
 	go func() {
