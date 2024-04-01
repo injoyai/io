@@ -11,9 +11,10 @@ import (
 )
 
 func NewClientManage(ctx context.Context, key string) *ClientManage {
+	Log := defaultLogger()
 	e := &ClientManage{
 		Key:             Key(key),
-		Logger:          defaultLogger(),
+		Logger:          Log,
 		m:               make(map[string]*Client),
 		mu:              sync.RWMutex{},
 		ctx:             ctx,
@@ -21,11 +22,14 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 		timeout:         DefaultTimeout,
 		timeoutInterval: DefaultTimeoutInterval,
 		ClientOptions: ClientOptions{
-			beforeFunc: nil,
-			closeFunc:  nil,
-			dealFunc:   nil,
-			readFunc:   buf.Read1KB,
-			writeFunc:  nil,
+			beforeFunc: func(client *Client) error {
+				Log.Infof("[%s] 新的客户端连接...\n", key)
+				return nil
+			},
+			closeFunc: nil,
+			dealFunc:  nil,
+			readFunc:  buf.Read1KB,
+			writeFunc: nil,
 		},
 	}
 	//设置默认处理数据函数

@@ -214,3 +214,19 @@ type Plan struct {
 	Total   int64  //总数量
 	Bytes   []byte //字节内容
 }
+
+type Connect interface {
+	Closer
+	Closed
+	Runner
+
+	// Connect 建立连接
+	Connect(ctx context.Context) error
+
+	// GetOnline 获取在线状态
+	GetOnline() bool
+
+	// SetOnline 设置在线状态,也可直接在Connect中实现
+	// 方便统一管理,设置连接中,连接结果等
+	SetOnline(online bool, reason string)
+}
