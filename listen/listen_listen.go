@@ -1,6 +1,7 @@
 package listen
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
@@ -120,7 +121,7 @@ func (this *UDPServer) newUDPClient(remoteAddr *net.UDPAddr) (*UDPClient, bool) 
 		return &UDPClient{
 			s:          this,
 			remoteAddr: remoteAddr,
-			buff:       make(chan []byte, 100),
+			buff:       bytes.NewBuffer(nil),
 		}, nil
 	})
 	return v.(*UDPClient), exist
@@ -128,7 +129,7 @@ func (this *UDPServer) newUDPClient(remoteAddr *net.UDPAddr) (*UDPClient, bool) 
 
 func (this *UDPServer) Accept() (io.ReadWriteCloser, string, error) {
 	for {
-		buff := make([]byte, 1500)
+		buff := make([]byte, io.DefaultUDPSize)
 		n, addr, err := this.UDPConn.ReadFromUDP(buff)
 		if err != nil {
 			return nil, "", err
@@ -136,9 +137,8 @@ func (this *UDPServer) Accept() (io.ReadWriteCloser, string, error) {
 
 		u, exist := this.newUDPClient(addr)
 
-		select {
-		case u.buff <- buff[:n]:
-		default:
+		if u.buff.Len() < io.DefaultUDPSize*32 {
+			u.buff.Write(buff[:n])
 		}
 
 		if exist {
@@ -155,8 +155,8 @@ func (this *UDPServer) Addr() string {
 
 type UDPClient struct {
 	s          *UDPServer
-	remoteAddr *net.UDPAddr //远程地址
-	buff       chan []byte  // 数据是无序的,用队列,而不是buffer
+	remoteAddr *net.UDPAddr  //远程地址
+	buff       *bytes.Buffer // chan []byte  // 数据是无序的,用队列,而不是buffer
 }
 
 func (this *UDPClient) RemoteAddr() *net.UDPAddr {
@@ -164,11 +164,7 @@ func (this *UDPClient) RemoteAddr() *net.UDPAddr {
 }
 
 func (this *UDPClient) Read(p []byte) (int, error) {
-	return 0, io.ErrUseReadMessage
-}
-
-func (this *UDPClient) ReadMessage() ([]byte, error) {
-	return <-this.buff, nil
+	return this.buff.Read(p)
 }
 
 func (this *UDPClient) Write(p []byte) (int, error) {

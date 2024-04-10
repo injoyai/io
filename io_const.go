@@ -16,6 +16,7 @@ const (
 	PB  = 1024 * TB //1PB
 	EB  = 1024 * PB //1EB
 
+	DefaultUDPSize         = 1500
 	DefaultBufferSize      = KB                   //默认buff大小,1KB
 	DefaultChannelSize     = 100                  //默认通道大小
 	DefaultPort            = 10086                //默认端口
