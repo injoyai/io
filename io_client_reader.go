@@ -147,6 +147,7 @@ func (this *Client) SetReadFunc(fn func(r *bufio.Reader) ([]byte, error)) *Clien
 		//特殊处理MessageReader,读取到数据后加入到buff
 		if this.mReader != nil {
 			bs, err = this.mReader.ReadMessage()
+			return
 			if err == nil {
 				_, err = this.i.Write(bs)
 			}
