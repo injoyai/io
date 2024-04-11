@@ -12,6 +12,20 @@ import (
 	"time"
 )
 
+//================================Nature================================
+
+func (this *Client) ReadTime() time.Time {
+	return this.readTime
+}
+
+func (this *Client) ReadCount() int64 {
+	return this.readBytes
+}
+
+func (this *Client) ReadNumber() int64 {
+	return this.readNumber
+}
+
 // Buffer 极大的增加读取速度
 func (this *Client) Buffer() *bufio.Reader {
 	return this.buf
@@ -59,19 +73,13 @@ func (this *Client) WriteTo(writer Writer) (int64, error) {
 	return Copy(writer, this)
 }
 
-func (this *Client) ReadTime() time.Time {
-	return this.readTime
-}
-
-func (this *Client) ReadCount() int64 {
-	return this.readBytes
-}
-
 // SetReadIntervalTimeout 设置读取间隔超时时间,需要在Run之前设置
 func (this *Client) SetReadIntervalTimeout(timeout time.Duration) *Client {
 	this.timeout = timeout
 	return this
 }
+
+//================================DealFunc================================
 
 // SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
 func (this *Client) SetDealFunc(fn func(c *Client, msg Message)) *Client {
@@ -101,7 +109,9 @@ func (this *Client) SetDealWithNil() *Client {
 // SetDealWithWriter 设置数据处理到io.Writer
 func (this *Client) SetDealWithWriter(writer Writer) *Client {
 	return this.SetDealFunc(func(c *Client, msg Message) {
-		writer.Write(msg)
+		if _, err := writer.Write(msg); err != nil {
+			c.Close()
+		}
 	})
 }
 
@@ -128,33 +138,31 @@ func (this *Client) SetDealWithQueue(num int, fn func(msg Message)) *Client {
 // SetReadFunc 设置读取函数
 func (this *Client) SetReadFunc(fn func(r *bufio.Reader) ([]byte, error)) *Client {
 	this.readFunc = func(reader *bufio.Reader) (bs []byte, err error) {
-		switch true {
-		case this.mReader != nil:
-			//特殊处理MessageReader
-			bs, err = this.mReader.ReadMessage()
-		case fn == nil:
-			//默认读取1kb字节
-			bs, err = buf.Read1KB(reader)
-		default:
-			//按用户设置函数
-			bs, err = fn(reader)
+
+		if fn == nil {
+			fn = buf.Read1KB
 		}
+
+		//todo 一个message还没读取完,之前的数据就处理不了了
+		//特殊处理MessageReader,读取到数据后加入到buff
+		if this.mReader != nil {
+			bs, err = this.mReader.ReadMessage()
+			if err == nil {
+				_, err = this.i.Write(bs)
+			}
+			if err != nil {
+				return
+			}
+		}
+
+		//执行用户设置的函数
+		bs, err = fn(reader)
 		if err != nil {
 			return nil, err
 		}
-		if len(bs) > 0 {
-			//设置最后读取有效数据时间
-			this.readTime = time.Now()
-			this.readBytes += int64(len(bs))
-			//尝试加入通道
-			select {
-			case this.readChan <- bs:
-			default:
-			}
-			//打印日志
-			this.logger.Readln("["+this.GetKey()+"] ", bs)
-		}
+
 		return bs, nil
+
 	}
 	return this
 }
@@ -242,6 +250,7 @@ func (this *Client) Running() bool {
 // Run 开始运行数据读取
 func (this *Client) Run() error {
 
+	//原子操作,防止重复执行
 	if atomic.SwapUint32(&this.running, 1) == 1 {
 		return nil
 	}
@@ -265,24 +274,33 @@ func (this *Client) Run() error {
 		}(this.Ctx())
 	}
 
-	readFunc := func(ctx context.Context) (err error) {
+	//开始循环读取数据,处理数据
+	return this.For(func(ctx context.Context) (err error) {
 		//读取数据
 		bs, err := this.ReadMessage()
 		if err != nil || len(bs) == 0 {
 			return err
+		}
+		//设置最后读取有效数据时间
+		this.readTime = time.Now()
+		this.readBytes += int64(len(bs))
+		//尝试加入通道,如果设置了监听,则有效
+		select {
+		case this.readChan <- bs:
+		default:
 		}
 		//尝试加入通道,超时定时器重置
 		select {
 		case this.timeoutReset <- struct{}{}:
 		default:
 		}
+		//打印日志
+		this.logger.Readln("["+this.GetKey()+"] ", bs)
 		//处理数据
 		if this.dealFunc != nil {
 			this.dealFunc(bs)
 		}
 		return nil
-	}
-
-	return this.For(readFunc)
+	})
 
 }

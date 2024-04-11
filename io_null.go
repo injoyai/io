@@ -18,3 +18,7 @@ func (this *null) Write(p []byte) (int, error) { return len(p), nil }
 func (this *null) Read(p []byte) (int, error) { return 0, nil }
 
 func (this *null) Close() error { return nil }
+
+type closer struct{}
+
+func (this *closer) Close() error { return nil }

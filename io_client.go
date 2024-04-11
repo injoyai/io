@@ -2,6 +2,7 @@ package io
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/injoyai/base/maps"
@@ -133,6 +134,7 @@ type Client struct {
 	createTime  time.Time       //创建时间
 	readTime    time.Time       //最后读取时间
 	readBytes   int64           //读取的字节数
+	readNumber  int64           //读取的次数
 	writeTime   time.Time       //最后写入时间
 	writeBytes  int64           //写入的字节数
 	writeNumber int64           //写入的次数
@@ -155,15 +157,22 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 	this.buf = nil
 	this.tag = nil
 	//this.closeErr = nil
-	this.i = i
 	switch v := i.(type) {
 	case nil:
 	case MessageReader:
 		this.mReader = v
+		this.i = struct {
+			*bytes.Buffer
+			Closer
+		}{
+			Buffer: bytes.NewBuffer(nil),
+			Closer: &closer{},
+		}
 	default:
-		//todo 优化缓存大小可配置
-		this.buf = bufio.NewReaderSize(i, DefaultBufferSize+1)
+		this.i = i
 	}
+	//todo 优化缓存大小可配置
+	this.buf = bufio.NewReaderSize(i, DefaultBufferSize+1)
 
 	this.SetKey(key)
 	this.Debug()
