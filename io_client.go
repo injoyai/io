@@ -2,7 +2,6 @@ package io
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/injoyai/base/maps"
@@ -101,9 +100,9 @@ type Client struct {
 
 	//reader
 	readFunc func(buf *bufio.Reader) ([]byte, error) //读取函数
-	dealFunc func(msg Message)                       //处理数据函数
+	dealFunc []func(c *Client, msg Message)          //处理数据函数
 	readChan chan Message                            //读取最新数据chan
-	mReader  MessageReader                           //接口MessageReader,兼容Reader
+	//mReader  MessageReader                           //接口MessageReader,兼容Reader
 
 	//writer
 	writeFunc      func(p []byte) ([]byte, error) //写入函数,处理写入内容
@@ -134,7 +133,6 @@ type Client struct {
 	createTime  time.Time       //创建时间
 	readTime    time.Time       //最后读取时间
 	readBytes   int64           //读取的字节数
-	readNumber  int64           //读取的次数
 	writeTime   time.Time       //最后写入时间
 	writeBytes  int64           //写入的字节数
 	writeNumber int64           //写入的次数
@@ -153,23 +151,19 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 	this.logger = defaultLogger()
 	this.running = 0
 	this.closed = 0
-	this.mReader = nil
-	this.buf = nil
+	this.i = i
 	this.tag = nil
 	//this.closeErr = nil
 	switch v := i.(type) {
 	case nil:
 	case MessageReader:
-		this.mReader = v
-		this.i = struct {
-			*bytes.Buffer
-			Closer
+		i = struct {
+			WriteCloser
+			Reader
 		}{
-			Buffer: bytes.NewBuffer(nil),
-			Closer: &closer{},
+			WriteCloser: i,
+			Reader:      MReaderToReader(v),
 		}
-	default:
-		this.i = i
 	}
 	//todo 优化缓存大小可配置
 	this.buf = bufio.NewReaderSize(i, DefaultBufferSize+1)
@@ -177,6 +171,7 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 	this.SetKey(key)
 	this.Debug()
 	this.SetReadFunc(buf.Read1KB)
+	this.SetDealWithDefault()
 	this.SetOptions(options...)
 	return this
 }
@@ -231,7 +226,7 @@ func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) 
 	return this.ReadLast(timeout)
 }
 
-// WriteRead 同步写读
+// WriteRead 同步写读,写入数据,并监听
 func (this *Client) WriteRead(request []byte, timeout ...time.Duration) (response []byte, err error) {
 	return this.WriteReadWithTimeout(request, conv.GetDefaultDuration(DefaultResponseTimeout, timeout...))
 }
@@ -325,6 +320,7 @@ func (this *Client) RemoteAddr() net.Addr {
 	return &net.TCPAddr{}
 }
 
+// SetDeadline 尝试使用SetDeadline(t time.Time) error函数
 func (this *Client) SetDeadline(t time.Time) error {
 	if v, ok := this.i.(net.Conn); ok {
 		return v.SetDeadline(t)
@@ -332,6 +328,7 @@ func (this *Client) SetDeadline(t time.Time) error {
 	return nil
 }
 
+// SetReadDeadline 尝试使用SetReadDeadline(t time.Time) error函数
 func (this *Client) SetReadDeadline(t time.Time) error {
 	if v, ok := this.i.(net.Conn); ok {
 		return v.SetReadDeadline(t)
@@ -339,6 +336,7 @@ func (this *Client) SetReadDeadline(t time.Time) error {
 	return nil
 }
 
+// SetWriteDeadline 尝试使用SetWriteDeadline(time.Time) error函数
 func (this *Client) SetWriteDeadline(t time.Time) error {
 	if v, ok := this.i.(net.Conn); ok {
 		return v.SetWriteDeadline(t)

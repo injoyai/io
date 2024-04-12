@@ -1,10 +1,8 @@
 package io
 
 var (
-	_    ReadWriteCloser = (*null)(nil)
-	_    WriterAt        = (*null)(nil)
-	_    ReaderAt        = (*null)(nil)
-	Null                 = &null{}
+	Null       = &null{}
+	NullCloser = &nullCloser{}
 )
 
 type null struct{}
@@ -19,6 +17,6 @@ func (this *null) Read(p []byte) (int, error) { return 0, nil }
 
 func (this *null) Close() error { return nil }
 
-type closer struct{}
+type nullCloser struct{}
 
-func (this *closer) Close() error { return nil }
+func (this *nullCloser) Close() error { return nil }

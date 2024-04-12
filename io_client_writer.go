@@ -135,15 +135,19 @@ func (this *Client) WriteQueue(p []byte) (int, error) {
 		return 0, this.closeErr
 	}
 	this.initQueue()
-	this.writeQueue <- p
-	return len(p), nil
+	select {
+	case <-this.Done():
+		return 0, this.Err()
+	case this.writeQueue <- p:
+		return len(p), nil
+	}
 }
 
 func (this *Client) WriteQueueTry(p []byte) (int, error) {
 	this.initQueue()
 	select {
 	case <-this.Done():
-		return 0, this.closeErr
+		return 0, this.Err()
 	case this.writeQueue <- p:
 		return len(p), nil
 	default:
@@ -155,7 +159,7 @@ func (this *Client) WriteQueueTimeout(p []byte, timeout time.Duration) (int, err
 	this.initQueue()
 	select {
 	case <-this.Done():
-		return 0, this.closeErr
+		return 0, this.Err()
 	case this.writeQueue <- p:
 		return len(p), nil
 	case <-time.After(timeout):

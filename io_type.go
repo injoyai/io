@@ -230,3 +230,28 @@ type Connect interface {
 	// 方便统一管理,设置连接中,连接结果等
 	SetOnline(online bool, reason string)
 }
+
+//=============================
+
+func MReaderToReader(mReader MessageReader) Reader {
+	return &_mReaderToReader{
+		mReader: mReader,
+		buff:    bytes.NewBuffer(nil),
+	}
+}
+
+type _mReaderToReader struct {
+	mReader MessageReader
+	buff    *bytes.Buffer
+}
+
+func (this *_mReaderToReader) Read(p []byte) (int, error) {
+	if this.buff.Len() == 0 {
+		bs, err := this.mReader.ReadMessage()
+		if err != nil {
+			return 0, err
+		}
+		this.buff.Write(bs)
+	}
+	return this.buff.Read(p)
+}

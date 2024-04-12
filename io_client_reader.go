@@ -14,16 +14,14 @@ import (
 
 //================================Nature================================
 
+// ReadTime 最后读取到数据的时间
 func (this *Client) ReadTime() time.Time {
 	return this.readTime
 }
 
+// ReadCount 读取到数据的数量
 func (this *Client) ReadCount() int64 {
 	return this.readBytes
-}
-
-func (this *Client) ReadNumber() int64 {
-	return this.readNumber
 }
 
 // Buffer 极大的增加读取速度
@@ -41,7 +39,7 @@ func (this *Client) ReadByte() (byte, error) {
 	return this.Buffer().ReadByte()
 }
 
-// Read1KB 读取全部数据
+// Read1KB 读取1kb数据
 func (this *Client) Read1KB() ([]byte, error) {
 	return buf.Read1KB(this.Buffer())
 }
@@ -83,11 +81,28 @@ func (this *Client) SetReadIntervalTimeout(timeout time.Duration) *Client {
 
 // SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
 func (this *Client) SetDealFunc(fn func(c *Client, msg Message)) *Client {
-	pingLen := len(Ping)
-	pongLen := len(Pong)
-	this.dealFunc = func(msg Message) {
+	this.dealFunc = append(this.dealFunc, fn)
+	return this
+}
+
+// SetDealWithNil 不设置数据处理函数,删除之前设置的处理数据函数
+func (this *Client) SetDealWithNil() *Client {
+	this.dealFunc = nil
+	return this
+}
+
+// SetDealFuncOnly 取消之前设置的处理函数,并设置新的函数
+func (this *Client) SetDealFuncOnly(fn func(c *Client, msg Message)) *Client {
+	this.SetDealWithNil()
+	return this.SetDealFunc(fn)
+}
+
+// SetDealWithDefault 设置默认处理数据函数,打印需要处理的数据,和处理数据ping,pong
+func (this *Client) SetDealWithDefault() *Client {
+	return this.SetDealFuncOnly(func(c *Client, msg Message) {
+		this.logger.Readln("["+c.GetKey()+"] ", msg)
 		//先判断长度,减少字节转字符的内存分配,最好用指针的方式(直接用字节的指针)
-		if msg.Len() == pingLen || msg.Len() == pongLen {
+		if msg.Len() == len(Ping) || msg.Len() == len(Pong) {
 			switch msg.String() {
 			case Ping:
 				this.WriteString(Pong)
@@ -96,14 +111,7 @@ func (this *Client) SetDealFunc(fn func(c *Client, msg Message)) *Client {
 				return
 			}
 		}
-		fn(this, msg)
-	}
-	return this
-}
-
-// SetDealWithNil 不设置数据处理函数
-func (this *Client) SetDealWithNil() *Client {
-	return this.SetDealFunc(nil)
+	})
 }
 
 // SetDealWithWriter 设置数据处理到io.Writer
@@ -136,6 +144,10 @@ func (this *Client) SetDealWithQueue(num int, fn func(msg Message)) *Client {
 //================================ReadFunc================================
 
 // SetReadFunc 设置读取函数
+// 后台循环执行(在使用Run之后),从字节留中间截取符合协议的数据,默认最大读取1字节数据
+// 例modbus,读取crc校验正确的数据 ,如下图截取,后续数据等待下次截取
+// 01 03 00 01 00 02 xx xx | 01 03 00 01 00 02 xx xx | 01 03 00 01 00 02 xx xx
+// 截取的数据下一步会在DealFunc中执行
 func (this *Client) SetReadFunc(fn func(r *bufio.Reader) ([]byte, error)) *Client {
 	this.readFunc = func(reader *bufio.Reader) (bs []byte, err error) {
 
@@ -143,23 +155,28 @@ func (this *Client) SetReadFunc(fn func(r *bufio.Reader) ([]byte, error)) *Clien
 			fn = buf.Read1KB
 		}
 
-		//todo 一个message还没读取完,之前的数据就处理不了了
-		//特殊处理MessageReader,读取到数据后加入到buff
-		if this.mReader != nil {
-			bs, err = this.mReader.ReadMessage()
-			return
-			if err == nil {
-				_, err = this.i.Write(bs)
-			}
-			if err != nil {
-				return
-			}
-		}
-
 		//执行用户设置的函数
 		bs, err = fn(reader)
 		if err != nil {
 			return nil, err
+		}
+
+		if len(bs) > 0 {
+			//设置最后读取有效数据时间
+			this.readTime = time.Now()
+			this.readBytes += int64(len(bs))
+
+			//尝试加入通道,如果设置了监听,则有效
+			select {
+			case this.readChan <- bs:
+			default:
+			}
+
+			//尝试加入通道,超时定时器重置
+			select {
+			case this.timeoutReset <- struct{}{}:
+			default:
+			}
 		}
 
 		return bs, nil
@@ -197,7 +214,8 @@ func (this *Client) SetReadWithWriter(writer io.Writer) *Client {
 	return this.SetReadFunc(buf.NewReadWithWriter(writer))
 }
 
-// SetReadWithTimeout 根据超时时间读取数据(需要及时读取,避免阻塞产生粘包),需要支持SetReadDeadline(t time.Time) error接口
+// SetReadWithTimeout 根据超时时间读取数据(需要及时读取,避免阻塞产生粘包),
+// 需要支持SetReadDeadline(t time.Time) error接口
 func (this *Client) SetReadWithTimeout(timeout time.Duration) error {
 	if timeout <= 0 {
 		return errors.New("无效超时时间")
@@ -227,8 +245,9 @@ func (this *Client) SetReadWithTimeout(timeout time.Duration) error {
 }
 
 // Bridge 桥接模式,等同SetReadWithWriter
-func (this *Client) Bridge(w ...io.Writer) *Client {
-	return this.SetReadFunc(buf.NewReadWithWriter(MultiWriter(w...)))
+// 把读取到的数据全部写入到io.Writer
+func (this *Client) Bridge(w io.Writer) *Client {
+	return this.SetReadFunc(buf.NewReadWithWriter(w))
 }
 
 // SetReadWithLenFrame 根据动态长度读取数据
@@ -249,6 +268,7 @@ func (this *Client) Running() bool {
 }
 
 // Run 开始运行数据读取
+// 2个操作,持续读取数据并处理,监测超时(如果设置了超时,不推荐服务端使用)
 func (this *Client) Run() error {
 
 	//原子操作,防止重复执行
@@ -277,30 +297,18 @@ func (this *Client) Run() error {
 
 	//开始循环读取数据,处理数据
 	return this.For(func(ctx context.Context) (err error) {
+
 		//读取数据
 		bs, err := this.ReadMessage()
 		if err != nil || len(bs) == 0 {
 			return err
 		}
-		//设置最后读取有效数据时间
-		this.readTime = time.Now()
-		this.readBytes += int64(len(bs))
-		//尝试加入通道,如果设置了监听,则有效
-		select {
-		case this.readChan <- bs:
-		default:
-		}
-		//尝试加入通道,超时定时器重置
-		select {
-		case this.timeoutReset <- struct{}{}:
-		default:
-		}
-		//打印日志
-		this.logger.Readln("["+this.GetKey()+"] ", bs)
+
 		//处理数据
-		if this.dealFunc != nil {
-			this.dealFunc(bs)
+		for _, dealFunc := range this.dealFunc {
+			dealFunc(this, bs)
 		}
+
 		return nil
 	})
 
