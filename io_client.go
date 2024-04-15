@@ -102,7 +102,6 @@ type Client struct {
 	readFunc func(buf *bufio.Reader) ([]byte, error) //读取函数
 	dealFunc []func(c *Client, msg Message)          //处理数据函数
 	readChan chan Message                            //读取最新数据chan
-	//mReader  MessageReader                           //接口MessageReader,兼容Reader
 
 	//writer
 	writeFunc      func(p []byte) ([]byte, error) //写入函数,处理写入内容
@@ -165,7 +164,7 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 			Reader:      MReaderToReader(v),
 		}
 	}
-	//todo 优化缓存大小可配置
+	//默认buf大小,可自定义缓存大小
 	this.buf = bufio.NewReaderSize(i, DefaultBufferSize+1)
 
 	this.SetKey(key)
