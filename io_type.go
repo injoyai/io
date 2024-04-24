@@ -251,6 +251,8 @@ func (this *_mReaderToReader) Read(p []byte) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+		//使用buff,可能用户读取的数据比readMessage读取到的少,
+		//缓存多余的数据再下次读取,当缓存的数据为0时,再去读取
 		this.buff.Write(bs)
 	}
 	return this.buff.Read(p)

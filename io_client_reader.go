@@ -2,6 +2,7 @@ package io
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"github.com/injoyai/base/chans"
@@ -27,6 +28,18 @@ func (this *Client) ReadCount() int64 {
 // Buffer 极大的增加读取速度
 func (this *Client) Buffer() *bufio.Reader {
 	return this.buf
+}
+
+// SetBufferSize 设置缓存大小
+func (this *Client) SetBufferSize(size int) error {
+	old := make([]byte, this.buf.Size())
+	n, err := this.buf.Read(old)
+	if err != nil {
+		return err
+	}
+	reader := MultiReader(bytes.NewReader(old[:n]), this.i)
+	this.buf = bufio.NewReaderSize(reader, size)
+	return nil
 }
 
 // Read io.reader
