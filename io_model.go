@@ -1,6 +1,8 @@
 package io
 
 import (
+	"encoding/json"
+	"github.com/injoyai/base/g"
 	"net/http"
 )
 
@@ -10,6 +12,15 @@ type Model struct {
 	UID  string      `json:"uid,omitempty"`  //消息的唯一ID,例如UUID
 	Data interface{} `json:"data,omitempty"` //请求响应的数据
 	Msg  string      `json:"msg,omitempty"`  //消息
+}
+
+func (this *Model) String() string {
+	return string(this.Bytes())
+}
+
+func (this *Model) Bytes() g.Bytes {
+	bs, _ := json.Marshal(this)
+	return bs
 }
 
 func (this *Model) IsSucc() bool {
