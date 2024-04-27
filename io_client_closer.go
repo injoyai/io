@@ -26,12 +26,28 @@ func (this *Client) SetCloseWithCloser(closer Closer) *Client {
 	})
 }
 
+// Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
+func (this *Client) Redial(options ...OptionClient) *Client {
+	this.SetCloseFunc(func(ctx context.Context, c *Client, msg Message) {
+		//等待1秒之后开始重连,防止无限制连接断开
+		<-time.After(time.Second)
+		if err := this.MustDial(func(c *Client) { c.Redial(options...) }); err != nil {
+			this.Errorf("[%s] 重连错误,%v\n", this.GetKey(), err)
+			return
+		}
+	})
+	this.SetOptions(options...)
+	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
+	//this.Logger.Infof("[%s] 连接服务端成功...\n", this.GetKey())
+	go this.Run()
+	return this
+}
+
 // SetRedialMaxTime 设置退避重试时间,默认32秒,需要连接成功的后续重连生效
 func (this *Client) SetRedialMaxTime(t time.Duration) *Client {
-	if t <= 0 {
-		t = time.Second * 32
+	if t > 0 {
+		this.redialMaxTime = t
 	}
-	this.redialMaxTime = t
 	return this
 }
 
@@ -230,12 +246,12 @@ func (this *Client) MustDial(options ...OptionClient) error {
 	for {
 		select {
 		case <-this.ctxParent.Done():
-			return errors.New("已关闭")
+			return errors.New("上下文关闭")
 
 		case <-timer.C:
 			if this.dialFunc == nil {
 				//未设置重连函数
-				this.Errorf("[%s] 连接断开(%v),未设置重连函数\n", this.GetKey(), this.Err())
+				//this.Errorf("[%s] 连接断开(%v),未设置重连函数\n", this.GetKey(), this.Err())
 				return errors.New("未设置重连函数")
 			}
 			err := this.Dial(options...)

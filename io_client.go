@@ -13,28 +13,6 @@ import (
 	"time"
 )
 
-//// Redial 一直连接,直到成功
-//func Redial(dial DialFunc, options ...OptionClient) *Client {
-//	return RedialWithContext(context.Background(), dial, options...)
-//}
-//
-//// RedialWithContext 一直尝试连接,直到成功,需要输入上下文
-//func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClient) *Client {
-//	x := NewICloserWithContext(ctx, nil)
-//	x.Logger.Debug()
-//	x.SetRedialFunc(dial)
-//	x.SetKey(conv.String(dial))
-//	r, key := x.MustDial(ctx)
-//
-//	return NewClientWithContext(ctx, r, func(c *Client) {
-//		c.SetKey(key)
-//		c.SetDialFunc(dial)
-//		c.Redial(options...)
-//		//用户控制输出,需要在SetOptions之后打印
-//		c.Logger.Infof("[%s] 连接服务端成功...\n", c.GetKey())
-//	})
-//}
-
 // Redial 一直连接,直到成功
 func Redial(dial DialFunc, options ...OptionClient) *Client {
 	return RedialWithContext(context.Background(), dial, options...)
@@ -48,9 +26,10 @@ func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClie
 		cancelParent: cancelParent,
 	}
 	c.SetDialFunc(dial)
-	c.MustDial(func(c *Client) {
+	err := c.MustDial(func(c *Client) {
 		c.Redial(options...)
 	})
+	c.CloseWithErr(err)
 	return c
 }
 
@@ -272,21 +251,6 @@ func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *C
 	return this
 }
 
-// Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
-func (this *Client) Redial(options ...OptionClient) *Client {
-	this.SetCloseFunc(func(ctx context.Context, c *Client, msg Message) {
-		<-time.After(time.Second)
-		this.MustDial(func(c *Client) {
-			c.Redial(options...)
-		})
-	})
-	this.SetOptions(options...)
-	//新建客户端时已经能确定连接成功,为了让用户控制是否输出,所以在Run的时候打印
-	//this.Logger.Infof("[%s] 连接服务端成功...\n", this.GetKey())
-	go this.Run()
-	return this
-}
-
 // Swap IO数据交换
 func (this *Client) Swap(i ReadWriteCloser) {
 	this.SwapClient(NewClient(i))
@@ -305,39 +269,45 @@ func (this *Client) NetConn() (net.Conn, bool) {
 	return v, ok
 }
 
-func (this *Client) LocalAddr() net.Addr {
-	if v, ok := this.i.(net.Conn); ok {
-		return v.LocalAddr()
-	}
-	return &net.TCPAddr{}
-}
+//func (this *Client) LocalAddr() net.Addr {
+//	if v, ok := this.i.(net.Conn); ok {
+//		return v.LocalAddr()
+//	}
+//	return &net.TCPAddr{}
+//}
+//
+//func (this *Client) RemoteAddr() net.Addr {
+//	if v, ok := this.i.(net.Conn); ok {
+//		return v.RemoteAddr()
+//	}
+//	return &net.TCPAddr{}
+//}
 
-func (this *Client) RemoteAddr() net.Addr {
-	if v, ok := this.i.(net.Conn); ok {
-		return v.RemoteAddr()
-	}
-	return &net.TCPAddr{}
-}
-
-// SetDeadline 尝试使用SetDeadline(t time.Time) error函数
-func (this *Client) SetDeadline(t time.Time) error {
-	if v, ok := this.i.(net.Conn); ok {
+// TrySetDeadline 尝试使用SetDeadline(t time.Time) error函数
+func (this *Client) TrySetDeadline(t time.Time) error {
+	if v, ok := this.i.(interface {
+		SetDeadline(t time.Time) error
+	}); ok {
 		return v.SetDeadline(t)
 	}
 	return nil
 }
 
-// SetReadDeadline 尝试使用SetReadDeadline(t time.Time) error函数
-func (this *Client) SetReadDeadline(t time.Time) error {
-	if v, ok := this.i.(net.Conn); ok {
+// TrySetReadDeadline 尝试使用SetReadDeadline(t time.Time) error函数
+func (this *Client) TrySetReadDeadline(t time.Time) error {
+	if v, ok := this.i.(interface {
+		SetReadDeadline(t time.Time) error
+	}); ok {
 		return v.SetReadDeadline(t)
 	}
 	return nil
 }
 
-// SetWriteDeadline 尝试使用SetWriteDeadline(time.Time) error函数
-func (this *Client) SetWriteDeadline(t time.Time) error {
-	if v, ok := this.i.(net.Conn); ok {
+// TrySetWriteDeadline 尝试使用SetWriteDeadline(time.Time) error函数
+func (this *Client) TrySetWriteDeadline(t time.Time) error {
+	if v, ok := this.i.(interface {
+		SetWriteDeadline(t time.Time) error
+	}); ok {
 		return v.SetWriteDeadline(t)
 	}
 	return nil
