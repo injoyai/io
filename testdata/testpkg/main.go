@@ -21,9 +21,6 @@ func main() {
 	<-dial.RedialTCP("127.0.0.1:10089", func(c *io.Client) {
 		c.SetPrintWithHEX()
 		c.SetReadWriteWithPkg()
-		c.GoTimerWriter(time.Second*5, func(w *io.Client) error {
-			_, err := w.WriteString("666")
-			return err
-		})
+		c.GoTimerWriteString(time.Second*5, "666")
 	}).DoneAll()
 }

@@ -21,7 +21,7 @@ func main() {
 	go s.Run()
 
 	<-dial.RedialTCP("127.0.0.1:10089", func(c *io.Client) {
-		c.GoTimerWriter(time.Second*5, func(w *io.Client) error {
+		c.GoTimerWriter(time.Second*5, func(w *io.Client) (int, error) {
 			p := &io.Simple{
 				Control: io.SimpleControl{
 					IsResponse: false,
@@ -32,8 +32,7 @@ func main() {
 					"测试": []byte{1, 2, 3, 4, 5},
 				},
 			}
-			_, err := w.Write(p.Bytes())
-			return err
+			return w.Write(p.Bytes())
 		})
 	}).DoneAll()
 

@@ -30,10 +30,7 @@ func TestRedial(t *testing.T) {
 	dial.RedialTCP(":10086", func(c *io.Client) {
 		c.SetPrintWithUTF8()
 		c.Debug()
-		c.GoTimerWriter(time.Second*5, func(c *io.Client) error {
-			_, err := c.WriteHEX("3a520600030a01000aaa0d")
-			return err
-		})
+		c.GoTimerWriteHEX(time.Second*5, "3a520600030a01000aaa0d")
 	})
 	select {}
 }

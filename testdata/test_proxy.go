@@ -17,10 +17,7 @@ func TestClient(addr string) {
 	for range chans.Count(1000, time.Millisecond*10) {
 		dial.RedialTCP(addr, func(c *io.Client) {
 			c.Debug()
-			c.GoTimerWriter(time.Second*3, func(c *io.Client) error {
-				_, err := c.WriteString(time.Now().String())
-				return err
-			})
+			c.GoTimerWriteString(time.Second*3, time.Now().String())
 		})
 	}
 	select {}

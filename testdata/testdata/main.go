@@ -22,11 +22,10 @@ func main() {
 	<-dial.RedialTCP("127.0.0.1:10099", func(c *io.Client) {
 		c.Debug(false)
 		n := byte(0)
-		c.GoTimerWriter(time.Second, func(w *io.Client) error {
+		c.GoTimerWriter(time.Second, func(w *io.Client) (int, error) {
 			n++
 			bs[io.DefaultBufferSize-1] = n
-			_, err := w.Write(bs)
-			return err
+			return w.Write(bs)
 		})
 	}).DoneAll()
 }

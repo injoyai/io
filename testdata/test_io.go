@@ -124,10 +124,7 @@ func GoFor(port int) error {
 	}
 	c := dial.RedialTCP(fmt.Sprintf(":%d", port), func(c *io.Client) {
 		c.Debug()
-		c.GoTimerWriter(time.Second*3, func(c *io.Client) error {
-			_, err := c.WriteString("666")
-			return err
-		})
+		c.GoTimerWriteString(time.Second*3, "666")
 	})
 	_ = c
 	//c.GoTimer(time.Second*5, func(c *io.Client) error {
@@ -167,10 +164,7 @@ func ClientCtxParent(port int) error {
 	c := io.Redial(dial.WithTCP(fmt.Sprintf(":%d", port)),
 		func(c *io.Client) {
 			c.Debug()
-			c.GoTimerWriter(time.Second, func(c *io.Client) error {
-				_, err := c.WriteString("666")
-				return err
-			})
+			c.GoTimerWriteString(time.Second, "666")
 		})
 	//c.GoTimer(time.Second, func(c *io.Client) error {
 	//	logs.Debug(777)
@@ -199,10 +193,7 @@ func Pool(port int) error {
 	}
 	io.NewPool(dial.WithTCP(fmt.Sprintf(":%d", port)), func(c *io.Client) {
 		c.Debug()
-		c.GoTimerWriter(time.Second*10, func(c *io.Client) error {
-			_, err := c.WriteString("666")
-			return err
-		})
+		c.GoTimerWriteString(time.Second*10, "666")
 	})
 	return s.Run()
 }
@@ -216,10 +207,7 @@ func PoolWrite(port int) (*io.Pool, error) {
 	}
 	p := io.NewPool(dial.WithTCP(fmt.Sprintf(":%d", port)), func(c *io.Client) {
 		c.Debug()
-		c.GoTimerWriter(time.Second*10, func(c *io.Client) error {
-			_, err := c.WriteString("666")
-			return err
-		})
+		c.GoTimerWriteString(time.Second*10, "666")
 	})
 	go s.Run()
 	return p, nil
