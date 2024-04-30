@@ -95,6 +95,7 @@ func (this *Simple) sum(bs []byte) byte {
 	return sum
 }
 
+// SimpleData key和value的长度不能超过255
 type SimpleData map[string][]byte
 
 func (this SimpleData) Bytes() g.Bytes {

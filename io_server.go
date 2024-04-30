@@ -29,12 +29,13 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		return nil, err
 	}
 	key := fmt.Sprintf("%p", listener)
+	logger := defaultLogger()
 	//新建实例
 	s := &Server{
 		Key:          Key(key),
-		logger:       defaultLogger(),
+		logger:       logger,
 		Closer:       safe.NewCloser(),
-		ClientManage: NewClientManage(ctx, key),
+		ClientManage: NewClientManage(ctx, key, logger),
 		tag:          maps.NewSafe(),
 		listener:     listener,
 	}

@@ -10,11 +10,10 @@ import (
 	"time"
 )
 
-func NewClientManage(ctx context.Context, key string) *ClientManage {
-	Log := defaultLogger()
+func NewClientManage(ctx context.Context, key string, log *logger) *ClientManage {
 	e := &ClientManage{
 		Key:             Key(key),
-		Logger:          Log,
+		Logger:          log,
 		m:               make(map[string]*Client),
 		mu:              sync.RWMutex{},
 		ctx:             ctx,
@@ -23,7 +22,7 @@ func NewClientManage(ctx context.Context, key string) *ClientManage {
 		timeoutInterval: DefaultTimeoutInterval,
 		ClientOptions: ClientOptions{
 			beforeFunc: func(client *Client) error {
-				Log.Infof("[%s] 新的客户端连接...\n", key)
+				log.Infof("[%s] 新的客户端连接...\n", key)
 				return nil
 			},
 			closeFunc: nil,
@@ -221,7 +220,8 @@ func (this *ClientManage) SetClient(c *Client) {
 		if this.beforeFunc != nil {
 			if err := this.beforeFunc(c); err != nil {
 				this.Logger.Errorf("[%s] %v\n", c.GetKey(), err)
-				_ = c.CloseAll()
+				//丢弃连接,防止重复连接断开
+				//_ = c.CloseAll()
 				return
 			}
 		}
@@ -467,29 +467,3 @@ func (this *ClientManage) _closeFunc(ctx context.Context, c *Client, msg Message
 	this.mid.Delete(c.Pointer())
 	delete(this.m, c.GetKey())
 }
-
-//func (this *ClientManage) _closeFunc(closeFunc ...func(ctx context.Context, msg Message)) func(ctx context.Context, c *Client, msg Message) {
-//	return func(ctx context.Context, c *Client, msg Message) {
-//		defer func() {
-//			c.CloseAll()
-//			for _, f := range closeFunc {
-//				if f != nil {
-//					f(ctx, msg)
-//				}
-//			}
-//		}()
-//		if this.closeFunc != nil {
-//			defer this.closeFunc(c, msg)
-//		}
-//		this.mid.Delete(c.Pointer())
-//		this.mu.Lock()
-//		defer this.mu.Unlock()
-//		//获取老的连接
-//		oldConn := this.m[c.GetKey()]
-//		//存在新连接上来被关闭的情况,判断是否是老的连接
-//		if oldConn == nil || oldConn.Pointer() != c.Pointer() {
-//			return
-//		}
-//		delete(this.m, c.GetKey())
-//	}
-//}

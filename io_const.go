@@ -65,6 +65,7 @@ const (
 	FliedCode    = "code"
 	FliedData    = "data"
 	FliedMsg     = "msg"
+	FliedUID     = "uid"
 	FliedAddress = "address"
 	FliedError   = "error"
 )
