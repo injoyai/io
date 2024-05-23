@@ -105,7 +105,14 @@ func (this *Client) timer(ctx context.Context, dealErr func(error) error, interv
 func (this *Client) For(fn func(ctx context.Context) error) (err error) {
 	for {
 		select {
+		case <-this.DoneAll():
+			//1. 调用了CloseAll方法进行关闭
+			//2. 通过外部的上下文Cancel进行关闭,需要进行断开连接操作
+			this.CloseAll()
+			return this.Err()
 		case <-this.Done():
+			//1. 调用了Close方法
+			//2. 连接报错触发了Close
 			return this.Err()
 		default:
 			_ = this.CloseWithErr(func() (err error) {
