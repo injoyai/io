@@ -3,64 +3,39 @@ package io
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"github.com/injoyai/base/maps/timeout"
 	"github.com/injoyai/conv"
-	"github.com/injoyai/io/buf"
 	"sync"
 	"time"
 )
 
-func NewClientManage(ctx context.Context, key string, log *logger) *ClientManage {
+func NewClientManage(key string, log *logger) *ClientManage {
 	e := &ClientManage{
-		Key:             Key(key),
-		Logger:          log,
-		m:               make(map[string]*Client),
-		mu:              sync.RWMutex{},
-		ctx:             ctx,
-		readChan:        make(chan Message, DefaultChannelSize),
-		timeout:         DefaultTimeout,
-		timeoutInterval: DefaultTimeoutInterval,
-		ClientOptions: ClientOptions{
-			beforeFunc: func(client *Client) error {
+		Key:    Key(key),
+		Logger: log,
+		mKey:   make(map[string]*Client),
+		mu:     sync.RWMutex{},
+		Keep:   timeout.New(),
+		options: []OptionClient{func(c *Client) {
+			c.SetConnectFunc(func(c *Client) error {
 				log.Infof("[%s] 新的客户端连接...\n", key)
 				return nil
-			},
-			closeFunc: nil,
-			dealFunc:  nil,
-			readFunc:  buf.Read1KB,
-			writeFunc: nil,
-		},
+			})
+			c.SetReadWith1KB()
+			c.SetCloseWithLog()
+		}},
 	}
-	//设置默认处理数据函数
-	//e.SetDealFunc(func(c *Client, msg Message) { e.readChan <- msg })
-	//执行超时机制
-	go func() {
-		for {
-			interval := conv.SelectDuration(e.timeoutInterval > time.Second, e.timeoutInterval, time.Second)
-			<-time.After(interval)
-			select {
-			case <-e.ctx.Done():
-				return
-			default:
-				now := time.Now()
-				for _, v := range e.CopyClientMap() {
-					if e.timeout > 0 && now.Sub(v.ReadTime()) > e.timeout {
-						_ = v.CloseWithErr(ErrWithReadTimeout)
-					}
-				}
-			}
-		}
-	}()
+
+	//超时机制
+	e.SetTimeout(DefaultTimeout)
+	e.SetTimeoutInterval(DefaultTimeoutInterval)
+	e.Keep.SetDealFunc(func(key interface{}) error {
+		return e.CloseClientWithErr(conv.String(key), ErrWithReadTimeout)
+	})
 
 	return e
-}
-
-type ClientOptions struct {
-	beforeFunc func(*Client) error            //连接前置事件,onConnect()
-	closeFunc  func(c *Client, msg Message)   //断开连接事件,onClose()
-	dealFunc   func(c *Client, msg Message)   //数据处理方法,onMessage()
-	readFunc   buf.ReadFunc                   //数据读取方法,onRead()
-	writeFunc  func(p []byte) ([]byte, error) //数据发送函数,包装下原始数据,onWrite()
 }
 
 /*
@@ -70,86 +45,37 @@ ClientManage
 */
 type ClientManage struct {
 	Key
-	ClientOptions
-	Logger          *logger
-	mid             sync.Map
-	m               map[string]*Client
-	mu              sync.RWMutex
-	maxClientNum    int             //限制最大客户端数
-	ctx             context.Context //ctx
-	readChan        chan Message    //数据通道,最多存100条
-	timeout         time.Duration   //超时时间,小于0是不超时
-	timeoutInterval time.Duration   //超时检测间隔
+	Logger       *logger          //日志
+	Keep         *timeout.Timeout //超时机制
+	mID          sync.Map
+	mKey         map[string]*Client
+	mu           sync.RWMutex
+	maxClientNum int            //限制最大客户端数
+	options      []OptionClient //客户端Option
 }
 
-// SetReadFunc 设置数据读取
-func (this *ClientManage) SetReadFunc(fn func(buf *bufio.Reader) (bytes []byte, err error)) {
-	this.readFunc = fn
+func (this *ClientManage) SetOptions(option ...Option) {
+	this.options = append(this.options, option...)
 }
 
-// SetReadWithKB 设置读取固定字节长度
-func (this *ClientManage) SetReadWithKB(n uint) {
-	this.SetReadFunc(buf.NewReadWithKB(n))
+func (this *ClientManage) SetConnectFunc(f func(c *Client) error) {
+	this.SetOptions(func(c *Client) { c.SetConnectFunc(f) })
 }
 
-func (this *ClientManage) SetReadWith1KB() {
-	this.SetReadFunc(buf.Read1KB)
+func (this *ClientManage) SetReadFunc(f func(buf *bufio.Reader) ([]byte, error)) {
+	this.SetOptions(func(c *Client) { c.SetReadFunc(f) })
 }
 
-// SetReadWithMB 设置读取固定字节长度
-func (this *ClientManage) SetReadWithMB(n uint) {
-	this.SetReadFunc(buf.NewReadWithMB(n))
+func (this *ClientManage) SetDealFunc(f func(c *Client, msg Message)) {
+	this.SetOptions(func(c *Client) { c.SetDealFunc(f) })
 }
 
-//// SetReadWithAll 设置客户端读取函数:读取全部
-//func (this *ClientManage) SetReadWithAll() {
-//	this.SetReadFunc(buf.ReadWithAll)
-//}
-
-// SetWriteFunc 设置客户端的数据发送函数
-func (this *ClientManage) SetWriteFunc(fn func([]byte) ([]byte, error)) {
-	this.writeFunc = fn
+func (this *ClientManage) SetWriteFunc(f func(p []byte) ([]byte, error)) {
+	this.SetOptions(func(c *Client) { c.SetWriteFunc(f) })
 }
 
-// SetReadWriteWithStartEnd 设置读取方式为起始结束帧
-func (this *ClientManage) SetReadWriteWithStartEnd(start, end []byte) {
-	this.SetReadFunc(buf.NewReadWithStartEnd(start, end))
-	this.SetWriteFunc(buf.NewWriteWithStartEnd(start, end))
-}
-
-// SetReadWriteWithPkg 设置读写为默认方式
-func (this *ClientManage) SetReadWriteWithPkg() {
-	this.SetReadFunc(ReadWithPkg)
-	this.SetWriteFunc(WriteWithPkg)
-}
-
-// SetReadWriteWithSimple 设置读写为简易包
-func (this *ClientManage) SetReadWriteWithSimple() {
-	this.SetReadFunc(ReadWithSimple)
-	this.SetWriteFunc(WriteWithSimple)
-}
-
-// SetDealFunc 设置处理数据方法
-func (this *ClientManage) SetDealFunc(fn func(c *Client, msg Message)) {
-	this.dealFunc = fn
-}
-
-// SetDealWithWriter 读取到的数据写入到writer
-func (this *ClientManage) SetDealWithWriter(w Writer) {
-	this.SetDealFunc(func(c *Client, msg Message) {
-		w.Write(msg.Bytes())
-	})
-}
-
-// SetBeforeFunc 设置连接前置方法
-// 如果返回错误则关闭该连接,需要主动读取数据
-func (this *ClientManage) SetBeforeFunc(fn func(c *Client) error) {
-	this.beforeFunc = fn
-}
-
-// SetCloseFunc 设置断开连接事件
-func (this *ClientManage) SetCloseFunc(fn func(c *Client, msg Message)) {
-	this.closeFunc = fn
+func (this *ClientManage) OnMessage(f func(c *Client, msg Message)) {
+	this.SetOptions(func(c *Client) { c.SetDealFunc(f) })
 }
 
 // SetMaxClient 设置最大连接数,超过最大连接数的连接会直接断开
@@ -159,12 +85,12 @@ func (this *ClientManage) SetMaxClient(max int) {
 
 // SetTimeout 设置超时时间,还有time/3的时间误差
 func (this *ClientManage) SetTimeout(t time.Duration) {
-	this.timeout = t
+	this.Keep.SetTimeout(t)
 }
 
 // SetTimeoutInterval 设置超时检测间隔,至少需要1秒
 func (this *ClientManage) SetTimeoutInterval(ti time.Duration) {
-	this.timeoutInterval = conv.SelectDuration(ti > time.Second, ti, time.Second)
+	this.Keep.SetInterval(conv.SelectDuration(ti > time.Second, ti, time.Second))
 }
 
 // Close 关闭,实现io.Closer接口
@@ -190,14 +116,6 @@ func (this *ClientManage) RedialClient(dial DialFunc, options ...OptionClient) *
 	return c
 }
 
-func (this *ClientManage) SetClientOptions(c *Client) {
-	c.SetDealFunc(this._dealFunc)   //数据处理方法
-	c.SetReadFunc(this.readFunc)    //读取数据方法
-	c.SetWriteFunc(this.writeFunc)  //设置发送函数
-	c.SetCloseFunc(this._closeFunc) //设置连接关闭事件
-	c.SetLogger(this.Logger)        //同步logger配置
-}
-
 // SetClient 添加客户端
 func (this *ClientManage) SetClient(c *Client) {
 	if c == nil {
@@ -211,17 +129,30 @@ func (this *ClientManage) SetClient(c *Client) {
 		return
 	}
 
-	this.SetClientOptions(c)
+	//this.SetClientOptions(c)
+	c.SetOptions(this.options...)
+	c.SetCloseFunc(this.closeFunc)
 
 	// 协程执行,等待连接的后续数据,来决定后续操作
 	go func(c *Client) {
 
+		////前置操作,例如等待注册数据,不符合的返回错误则关闭连接
+		//if this.beforeFunc != nil {
+		//	if err := this.beforeFunc(c); err != nil {
+		//		this.Logger.Errorf("[%s] %v\n", c.GetKey(), err)
+		//		//丢弃连接,防止重复连接断开
+		//		//_ = c.CloseAll()
+		//		return
+		//	}
+		//}
+
+		//TODO 怎么判断是客户端还是服务端的连接实例
 		//前置操作,例如等待注册数据,不符合的返回错误则关闭连接
-		if this.beforeFunc != nil {
-			if err := this.beforeFunc(c); err != nil {
+		for _, f := range c.connectFunc {
+			if err := f(c); err != nil {
 				this.Logger.Errorf("[%s] %v\n", c.GetKey(), err)
 				//丢弃连接,防止重复连接断开
-				//_ = c.CloseAll()
+				_ = c.CloseAll()
 				return
 			}
 		}
@@ -229,20 +160,17 @@ func (this *ClientManage) SetClient(c *Client) {
 		//注册成功,验证通过
 		//判断是否存在老连接,存在则关闭老连接(被挤下线)
 		this.mu.RLock()
-		old, ok := this.m[c.GetKey()]
+		old, ok := this.mKey[c.GetKey()]
 		this.mu.RUnlock()
 		if ok && old.Pointer() != c.Pointer() {
 			old.CloseAll()
 		}
 
-		////设置连接关闭事件
-		//c.SetCloseFunc(this._closeFunc)
-
 		//加入map 进行管理
 		this.mu.Lock()
-		this.m[c.GetKey()] = c
+		this.mKey[c.GetKey()] = c
 		this.mu.Unlock()
-		this.mid.Store(c.Pointer(), c)
+		this.mID.Store(c.Pointer(), c)
 		c.Run()
 
 	}(c)
@@ -250,7 +178,7 @@ func (this *ClientManage) SetClient(c *Client) {
 }
 
 func (this *ClientManage) GetClientByID(id string) *Client {
-	v, ok := this.mid.Load(id)
+	v, ok := this.mID.Load(id)
 	if ok {
 		return v.(*Client)
 	}
@@ -261,13 +189,13 @@ func (this *ClientManage) GetClientByID(id string) *Client {
 func (this *ClientManage) GetClient(key string) *Client {
 	this.mu.RLock()
 	defer this.mu.RUnlock()
-	return this.m[key]
+	return this.mKey[key]
 }
 
 // GetClientOrDial 获取客户端或者(不存在)重新链接
 func (this *ClientManage) GetClientOrDial(key string, dialFunc DialFunc) (*Client, error) {
 	this.mu.RLock()
-	c, ok := this.m[key]
+	c, ok := this.mKey[key]
 	this.mu.RUnlock()
 	if !ok {
 		var err error
@@ -285,7 +213,7 @@ func (this *ClientManage) GetClientOrDial(key string, dialFunc DialFunc) (*Clien
 func (this *ClientManage) GetClientAny() *Client {
 	this.mu.RLock()
 	defer this.mu.RUnlock()
-	for _, v := range this.m {
+	for _, v := range this.mKey {
 		return v
 	}
 	return nil
@@ -302,7 +230,17 @@ func (this *ClientManage) GetClientDo(key string, fn func(c *Client) error) (boo
 
 // GetClientLen 获取客户端数量
 func (this *ClientManage) GetClientLen() int {
-	return len(this.m)
+	return len(this.mKey)
+}
+
+// Publish 实现接口,io.Publisher
+func (this *ClientManage) Publish(topic string, data interface{}) error {
+	c := this.GetClient(topic)
+	if c != nil {
+		_, err := c.WriteAny(data)
+		return err
+	}
+	return errors.New("client not found")
 }
 
 // GetClientMap 获取客户端map,元数据,注意安全
@@ -324,7 +262,7 @@ func (this *ClientManage) CopyClientMap() map[string]*Client {
 func (this *ClientManage) RangeClient(fn func(key string, c *Client) bool) {
 	this.mu.RLock()
 	defer this.mu.RUnlock()
-	for i, v := range this.m {
+	for i, v := range this.mKey {
 		if !fn(i, v) {
 			break
 		}
@@ -336,11 +274,11 @@ func (this *ClientManage) Read(p []byte) (int, error) {
 	return 0, ErrUseReadMessage
 }
 
-// ReadMessage 读取数据,当未设置DealFunc时生效
-func (this *ClientManage) ReadMessage() ([]byte, error) {
-	msg := <-this.readChan
-	return msg, nil
-}
+//// ReadMessage 读取数据,当未设置DealFunc时生效
+//func (this *ClientManage) ReadMessage() ([]byte, error) {
+//	msg := <-this.readChan
+//	return msg, nil
+//}
 
 // WriteClient 写入客户端数据
 func (this *ClientManage) WriteClient(key string, p []byte) (bool, error) {
@@ -396,8 +334,21 @@ func (this *ClientManage) Write(p []byte) (int, error) {
 // CloseClient 关闭客户端,会重试
 func (this *ClientManage) CloseClient(key string) error {
 	if c := this.GetClient(key); c != nil {
-		this.mid.Delete(c.Pointer())
-		return c.CloseAll()
+		if err := c.CloseAll(); err != nil {
+			return err
+		}
+		this.mID.Delete(c.Pointer())
+	}
+	return nil
+}
+
+// CloseClientWithErr 关闭客户端,会重试
+func (this *ClientManage) CloseClientWithErr(key string, err error) error {
+	if c := this.GetClient(key); c != nil && err != nil {
+		if err := c.CloseAllWithErr(err); err != nil {
+			return err
+		}
+		this.mID.Delete(c.Pointer())
 	}
 	return nil
 }
@@ -407,7 +358,7 @@ func (this *ClientManage) CloseClientAll() {
 	for _, v := range this.CopyClientMap() {
 		v.CloseAll()
 	}
-	this.m = make(map[string]*Client)
+	this.mKey = make(map[string]*Client)
 }
 
 // SetClientKey 重命名key
@@ -416,17 +367,17 @@ func (this *ClientManage) SetClientKey(newClient *Client, newKey string) {
 	if oldClient := this.GetClient(newKey); oldClient != nil {
 		//判断指针地址是否一致,不一致则关闭
 		if oldClient.Pointer() != newClient.Pointer() {
-			this.mid.Delete(oldClient.Pointer())
+			this.mID.Delete(oldClient.Pointer())
 			oldClient.CloseAll()
 		}
 	}
-	this.mid.Store(newClient.Pointer(), newClient)
+	this.mID.Store(newClient.Pointer(), newClient)
 	//更新新的客户端
 	this.mu.Lock()
 	defer this.mu.Unlock()
-	delete(this.m, newClient.GetKey())
+	delete(this.mKey, newClient.GetKey())
 	newClient.SetKey(newKey)
-	this.m[newKey] = newClient
+	this.mKey[newKey] = newClient
 }
 
 /*
@@ -435,35 +386,49 @@ func (this *ClientManage) SetClientKey(newClient *Client, newKey string) {
 
  */
 
-// _dealFunc 处理数据
-func (this *ClientManage) _dealFunc(c *Client, msg Message) {
-	select {
-	case <-this.ctx.Done():
-	default:
-		//尝试加入通道
-		select {
-		case this.readChan <- msg:
-		default:
-		}
-		if this.dealFunc != nil {
-			this.dealFunc(c, msg)
-		}
-	}
-}
+//// _dealFunc 处理数据
+//func (this *ClientManage) _dealFunc(c *Client, msg Message) {
+//	select {
+//	case <-this.ctx.Done():
+//	default:
+//		//尝试加入通道
+//		select {
+//		case this.readChan <- msg:
+//		default:
+//		}
+//		if this.dealFunc != nil {
+//			this.dealFunc(c, msg)
+//		}
+//	}
+//}
 
-func (this *ClientManage) _closeFunc(ctx context.Context, c *Client, msg Message) {
+//func (this *ClientManage) _closeFunc(ctx context.Context, c *Client, err error) {
+//	defer c.CloseAll()
+//	if this.closeFunc != nil {
+//		defer this.closeFunc(c, err)
+//	}
+//	this.mu.Lock()
+//	defer this.mu.Unlock()
+//	//获取老的连接
+//	oldConn := this.m[c.GetKey()]
+//	//存在新连接上来被关闭的情况,判断是否是老的连接
+//	if oldConn == nil || oldConn.Pointer() != c.Pointer() {
+//		return
+//	}
+//	this.mid.Delete(c.Pointer())
+//	delete(this.m, c.GetKey())
+//}
+
+func (this *ClientManage) closeFunc(ctx context.Context, c *Client, err error) {
 	defer c.CloseAll()
-	if this.closeFunc != nil {
-		defer this.closeFunc(c, msg)
-	}
 	this.mu.Lock()
 	defer this.mu.Unlock()
 	//获取老的连接
-	oldConn := this.m[c.GetKey()]
+	oldConn := this.mKey[c.GetKey()]
 	//存在新连接上来被关闭的情况,判断是否是老的连接
 	if oldConn == nil || oldConn.Pointer() != c.Pointer() {
 		return
 	}
-	this.mid.Delete(c.Pointer())
-	delete(this.m, c.GetKey())
+	this.mID.Delete(c.Pointer())
+	delete(this.mKey, c.GetKey())
 }

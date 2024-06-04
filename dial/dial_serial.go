@@ -122,7 +122,7 @@ func ScanSerial(addr string, timeout time.Duration, write []byte) (*SerialConfig
 						}
 						defer c.Close()
 						go c.Run()
-						resp, err := c.WriteReadWithTimeout(write, timeout)
+						resp, err := c.WriteRead(write, timeout)
 						if err != nil {
 							return nil, nil, err
 						}

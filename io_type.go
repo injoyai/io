@@ -233,16 +233,22 @@ type Connect interface {
 
 //=============================
 
-func MReaderToReader(mReader MessageReader) Reader {
+func MReaderToReader(mReader MessageReader) *_mReaderToReader {
 	return &_mReaderToReader{
 		mReader: mReader,
 		buff:    bytes.NewBuffer(nil),
 	}
 }
 
+// _mReaderToReader 把MessageReader转成Reader,
+// 这样MessageReader能兼容
 type _mReaderToReader struct {
 	mReader MessageReader
 	buff    *bytes.Buffer
+}
+
+func (this *_mReaderToReader) ReadFunc(r *bufio.Reader) ([]byte, error) {
+	return this.mReader.ReadMessage()
 }
 
 func (this *_mReaderToReader) Read(p []byte) (int, error) {

@@ -8,30 +8,12 @@ import (
 	"time"
 )
 
-// SetCloseFunc 设置关闭函数
-func (this *Client) SetCloseFunc(fn func(ctx context.Context, c *Client, msg Message)) *Client {
-	this.closeFunc = fn
-	return this
-}
-
-// SetCloseWithNil 设置无关闭函数
-func (this *Client) SetCloseWithNil() *Client {
-	return this.SetCloseFunc(nil)
-}
-
-// SetCloseWithCloser 设置关闭函数关闭Closer
-func (this *Client) SetCloseWithCloser(closer Closer) *Client {
-	return this.SetCloseFunc(func(ctx context.Context, c *Client, msg Message) {
-		closer.Close()
-	})
-}
-
 // Redial 重新链接,重试,因为指针复用,所以需要根据上下文来处理(例如关闭)
 func (this *Client) Redial(options ...OptionClient) *Client {
-	this.SetCloseFunc(func(ctx context.Context, c *Client, msg Message) {
+	this.SetCloseFunc(func(ctx context.Context, c *Client, err error) {
 		//等待1秒之后开始重连,防止无限制连接断开
 		<-time.After(time.Second)
-		if err := this.MustDial(func(c *Client) { c.Redial(options...) }); err != nil {
+		if err := this.MustDial(this.ctxParent, func(c *Client) { c.Redial(options...) }); err != nil {
 			this.Errorf("[%s] 重连错误,%v\n", this.GetKey(), err)
 			return
 		}
@@ -51,6 +33,12 @@ func (this *Client) SetRedialMaxTime(t time.Duration) *Client {
 	return this
 }
 
+// SetRedialMaxNum 设置最大重连次数
+func (this *Client) SetRedialMaxNum(n int) *Client {
+	this.redialMaxNum = n
+	return this
+}
+
 //================================DialFunc================================
 
 // SetDialFunc 设置连接函数
@@ -67,6 +55,7 @@ func (this *Client) SetDialWithNil() *Client {
 
 //================================Timer================================
 
+// After 延迟执行函数
 func (this *Client) After(after time.Duration, fn func()) {
 	select {
 	case <-this.Done():
@@ -105,11 +94,13 @@ func (this *Client) timer(ctx context.Context, dealErr func(error) error, interv
 func (this *Client) For(fn func(ctx context.Context) error) (err error) {
 	for {
 		select {
-		case <-this.DoneAll():
-			//1. 调用了CloseAll方法进行关闭
-			//2. 通过外部的上下文Cancel进行关闭,需要进行断开连接操作
-			this.CloseAll()
-			return this.Err()
+		//case <-this.DoneAll():
+		//1. 调用了CloseAll方法进行关闭
+		//2. 通过外部的上下文Cancel进行关闭,需要进行断开连接操作
+		//这里执行不到,没有数据接收会一直阻塞
+		//logs.Debug("DoneAll")
+		//this.CloseAll()
+		//return this.Err()
 		case <-this.Done():
 			//1. 调用了Close方法
 			//2. 连接报错触发了Close
@@ -172,6 +163,13 @@ func (this *Client) Closed() bool {
 
 // CloseAll 主动关闭,不会重试
 func (this *Client) CloseAll() error {
+	return this.CloseAllWithErr(ErrHandClose)
+}
+
+func (this *Client) CloseAllWithErr(err error) error {
+	if err == nil {
+		return nil
+	}
 	//关闭重试函数
 	this.SetDialWithNil()
 	//关闭父级上下文
@@ -229,14 +227,19 @@ func (this *Client) closeWithErr(closeErr error, fn ...func(Closer) error) (err 
 			}
 		}
 		//生成错误信息
-		msg := Message(this.closeErr.Error())
-		//打印错误信息
-		this.logger.Errorf("[%s] %s\n", this.GetKey(), msg.String())
-		//执行用户设置的错误函数
-		if this.closeFunc != nil {
-			//需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
-			this.closeFunc(this.CtxAll(), this, msg)
+		//msg := Message(this.closeErr.Error())
+		////打印错误信息
+		//this.logger.Errorf("[%s] %s\n", this.GetKey(), msg.String())
+
+		//执行用户设置的错误函数,需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
+		for _, f := range this.closeFunc {
+			f(this.CtxAll(), this, this.closeErr)
 		}
+		////执行用户设置的错误函数
+		//if this.closeFunc != nil {
+		//	//需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
+		//	this.closeFunc(this.CtxAll(), this, msg)
+		//}
 		//如果执行到了这里,则说明没有重试,则关闭父级上下文
 		//重复关闭会怎么样? 测试可以重复关闭
 		//logs.Debug("cancelParent")
@@ -245,14 +248,14 @@ func (this *Client) closeWithErr(closeErr error, fn ...func(Closer) error) (err 
 	return
 }
 
-// MustDial 无限重连,返回nil,或者成功数据
-func (this *Client) MustDial(options ...OptionClient) error {
+// MustDial 无限重连,返回错误信息
+func (this *Client) MustDial(ctx context.Context, options ...OptionClient) error {
 	t := time.Second
 	timer := time.NewTimer(0)
 	defer timer.Stop()
-	for {
+	for i := 0; ; i++ {
 		select {
-		case <-this.ctxParent.Done():
+		case <-ctx.Done():
 			return errors.New("上下文关闭")
 
 		case <-timer.C:
@@ -265,6 +268,10 @@ func (this *Client) MustDial(options ...OptionClient) error {
 			if err == nil {
 				return nil
 			}
+			//判断是否超出重试次数
+			if this.redialMaxNum > 0 && i >= this.redialMaxNum {
+				return err
+			}
 			t *= 2
 			if t > this.redialMaxTime {
 				t = this.redialMaxTime
@@ -275,7 +282,7 @@ func (this *Client) MustDial(options ...OptionClient) error {
 	}
 }
 
-// Dial 重新链接
+// Dial 连接,成功后执行Option
 func (this *Client) Dial(options ...OptionClient) error {
 
 	if this.dialFunc == nil {
@@ -285,18 +292,37 @@ func (this *Client) Dial(options ...OptionClient) error {
 
 	select {
 	case <-this.ctxParent.Done():
-		return errors.New("已关闭")
+		//外部上下文关闭,关闭并取消重试
+		_ = this.CloseAll()
+		return errors.New("上下文关闭")
 
 	default:
+
+		//尝试进行连接,返回ReadWriteCloser和唯一标识key
 		i, key, err := this.dialFunc(this.ctx)
-		if err == nil {
-			this.reset(i, key, options...)
+		if err != nil {
+			return err
 		}
-		if !this.Closed() {
-			//如果在option关闭的话,会先打印关闭,再打印连接成功,所以判断下连接是否还在
-			this.Infof("[%s] 连接服务端成功...\n", this.GetKey())
+
+		//数据初始化操作,声明内存等操作
+		this.reset(i, key, options...)
+
+		//连接成功事件
+		for _, f := range this.connectFunc {
+			if err := this.CloseWithErr(f(this)); err != nil {
+				return err
+			}
 		}
-		return err
+
+		return nil
+
+		//转移至连接事件
+		//if !this.Closed() {
+		//	//如果在option执行了关闭方法的话,会出现先打印关闭,再打印连接成功,
+		//	//所以判断下连接是否还在,再决定是否打印连接成功的信息
+		//	//至于为什么放option后面,是为了让用户能控制日志的打印
+		//	this.Infof("[%s] 连接服务端成功...\n", this.GetKey())
+		//}
 
 	}
 }

@@ -64,6 +64,11 @@ func Read1KB(buf *bufio.Reader) ([]byte, error) {
 	return ReadMost(buf, 1024)
 }
 
+// Read4KB 读取4KB数据
+func Read4KB(buf *bufio.Reader) ([]byte, error) {
+	return ReadMost(buf, 4096)
+}
+
 func ReadDefault(buf *bufio.Reader) ([]byte, error) {
 	return buf.ReadBytes('\n')
 }

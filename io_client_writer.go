@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/injoyai/conv"
-	"github.com/injoyai/io/buf"
 	"time"
 )
 
@@ -30,15 +29,15 @@ func (this *Client) Write(p []byte) (n int, err error) {
 	defer func() {
 		err = dealErr(err)
 	}()
-	//记录错误,用于队列的判断
-	if this.writeFunc != nil {
-		p, err = this.writeFunc(p)
+
+	//执行写入函数,处理写入的数据,进行封装或者打印等操作
+	for _, f := range this.writeFunc {
+		p, err = f(p)
 		if err != nil {
 			return 0, err
 		}
 	}
-	//打印实际发送的数据,方便调试
-	this.logger.Writeln("["+this.GetKey()+"] ", p)
+
 	//写入数据
 	n, err = this.i.Write(p)
 	if err != nil {
@@ -215,51 +214,4 @@ func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 		keep := conv.GetDefaultBytes([]byte(Ping), keeps...)
 		return c.Write(keep)
 	})
-}
-
-//================================WriteFunc================================
-
-// SetWriteFunc 设置写入函数,封装数据包,same SetWriteBeforeFunc
-func (this *Client) SetWriteFunc(fn func(p []byte) ([]byte, error)) *Client {
-	this.writeFunc = fn
-	return this
-}
-
-// SetWriteWithPkg 默认写入函数
-func (this *Client) SetWriteWithPkg() *Client {
-	return this.SetWriteFunc(WriteWithPkg)
-}
-
-// SetWriteWithNil 取消写入函数
-func (this *Client) SetWriteWithNil() *Client {
-	return this.SetWriteFunc(nil)
-}
-
-// SetWriteWithStartEnd 设置写入函数,增加头尾
-func (this *Client) SetWriteWithStartEnd(start, end []byte) *Client {
-	return this.SetWriteFunc(buf.NewWriteWithStartEnd(start, end))
-}
-
-func (this *Client) SetWriteWithQueue(cap int) *Client {
-	//删除老的队列
-	if i, ok := this.Tag().Get("_queue"); ok {
-		close(i.(chan []byte))
-	}
-	queue := make(chan []byte, cap)
-	go func(w Writer, queue chan []byte) {
-		for p := range queue {
-			if _, err := this.Write(p); err != nil {
-				return
-			}
-		}
-	}(this, queue)
-	this.SetWriteFunc(func(p []byte) ([]byte, error) {
-		select {
-		case <-this.Done():
-			return nil, this.Err()
-		case <-queue:
-			return p, nil
-		}
-	})
-	return this
 }

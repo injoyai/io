@@ -3,6 +3,7 @@ package io
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/conv"
@@ -26,7 +27,7 @@ func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClie
 		cancelParent: cancelParent,
 	}
 	c.SetDialFunc(dial)
-	err := c.MustDial(func(c *Client) {
+	err := c.MustDial(ctx, func(c *Client) {
 		c.Redial(options...)
 	})
 	c.CloseWithErr(err)
@@ -72,39 +73,38 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser, options ...Opt
 
 /*
 Client 通用IO客户端
+以客户端的指针为唯一标识,key作为辅助标识(展示给用户看)
 各种设置,当Run函数执行时生效
 可以作为普通的io.ReadWriteCloser(Run函数不执行)
 */
 type Client struct {
 
 	//reader
-	readFunc func(buf *bufio.Reader) ([]byte, error) //读取函数
-	dealFunc []func(c *Client, msg Message)          //处理数据函数
-	readChan chan Message                            //读取最新数据chan
+	latestChan chan Message //读取最新数据chan
 
 	//writer
-	writeFunc      func(p []byte) ([]byte, error) //写入函数,处理写入内容
-	writeQueue     chan []byte                    //写入队列
-	writeQueueOnce sync.Once                      //写入队列初始化
+	writeQueue     chan []byte //写入队列
+	writeQueueOnce sync.Once   //写入队列初始化
 
 	//closer
-	redialMaxTime time.Duration                                     //最大尝试退避重连时间
-	dialFunc      DialFunc                                          //连接函数
-	closeFunc     func(ctx context.Context, c *Client, msg Message) //关闭函数
-	timeout       time.Duration                                     //超时时间,读取
-	timeoutReset  chan struct{}                                     //超时重置
-	running       uint32                                            //是否在运行
-	closed        uint32                                            //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
-	closeErr      error                                             //错误信息
-	ctx           context.Context                                   //子级上下文
-	cancel        context.CancelFunc                                //子级上下文
-	ctxParent     context.Context                                   //父级上下文,主动关闭时,用于关闭redial
-	cancelParent  context.CancelFunc                                //父级上下文,主动关闭时,用于关闭redial
+	redialMaxTime time.Duration //最大尝试退避重连时间
+	redialMaxNum  int           //最大尝试重连的次数
+	dialFunc      DialFunc      //连接函数
+
+	timeout      time.Duration      //超时时间,读取
+	timeoutReset chan struct{}      //超时重置
+	running      uint32             //是否在运行,1是运行,0是没运行
+	closed       uint32             //是否关闭(不公开,做原子操作),0是未关闭,1是已关闭
+	closeErr     error              //错误信息
+	ctx          context.Context    //子级上下文
+	cancel       context.CancelFunc //子级上下文
+	ctxParent    context.Context    //父级上下文,主动关闭时,用于关闭redial,好像没啥用得用一个协程来监听
+	cancelParent context.CancelFunc //父级上下文,主动关闭时,用于关闭redial
 
 	//runtime
 	Key                         //自定义标识
 	*logger                     //日志
-	pointer     *string         //唯一标识,指针地址
+	pointer     string          //唯一标识,指针地址
 	i           ReadWriteCloser //接口,实例,传入的原始参数
 	buf         *bufio.Reader   //buffer
 	tag         *maps.Safe      //标签,用于记录连接的一些信息
@@ -114,6 +114,22 @@ type Client struct {
 	writeTime   time.Time       //最后写入时间
 	writeBytes  int64           //写入的字节数
 	writeNumber int64           //写入的次数
+
+	//连接成功事件,可以手动进行数据的读写,或者关闭,返回错误会关闭连接
+	//如果设置了重连,则会再次建立连接而触发连接事件
+	//所以固定返回错误的话,会陷入无限连接断开的情况,
+	connectFunc []func(c *Client) error
+
+	//连接断开事件,连接断开的时候触发,可以调用Dial方法进行重连操作
+	closeFunc []func(ctx context.Context, c *Client, err error) //关闭函数
+
+	readFunc func(buf *bufio.Reader) ([]byte, error) //读取函数
+
+	//处理数据事件,可以进行打印或者其他逻辑操作
+	dealFunc []func(c *Client, msg Message) (ack bool)
+
+	//写入数据事件,可以进行封装或者打印等操作
+	writeFunc []func(p []byte) ([]byte, error)
 }
 
 //================================Nature================================
@@ -123,7 +139,7 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 		this.reset(v.i, key, options...)
 	}
 	this.ctx, this.cancel = context.WithCancel(this.ctxParent)
-	this.readChan = make(chan Message)
+	this.latestChan = make(chan Message)
 	this.redialMaxTime = time.Second * 32
 	this.timeoutReset = make(chan struct{})
 	this.logger = defaultLogger()
@@ -132,25 +148,38 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 	this.i = i
 	this.tag = nil
 	//this.closeErr = nil
+
+	defaultReadFuc := buf.Read1KB
 	switch v := i.(type) {
 	case nil:
 	case MessageReader:
+		mReader := MReaderToReader(v)
+		defaultReadFuc = mReader.ReadFunc
 		i = struct {
 			WriteCloser
 			Reader
 		}{
 			WriteCloser: i,
-			Reader:      MReaderToReader(v),
+			Reader:      mReader,
 		}
 	}
 	//默认buf大小,可自定义缓存大小
 	this.buf = bufio.NewReaderSize(i, DefaultBufferSize+1)
 
-	this.SetKey(key)
-	this.Debug()
-	this.SetReadFunc(buf.Read1KB)
-	this.SetDealWithDefault()
+	//设置默认的Option
+	this.SetKey(key) //唯一标识
+	this.Debug()     //打印日志
+
+	//设置默认事件
+	this.SetConnectWithNil().SetConnectWithLog()
+	this.SetReadFunc(defaultReadFuc)
+	this.SetDealWithNil().SetDealWithDefault()
+	this.SetWriteWithNil().SetWriteWithLog()
+	this.SetCloseWithNil().SetCloseWithLog()
+
+	//设置用户的Option
 	this.SetOptions(options...)
+
 	return this
 }
 
@@ -166,11 +195,11 @@ func (this *Client) ID() string {
 
 // Pointer 获取指针地址
 func (this *Client) Pointer() string {
-	if this.pointer == nil {
+	if this.pointer == "" {
 		pointer := fmt.Sprintf("%p", this)
-		this.pointer = &pointer
+		this.pointer = pointer
 	}
-	return *this.pointer
+	return this.pointer
 }
 
 // CreateTime 创建时间
@@ -196,28 +225,24 @@ func (this *Client) SetLogger(logger Logger) *Client {
 	return this
 }
 
-// WriteReadWithTimeout 同步写读,超时
-func (this *Client) WriteReadWithTimeout(request []byte, timeout time.Duration) (response []byte, err error) {
-	if _, err = this.Write(request); err != nil {
-		return
+// WriteRead 同步写读,写入数据,并监听,例如串口
+func (this *Client) WriteRead(request []byte, timeout ...time.Duration) ([]byte, error) {
+	if _, err := this.Write(request); err != nil {
+		return nil, err
 	}
-	return this.ReadLast(timeout)
+	return this.ReadLatest(conv.GetDefaultDuration(DefaultResponseTimeout, timeout...))
 }
 
-// WriteRead 同步写读,写入数据,并监听
-func (this *Client) WriteRead(request []byte, timeout ...time.Duration) (response []byte, err error) {
-	return this.WriteReadWithTimeout(request, conv.GetDefaultDuration(DefaultResponseTimeout, timeout...))
-}
-
-// Ping 测试连接
+// Ping 测试连接, 在默认处理时候会返回pong才有用
 func (this *Client) Ping(timeout ...time.Duration) error {
-	_, err := this.WriteRead([]byte(Ping), conv.DefaultDuration(time.Second, timeout...))
-	return err
-}
-
-// GoAfter 延迟执行函数
-func (this *Client) GoAfter(after time.Duration, fn func()) {
-	go this.After(after, fn)
+	resp, err := this.WriteRead([]byte(Ping), conv.DefaultDuration(time.Second, timeout...))
+	if err != nil {
+		return err
+	}
+	if string(resp) != Pong {
+		return errors.New("ping error")
+	}
+	return nil
 }
 
 // SetOptions 设置选项
@@ -228,87 +253,10 @@ func (this *Client) SetOptions(options ...OptionClient) *Client {
 	return this
 }
 
-//================================SetFunc================================
-
-// SetReadWriteWithPkg 设置读写为默认分包方式
-func (this *Client) SetReadWriteWithPkg() *Client {
-	this.SetWriteWithPkg()
-	this.SetReadWithPkg()
-	return this
-}
-
-// SetReadWriteWithSimple 设置读写为简易包
-func (this *Client) SetReadWriteWithSimple() *Client {
-	this.SetWriteFunc(WriteWithSimple)
-	this.SetReadFunc(ReadWithSimple)
-	return nil
-}
-
-// SetReadWriteWithStartEnd 设置读取写入数据根据包头包尾
-func (this *Client) SetReadWriteWithStartEnd(packageStart, packageEnd []byte) *Client {
-	this.SetWriteWithStartEnd(packageStart, packageEnd)
-	this.SetReadWithStartEnd(packageStart, packageEnd)
-	return this
-}
-
-// Swap IO数据交换
-func (this *Client) Swap(i ReadWriteCloser) {
-	this.SwapClient(NewClient(i))
-}
-
-// SwapClient IO数据交换
-func (this *Client) SwapClient(c *Client) {
-	SwapClient(this, c)
-}
-
 //================================net.Conn================================
 
 // NetConn 断言net.Conn
 func (this *Client) NetConn() (net.Conn, bool) {
 	v, ok := this.i.(net.Conn)
 	return v, ok
-}
-
-//func (this *Client) LocalAddr() net.Addr {
-//	if v, ok := this.i.(net.Conn); ok {
-//		return v.LocalAddr()
-//	}
-//	return &net.TCPAddr{}
-//}
-//
-//func (this *Client) RemoteAddr() net.Addr {
-//	if v, ok := this.i.(net.Conn); ok {
-//		return v.RemoteAddr()
-//	}
-//	return &net.TCPAddr{}
-//}
-
-// TrySetDeadline 尝试使用SetDeadline(t time.Time) error函数
-func (this *Client) TrySetDeadline(t time.Time) error {
-	if v, ok := this.i.(interface {
-		SetDeadline(t time.Time) error
-	}); ok {
-		return v.SetDeadline(t)
-	}
-	return nil
-}
-
-// TrySetReadDeadline 尝试使用SetReadDeadline(t time.Time) error函数
-func (this *Client) TrySetReadDeadline(t time.Time) error {
-	if v, ok := this.i.(interface {
-		SetReadDeadline(t time.Time) error
-	}); ok {
-		return v.SetReadDeadline(t)
-	}
-	return nil
-}
-
-// TrySetWriteDeadline 尝试使用SetWriteDeadline(time.Time) error函数
-func (this *Client) TrySetWriteDeadline(t time.Time) error {
-	if v, ok := this.i.(interface {
-		SetWriteDeadline(t time.Time) error
-	}); ok {
-		return v.SetWriteDeadline(t)
-	}
-	return nil
 }

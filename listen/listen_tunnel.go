@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/injoyai/base/g"
+	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
 )
@@ -55,108 +56,112 @@ func (this *TunnelMessage) Bytes() g.Bytes {
 
 func NewTunnelClient(s *io.Server, tunDial io.DialFunc, proxyAddr string, options ...io.OptionClient) {
 	pool := io.NewPool(tunDial, options...)
-	s.SetBeforeFunc(func(client *io.Client) error {
-		tun, err := pool.Get()
-		if err != nil {
-			return err
-		}
-
-		{
-			client.SetReadWith1KB()
-			client.SetDealFunc(func(c *io.Client, msg io.Message) {
-				//写入数据
-				tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
-			})
-			client.SetCloseFunc(func(ctx context.Context, c *io.Client, msg io.Message) {
-				//发送关闭信息
-				tun.Write(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...))
-				//放回连接池
-				pool.Put(tun)
-			})
-		}
-
-		{
-			tun.SetKey(client.GetKey())
-			tun.SetReadWriteWithPkg()
-			tun.SetCloseWithCloser(client)
-			tun.SetDealFunc(func(c *io.Client, msg io.Message) {
-				m, err := decodeTunnelMessage(msg.Bytes())
-				if err != nil {
-					tun.Write(append([]byte{TypeClose, TypeRequest}, []byte(err.Error())...))
-					client.CloseWithErr(errors.New(err.Error()))
-					return
-				}
-				switch m.Type {
-				case TypeConnect:
-					//连接成功响应
-				case TypeWrite:
-					//写入数据
-					client.Write(m.Data)
-				default: //TypeClose
-					client.CloseWithErr(errors.New(string(m.Data)))
-				}
-			})
-
-			//发送连接信息
-			_, err = tun.WriteRead(append([]byte{TypeConnect, TypeRequest}, []byte(proxyAddr)...), io.DefaultConnectTimeout)
+	s.ClientManage.SetOptions(func(c *io.Client) {
+		c.SetConnectFunc(func(client *io.Client) error {
+			tun, err := pool.Get()
 			if err != nil {
 				return err
 			}
-		}
 
-		return nil
+			{
+				client.SetReadWith1KB()
+				client.SetDealFunc(func(c *io.Client, msg io.Message) {
+					//写入数据
+					tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
+				})
+				client.SetCloseFunc(func(ctx context.Context, c *io.Client, err error) {
+					//发送关闭信息
+					tun.Write(append([]byte{TypeClose, TypeRequest}, conv.Bytes(err)...))
+					//放回连接池
+					pool.Put(tun)
+				})
+			}
+
+			{
+				tun.SetKey(client.GetKey())
+				tun.SetReadWriteWithPkg()
+				tun.SetCloseWithCloser(client)
+				tun.SetDealFunc(func(c *io.Client, msg io.Message) {
+					m, err := decodeTunnelMessage(msg.Bytes())
+					if err != nil {
+						tun.Write(append([]byte{TypeClose, TypeRequest}, []byte(err.Error())...))
+						client.CloseWithErr(errors.New(err.Error()))
+						return
+					}
+					switch m.Type {
+					case TypeConnect:
+						//连接成功响应
+					case TypeWrite:
+						//写入数据
+						client.Write(m.Data)
+					default: //TypeClose
+						client.CloseWithErr(errors.New(string(m.Data)))
+					}
+				})
+
+				//发送连接信息
+				_, err = tun.WriteRead(append([]byte{TypeConnect, TypeRequest}, []byte(proxyAddr)...), io.DefaultConnectTimeout)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
 	})
 }
 
 func NewTunnelServer(s *io.Server) {
-	s.SetBeforeFunc(func(tun *io.Client) error {
-		var c *io.Client
-		tun.SetReadWriteWithPkg()
-		tun.SetDealFunc(func(c2 *io.Client, msg io.Message) {
-			m, err := decodeTunnelMessage(msg.Bytes())
-			if err == nil {
-				switch m.Type {
-				case TypeConnect:
-					switch m.Model {
-					default:
-						c, err = dial.NewTCP(string(m.Data), func(c *io.Client) {
-							c.Debug(false)
-							c.SetReadWith1KB()
-							c.SetDealFunc(func(c *io.Client, msg io.Message) {
-								//写入数据
-								tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
+	s.ClientManage.SetOptions(func(c *io.Client) {
+		c.SetConnectFunc(func(tun *io.Client) error {
+			var c *io.Client
+			tun.SetReadWriteWithPkg()
+			tun.SetDealFunc(func(c2 *io.Client, msg io.Message) {
+				m, err := decodeTunnelMessage(msg.Bytes())
+				if err == nil {
+					switch m.Type {
+					case TypeConnect:
+						switch m.Model {
+						default:
+							c, err = dial.NewTCP(string(m.Data), func(c *io.Client) {
+								c.Debug(false)
+								c.SetReadWith1KB()
+								c.SetDealFunc(func(c *io.Client, msg io.Message) {
+									//写入数据
+									tun.Write(append([]byte{TypeWrite, TypeRequest}, msg.Bytes()...))
+								})
+								c.SetCloseFunc(func(ctx context.Context, c *io.Client, err error) {
+									//发送关闭信息
+									tun.Write(append([]byte{TypeClose, TypeRequest}, conv.Bytes(err)...))
+								})
+								tun.SetCloseWithCloser(c)
 							})
-							c.SetCloseFunc(func(ctx context.Context, c *io.Client, msg io.Message) {
+							if err != nil {
 								//发送关闭信息
-								tun.Write(append([]byte{TypeClose, TypeRequest}, msg.Bytes()...))
-							})
-							tun.SetCloseWithCloser(c)
-						})
-						if err != nil {
+								tun.Write(append([]byte{TypeClose, TypeRequest}, []byte(err.Error())...))
+								return
+							}
+							tun.Write(append([]byte{TypeConnect, TypeResponse}, []byte("连接成功")...))
+							go c.Run()
+						}
+					case TypeWrite:
+						if c == nil || c.Closed() {
 							//发送关闭信息
-							tun.Write(append([]byte{TypeClose, TypeRequest}, []byte(err.Error())...))
+							tun.Write(append([]byte{TypeClose, TypeRequest}, []byte("无连接")...))
 							return
 						}
-						tun.Write(append([]byte{TypeConnect, TypeResponse}, []byte("连接成功")...))
-						go c.Run()
-					}
-				case TypeWrite:
-					if c == nil || c.Closed() {
-						//发送关闭信息
-						tun.Write(append([]byte{TypeClose, TypeRequest}, []byte("无连接")...))
-						return
-					}
-					//写入数据
-					c.Write(m.Data)
-				case TypeClose:
-					//关闭连接
-					if c != nil {
-						c.Close()
-					}
+						//写入数据
+						c.Write(m.Data)
+					case TypeClose:
+						//关闭连接
+						if c != nil {
+							c.Close()
+						}
 
+					}
 				}
-			}
+			})
+			return nil
 		})
-		return nil
 	})
 }

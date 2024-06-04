@@ -52,7 +52,7 @@ func TestRedialTCP(t *testing.T) {
 	c := RedialTCP(":10086", func(c *io.Client) {
 		c.Debug()
 		c.GoTimerWriteBytes(time.Second, []byte("666"))
-		c.GoAfter(time.Second*3, func() {
+		go c.After(time.Second*3, func() {
 			c.Close()
 		})
 	})

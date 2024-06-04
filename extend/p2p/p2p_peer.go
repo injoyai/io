@@ -46,7 +46,8 @@ func NewPeer(port int, options ...io.OptionServer) (p *peer, err error) {
 		wait:      wait.New(time.Second * 2),
 	}
 	p.Server, err = listen.NewUDPServer(port, func(s *io.Server) {
-		s.SetReadWriteWithPkg()
+		s.SetReadFunc(io.ReadWithPkg)
+		s.SetWriteFunc(io.WriteWithPkg)
 		s.SetDealFunc(func(c *io.Client, msg io.Message) {
 
 			m := new(Msg)

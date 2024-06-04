@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/buf"
 	"github.com/injoyai/io/dial"
 	"github.com/injoyai/io/listen"
 	"github.com/injoyai/logs"
@@ -48,7 +49,7 @@ func Test(n int) {
 		start := time.Now()  //当前时间
 		length := 1000 << 20 //传输的数据大小
 		totalRead := 0
-		readAll := func(buf *bufio.Reader) (bytes []byte, err error) {
+		readAll := func(r *bufio.Reader) (bytes []byte, err error) {
 			defer func() {
 				totalRead += len(bytes)
 				if totalRead >= length {
@@ -56,25 +57,13 @@ func Test(n int) {
 				}
 			}()
 
-			//read,单次读取大小不影响速度
-			num := 4096
-			for {
-				data := make([]byte, num)
-				length, err := buf.Read(data)
-				if err != nil {
-					return nil, err
-				}
-				bytes = append(bytes, data[:length]...)
-				if length < num || buf.Buffered() == 0 {
-					//缓存没有剩余的数据
-					return bytes, err
-				}
-			}
+			return buf.Read1KB(r)
 		}
 
 		totalDeal := 0
 		go listen.RunTCPServer(20145, func(s *io.Server) {
 			s.SetLevel(io.LevelError)
+			s.Debug(false)
 			s.SetReadFunc(readAll)
 			s.SetDealFunc(func(c *io.Client, msg io.Message) {
 				totalDeal += msg.Len()
@@ -86,6 +75,7 @@ func Test(n int) {
 		})
 		<-time.After(time.Second)
 		<-dial.RedialTCP("127.0.0.1:20145", func(c *io.Client) {
+			c.Debug(false)
 			c.SetLevelInfo()
 			data := make([]byte, length)
 			start = time.Now()

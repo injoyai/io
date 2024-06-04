@@ -35,7 +35,8 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		Key:          Key(key),
 		logger:       logger,
 		Closer:       safe.NewCloser(),
-		ClientManage: NewClientManage(ctx, key, logger),
+		ClientManage: NewClientManage(key, logger),
+		ctx:          ctx,
 		tag:          maps.NewSafe(),
 		listener:     listener,
 	}
@@ -51,6 +52,8 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 	})
 	//预设服务处理
 	s.SetOptions(options...)
+	//运行超时机制
+	go s.Keep.Run(ctx)
 	return s, nil
 }
 
@@ -60,6 +63,7 @@ type Server struct {
 	*ClientManage
 	*logger
 	*safe.Closer
+	ctx       context.Context
 	tag       *maps.Safe //tag
 	listener  Listener   //listener
 	running   uint32     //是否在运行
@@ -107,25 +111,32 @@ func (this *Server) Close() error {
 	return this.Closer.Close()
 }
 
-func (this *Server) SetCloseFunc(fn func(c *Client, msg Message)) *Server {
-	this.ClientManage.SetCloseFunc(fn)
+func (this *Server) SetCloseFunc(fn func(c *Client, err error)) *Server {
+	this.ClientManage.SetOptions(func(c *Client) {
+		c.SetCloseFunc(func(ctx context.Context, c *Client, err error) {
+			fn(c, err)
+		})
+	})
 	return this
 }
 
-// Swap 和一个IO交换数据
-func (this *Server) Swap(i ReadWriteCloser) *Server {
-	c := NewClient(i)
-	c.SetReadWith1KB()
-	return this.SwapClient(c)
-}
-
-// SwapClient 和一个客户端交换数据
-func (this *Server) SwapClient(c *Client) *Server {
-	this.SetDealWithWriter(c)
-	c.SetDealWithWriter(this)
-	go c.Run()
-	return this
-}
+//// Swap 和一个IO交换数据
+//func (this *Server) Swap(i ReadWriteCloser) *Server {
+//	c := NewClient(i)
+//	c.SetReadWith1KB()
+//	return this.SwapClient(c)
+//}
+//
+//// SwapClient 和一个客户端交换数据
+//func (this *Server) SwapClient(c *Client) *Server {
+//	this.ClientManage.SetOptions(func(c *Client) {
+//
+//	})
+//	this.SetDealWithWriter(c)
+//	c.SetDealWithWriter(this)
+//	go c.Run()
+//	return this
+//}
 
 //================================RunTime================================
 
@@ -169,6 +180,7 @@ func (this *Server) Run() error {
 
 		//新建客户端,并配置
 		x := NewClientWithContext(this.ctx, c)
+		x.SetLogger(this.logger)
 		x.SetKey(key)
 		x.Tag().Set("address", key)
 		//this.Infof("[%s] 新的客户端连接...\n", key)
