@@ -44,22 +44,6 @@ type Publisher interface {
 	Publish(topic string, p []byte) error
 }
 
-// MessageReader 读取分包后的数据
-type MessageReader interface {
-	ReadMessage() ([]byte, error)
-}
-
-type MessageReadCloser interface {
-	MessageReader
-	Closer
-}
-
-type MessageReadWriteCloser interface {
-	MessageReader
-	Writer
-	Closer
-}
-
 type Listener interface {
 	Closer
 	Accept() (ReadWriteCloser, string, error)
@@ -213,53 +197,4 @@ type Plan struct {
 	Current int64  //当前数量
 	Total   int64  //总数量
 	Bytes   []byte //字节内容
-}
-
-type Connect interface {
-	Closer
-	Closed
-	Runner
-
-	// Connect 建立连接
-	Connect(ctx context.Context) error
-
-	// GetOnline 获取在线状态
-	GetOnline() bool
-
-	// SetOnline 设置在线状态,也可直接在Connect中实现
-	// 方便统一管理,设置连接中,连接结果等
-	SetOnline(online bool, reason string)
-}
-
-//=============================
-
-func MReaderToReader(mReader MessageReader) *_mReaderToReader {
-	return &_mReaderToReader{
-		mReader: mReader,
-		buff:    bytes.NewBuffer(nil),
-	}
-}
-
-// _mReaderToReader 把MessageReader转成Reader,
-// 这样MessageReader能兼容
-type _mReaderToReader struct {
-	mReader MessageReader
-	buff    *bytes.Buffer
-}
-
-func (this *_mReaderToReader) ReadFunc(r *bufio.Reader) ([]byte, error) {
-	return this.mReader.ReadMessage()
-}
-
-func (this *_mReaderToReader) Read(p []byte) (int, error) {
-	if this.buff.Len() == 0 {
-		bs, err := this.mReader.ReadMessage()
-		if err != nil {
-			return 0, err
-		}
-		//使用buff,可能用户读取的数据比readMessage读取到的少,
-		//缓存多余的数据再下次读取,当缓存的数据为0时,再去读取
-		this.buff.Write(bs)
-	}
-	return this.buff.Read(p)
 }

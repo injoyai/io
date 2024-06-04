@@ -123,7 +123,7 @@ type Client struct {
 	//连接断开事件,连接断开的时候触发,可以调用Dial方法进行重连操作
 	closeFunc []func(ctx context.Context, c *Client, err error) //关闭函数
 
-	readFunc func(buf *bufio.Reader) ([]byte, error) //读取函数
+	readFunc func(buf *bufio.Reader) (Acker, error) //读取函数
 
 	//处理数据事件,可以进行打印或者其他逻辑操作
 	dealFunc []func(c *Client, msg Message) (ack bool)
@@ -149,12 +149,12 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 	this.tag = nil
 	//this.closeErr = nil
 
-	defaultReadFuc := buf.Read1KB
+	defaultReadFunc := ReadFuncToAck(buf.Read1KB)
 	switch v := i.(type) {
 	case nil:
 	case MessageReader:
 		mReader := MReaderToReader(v)
-		defaultReadFuc = mReader.ReadFunc
+		defaultReadFunc = ReadFuncToAck(mReader.ReadFunc)
 		i = struct {
 			WriteCloser
 			Reader
@@ -162,6 +162,18 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 			WriteCloser: i,
 			Reader:      mReader,
 		}
+
+	case AckReader:
+		aReader := AReaderToReader(v)
+		defaultReadFunc = aReader.ReadAck
+		i = struct {
+			WriteCloser
+			Reader
+		}{
+			WriteCloser: i,
+			Reader:      aReader,
+		}
+
 	}
 	//默认buf大小,可自定义缓存大小
 	this.buf = bufio.NewReaderSize(i, DefaultBufferSize+1)
@@ -172,7 +184,7 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 
 	//设置默认事件
 	this.SetConnectWithNil().SetConnectWithLog()
-	this.SetReadFunc(defaultReadFuc)
+	this.SetReadAckFunc(defaultReadFunc)
 	this.SetDealWithNil().SetDealWithDefault()
 	this.SetWriteWithNil().SetWriteWithLog()
 	this.SetCloseWithNil().SetCloseWithLog()

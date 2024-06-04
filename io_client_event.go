@@ -65,14 +65,14 @@ func (this *Client) SetConnectWithNil() *Client {
 // 01 03 00 01 00 02 xx xx | 01 03 00 01 00 02 xx xx | 01 03 00 01 00 02 xx xx
 // 截取的数据下一步会在DealFunc中执行
 func (this *Client) SetReadFunc(fn func(r *bufio.Reader) ([]byte, error)) *Client {
-	this.readFunc = func(reader *bufio.Reader) (bs []byte, err error) {
+	this.readFunc = func(reader *bufio.Reader) (Acker, error) {
 
 		if fn == nil {
 			fn = buf.Read1KB
 		}
 
 		//执行用户设置的函数
-		bs, err = fn(reader)
+		bs, err := fn(reader)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +95,40 @@ func (this *Client) SetReadFunc(fn func(r *bufio.Reader) ([]byte, error)) *Clien
 			}
 		}
 
-		return bs, nil
+		return Ack(bs), nil
+
+	}
+	return this
+}
+
+func (this *Client) SetReadAckFunc(fn func(r *bufio.Reader) (Acker, error)) *Client {
+	this.readFunc = func(reader *bufio.Reader) (Acker, error) {
+
+		//执行用户设置的函数
+		ack, err := fn(reader)
+		if err != nil {
+			return nil, err
+		}
+
+		if bs := ack.Payload(); len(bs) > 0 {
+			//设置最后读取有效数据时间
+			this.readTime = time.Now()
+			this.readBytes += int64(len(bs))
+
+			//尝试加入通道,如果设置了监听,则有效
+			select {
+			case this.latestChan <- bs:
+			default:
+			}
+
+			//尝试加入通道,超时定时器重置
+			select {
+			case this.timeoutReset <- struct{}{}:
+			default:
+			}
+		}
+
+		return ack, nil
 
 	}
 	return this

@@ -84,6 +84,11 @@ func (this *MQTTClient) ReadMessage() ([]byte, error) {
 	return msg.Payload(), nil
 }
 
+func (this *MQTTClient) ReadAck() (io.Acker, error) {
+	msg := <-this.ch
+	return msg, nil
+}
+
 func (this *MQTTClient) Write(p []byte) (int, error) {
 	var err error
 	for _, v := range this.topic.Publish {

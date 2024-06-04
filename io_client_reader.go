@@ -58,6 +58,17 @@ func (this *Client) ReadMessage() ([]byte, error) {
 	if this.readFunc == nil {
 		return nil, ErrInvalidReadFunc
 	}
+	ack, err := this.readFunc(this.Buffer())
+	if err != nil {
+		return nil, err
+	}
+	return ack.Payload(), nil
+}
+
+func (this *Client) ReadAck() (Acker, error) {
+	if this.readFunc == nil {
+		return nil, ErrInvalidReadFunc
+	}
 	return this.readFunc(this.Buffer())
 }
 
@@ -80,8 +91,8 @@ func (this *Client) WriteTo(writer Writer) (int64, error) {
 	return Copy(writer, this)
 }
 
-// SetReadIntervalTimeout 设置读取间隔超时时间,需要在Run之前设置
-func (this *Client) SetReadIntervalTimeout(timeout time.Duration) *Client {
+// SetReadTimeout 设置读取间隔超时时间,需要在Run之前设置
+func (this *Client) SetReadTimeout(timeout time.Duration) *Client {
 	this.timeout = timeout
 	return this
 }
@@ -125,14 +136,21 @@ func (this *Client) Run() error {
 	return this.For(func(ctx context.Context) (err error) {
 
 		//读取数据
-		bs, err := this.ReadMessage()
-		if err != nil || len(bs) == 0 {
+		//bs, err := this.ReadMessage()
+		//if err != nil || len(bs) == 0 {
+		//	return err
+		//}
+
+		ack, err := this.ReadAck()
+		if err != nil || len(ack.Payload()) == 0 {
 			return err
 		}
 
 		//处理数据
 		for _, dealFunc := range this.dealFunc {
-			dealFunc(this, bs)
+			if dealFunc(this, ack.Payload()) {
+				ack.Ack()
+			}
 		}
 
 		return nil

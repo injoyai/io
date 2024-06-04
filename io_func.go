@@ -168,3 +168,10 @@ func ReadLeast(r io.Reader, least int) ([]byte, error) {
 	n, err := io.ReadAtLeast(r, buf, least)
 	return buf[:n], err
 }
+
+func ReadFuncToAck(f func(r *bufio.Reader) ([]byte, error)) func(r *bufio.Reader) (Acker, error) {
+	return func(r *bufio.Reader) (Acker, error) {
+		a, err := f(r)
+		return Ack(a), err
+	}
+}
