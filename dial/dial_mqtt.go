@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
@@ -12,6 +11,14 @@ import (
 	"strings"
 	"time"
 )
+
+/*
+
+先声明客户端连接
+一个订阅对应一个 io.ReadWriteCloser
+
+
+*/
 
 //================================MQTT================================
 
@@ -73,15 +80,6 @@ type MQTTClient struct {
 
 func (this *MQTTClient) Read(p []byte) (int, error) {
 	return 0, io.ErrUseReadMessage
-}
-
-func (this *MQTTClient) ReadMessage() ([]byte, error) {
-	msg := <-this.ch
-	if msg == nil {
-		return nil, errors.New("已关闭")
-	}
-	defer msg.Ack()
-	return msg.Payload(), nil
 }
 
 func (this *MQTTClient) ReadAck() (io.Acker, error) {
