@@ -362,7 +362,7 @@ func (this *Client) SetCloseWithLog() {
 
 // SetCloseWithNil 设置无关闭函数
 func (this *Client) SetCloseWithNil() *Client {
-	this.connectFunc = nil
+	this.closeFunc = nil
 	return this
 }
 

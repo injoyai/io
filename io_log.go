@@ -196,8 +196,7 @@ func (p logWriter) Printf(format string, v ...interface{}) {
 	if p.Writer == nil {
 		return
 	}
-	_, err := p.Writer.Write([]byte(fmt.Sprintf(format, v...)))
-	logs.PrintErr(err)
+	_, _ = p.Writer.Write([]byte(fmt.Sprintf(format, v...)))
 }
 
 func (p logWriter) printf(level Level, format string, v ...interface{}) {

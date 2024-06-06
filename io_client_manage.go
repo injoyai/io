@@ -162,7 +162,7 @@ func (this *ClientManage) SetClient(c *Client) {
 		this.mu.RLock()
 		old, ok := this.mKey[c.GetKey()]
 		this.mu.RUnlock()
-		if ok && old.Pointer() != c.Pointer() {
+		if ok && old != c {
 			old.CloseAll()
 		}
 
@@ -263,12 +263,6 @@ func (this *ClientManage) RangeClient(fn func(key string, c *Client) bool) {
 func (this *ClientManage) Read(p []byte) (int, error) {
 	return 0, ErrUseReadMessage
 }
-
-//// ReadMessage 读取数据,当未设置DealFunc时生效
-//func (this *ClientManage) ReadMessage() ([]byte, error) {
-//	msg := <-this.readChan
-//	return msg, nil
-//}
 
 // WriteClient 写入客户端数据
 func (this *ClientManage) WriteClient(key string, p []byte) (bool, error) {
