@@ -175,3 +175,11 @@ func ReadFuncToAck(f func(r *bufio.Reader) ([]byte, error)) func(r *bufio.Reader
 		return Ack(a), err
 	}
 }
+
+func NewReadWriteCloser(r io.Reader, w io.Writer, c io.Closer) io.ReadWriteCloser {
+	return struct {
+		io.Reader
+		io.Writer
+		io.Closer
+	}{r, w, c}
+}

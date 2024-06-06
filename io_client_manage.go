@@ -233,16 +233,6 @@ func (this *ClientManage) GetClientLen() int {
 	return len(this.mKey)
 }
 
-// Publish 实现接口,io.Publisher
-func (this *ClientManage) Publish(topic string, data interface{}) error {
-	c := this.GetClient(topic)
-	if c != nil {
-		_, err := c.WriteAny(data)
-		return err
-	}
-	return errors.New("client not found")
-}
-
 // GetClientMap 获取客户端map,元数据,注意安全
 //func (this *ClientManage) GetClientMap() map[string]*Client {
 //	return this.m
@@ -288,23 +278,34 @@ func (this *ClientManage) WriteClient(key string, p []byte) (bool, error) {
 	})
 }
 
+// Publish 实现接口,io.Publisher
+func (this *ClientManage) Publish(topic string, p []byte) error {
+	c := this.GetClient(topic)
+	if c != nil {
+		_, err := c.Write(p)
+		return err
+	}
+	return errors.New("client not found")
+}
+
 // WriteClientAll 广播,发送数据给所有连接,加入到连接的队列
 func (this *ClientManage) WriteClientAll(p []byte) {
 	this.RangeClient(func(key string, c *Client) bool {
-		//写入到队列,避免阻塞
-		c.WriteQueue(p)
+		c.Write(p)
+		//写入到队列,避免阻塞,队列一个客户端有一个协程,性能不行
+		//c.WriteQueue(p)
 		return true
 	})
 }
 
-// TryWriteClientAll 广播,发送数据给所有连接,尝试加入到连接的队列
-func (this *ClientManage) TryWriteClientAll(p []byte) {
-	this.RangeClient(func(key string, c *Client) bool {
-		//写入到队列,避免阻塞,加入不了则丢弃数据
-		c.WriteQueueTry(p)
-		return true
-	})
-}
+//// TryWriteClientAll 广播,发送数据给所有连接,尝试加入到连接的队列
+//func (this *ClientManage) TryWriteClientAll(p []byte) {
+//	this.RangeClient(func(key string, c *Client) bool {
+//		//写入到队列,避免阻塞,加入不了则丢弃数据
+//		c.WriteQueueTry(p)
+//		return true
+//	})
+//}
 
 // WriteClientAny 写入任意一个客户端数据
 func (this *ClientManage) WriteClientAny(p []byte) (int, error) {

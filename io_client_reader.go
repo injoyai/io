@@ -11,16 +11,6 @@ import (
 
 //================================Nature================================
 
-// ReadTime 最后读取到数据的时间
-func (this *Client) ReadTime() time.Time {
-	return this.readTime
-}
-
-// ReadCount 读取到数据的数量
-func (this *Client) ReadCount() int64 {
-	return this.readBytes
-}
-
 // Buffer 极大的增加读取速度
 func (this *Client) Buffer() *bufio.Reader {
 	return this.buf
@@ -55,10 +45,7 @@ func (this *Client) Read1KB() ([]byte, error) {
 
 // ReadMessage 实现MessageReader接口
 func (this *Client) ReadMessage() ([]byte, error) {
-	if this.readFunc == nil {
-		return nil, ErrInvalidReadFunc
-	}
-	ack, err := this.readFunc(this.Buffer())
+	ack, err := this.ReadAck()
 	if err != nil {
 		return nil, err
 	}

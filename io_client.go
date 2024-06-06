@@ -66,6 +66,7 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser, options ...Opt
 	c := &Client{
 		ctxParent:    ctxParent,
 		cancelParent: cancelParent,
+		CreateTime:   time.Now(),
 	}
 	c.reset(i, c.Pointer(), options...)
 	return c
@@ -108,12 +109,12 @@ type Client struct {
 	i           ReadWriteCloser //接口,实例,传入的原始参数
 	buf         *bufio.Reader   //buffer
 	tag         *maps.Safe      //标签,用于记录连接的一些信息
-	createTime  time.Time       //创建时间
-	readTime    time.Time       //最后读取时间
-	readBytes   int64           //读取的字节数
-	writeTime   time.Time       //最后写入时间
-	writeBytes  int64           //写入的字节数
-	writeNumber int64           //写入的次数
+	CreateTime  time.Time       //创建时间
+	ReadTime    time.Time       //最后读取到数据的时间
+	ReadCount   uint64          //读取的字节数量
+	WriteTime   time.Time       //最后写入数据时间
+	WriteCount  uint64          //写入的字节数量
+	WriteNumber uint64          //写入的次数
 
 	//连接成功事件,可以手动进行数据的读写,或者关闭,返回错误会关闭连接
 	//如果设置了重连,则会再次建立连接而触发连接事件
@@ -121,9 +122,10 @@ type Client struct {
 	connectFunc []func(c *Client) error
 
 	//连接断开事件,连接断开的时候触发,可以调用Dial方法进行重连操作
-	closeFunc []func(ctx context.Context, c *Client, err error) //关闭函数
+	closeFunc []func(ctx context.Context, c *Client, err error)
 
-	readFunc func(buf *bufio.Reader) (Acker, error) //读取函数
+	//从流中读取数据
+	readFunc func(buf *bufio.Reader) (Acker, error)
 
 	//处理数据事件,可以进行打印或者其他逻辑操作
 	dealFunc []func(c *Client, msg Message) (ack bool)
@@ -152,27 +154,16 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 	defaultReadFunc := ReadFuncToAck(buf.Read1KB)
 	switch v := i.(type) {
 	case nil:
-	case MessageReader:
-		mReader := MReaderToReader(v)
-		defaultReadFunc = ReadFuncToAck(mReader.ReadFunc)
-		i = struct {
-			WriteCloser
-			Reader
-		}{
-			WriteCloser: i,
-			Reader:      mReader,
-		}
 
 	case AckReader:
 		aReader := AReaderToReader(v)
 		defaultReadFunc = aReader.ReadAck
-		i = struct {
-			WriteCloser
-			Reader
-		}{
-			WriteCloser: i,
-			Reader:      aReader,
-		}
+		i = NewReadWriteCloser(aReader, i, i)
+
+	case MessageReader:
+		mReader := MReaderToReader(v)
+		defaultReadFunc = ReadFuncToAck(mReader.ReadFunc)
+		i = NewReadWriteCloser(mReader, i, i)
 
 	}
 	//默认buf大小,可自定义缓存大小
@@ -212,11 +203,6 @@ func (this *Client) Pointer() string {
 		this.pointer = pointer
 	}
 	return this.pointer
-}
-
-// CreateTime 创建时间
-func (this *Client) CreateTime() time.Time {
-	return this.createTime
 }
 
 func (this *Client) GetTag(key string, def ...string) string {

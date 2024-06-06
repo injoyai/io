@@ -8,27 +8,11 @@ import (
 	"time"
 )
 
-//================================Nature================================
-
-func (this *Client) WriteTime() time.Time {
-	return this.writeTime
-}
-
-func (this *Client) WriteCount() int64 {
-	return this.writeBytes
-}
-
-func (this *Client) WriteNumber() int64 {
-	return this.writeNumber
-}
-
 //================================Write================================
 
 // Write 写入字节,实现io.Writer
 func (this *Client) Write(p []byte) (n int, err error) {
-	defer func() {
-		err = dealErr(err)
-	}()
+	defer func() { err = dealErr(err) }()
 
 	//执行写入函数,处理写入的数据,进行封装或者打印等操作
 	for _, f := range this.writeFunc {
@@ -43,9 +27,9 @@ func (this *Client) Write(p []byte) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
-	this.writeTime = time.Now()
-	this.writeBytes += int64(n)
-	this.writeNumber++
+	this.WriteTime = time.Now()
+	this.WriteCount += uint64(n)
+	this.WriteNumber++
 	select {
 	case this.timeoutReset <- struct{}{}:
 	default:
@@ -111,13 +95,8 @@ func (this *Client) WriteReader(reader Reader) (int64, error) {
 	return Copy(this, reader)
 }
 
-// WriteFrom io.Reader
-func (this *Client) WriteFrom(reader Reader) (int64, error) {
-	return Copy(this, reader)
-}
-
-// WriteFromChan 监听通道并写入
-func (this *Client) WriteFromChan(c chan interface{}) (int64, error) {
+// WriteChan 监听通道并写入
+func (this *Client) WriteChan(c chan interface{}) (int64, error) {
 	var total int64
 	for data := range c {
 		n, err := this.Write(conv.Bytes(data))
@@ -207,7 +186,7 @@ func (this *Client) GoTimerWriteHEX(interval time.Duration, s string) {
 	})
 }
 
-// SetKeepAlive 设置连接保持,另外起了携程,服务器不需要,客户端再起一个也没啥问题
+// SetKeepAlive 设置连接保持,另外起了携程,服务端不需要,客户端再起一个也没啥问题
 // TCP keepalive定义于RFC 1122，但并不是TCP规范中的一部分,默认必需是关闭,连接方不一定支持
 func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 	this.GoTimerWriter(t, func(c *Client) (int, error) {
