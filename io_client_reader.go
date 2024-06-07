@@ -123,11 +123,6 @@ func (this *Client) Run() error {
 	return this.For(func(ctx context.Context) (err error) {
 
 		//读取数据
-		//bs, err := this.ReadMessage()
-		//if err != nil || len(bs) == 0 {
-		//	return err
-		//}
-
 		ack, err := this.ReadAck()
 		if err != nil || len(ack.Payload()) == 0 {
 			return err
@@ -135,7 +130,7 @@ func (this *Client) Run() error {
 
 		//处理数据
 		for _, dealFunc := range this.dealFunc {
-			if dealFunc(this, ack.Payload()) {
+			if dealFunc != nil && dealFunc(this, ack.Payload()) {
 				ack.Ack()
 			}
 		}

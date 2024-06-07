@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+/*
+执行结果,循环打印0-256
+
+*/
 func main() {
 	bs := make([]byte, io.DefaultBufferSize)
 	go listen.RunTCPServer(10099, func(s *io.Server) {

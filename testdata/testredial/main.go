@@ -10,7 +10,8 @@ import (
 func main() {
 
 	go listen.RunTCPServer(10086, func(s *io.Server) {
-		s.SetBeforeFunc(func(c *io.Client) error {
+		s.Debug(false)
+		s.SetConnectFunc(func(c *io.Client) error {
 			return c.Close()
 		})
 	})

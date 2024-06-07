@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/injoyai/base/chans"
-	"github.com/injoyai/base/g"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/extend/p2p"
 	"github.com/injoyai/logs"
@@ -31,7 +30,6 @@ func main() {
 		}
 	}()
 	go func() {
-		g.Input()
 		c := chans.NewWaitLimit(1000)
 		for i := 1; i <= 65535; i++ {
 			c.Add()

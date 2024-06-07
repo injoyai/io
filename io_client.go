@@ -21,11 +21,7 @@ func Redial(dial DialFunc, options ...OptionClient) *Client {
 
 // RedialWithContext 一直尝试连接,直到成功,需要输入上下文
 func RedialWithContext(ctx context.Context, dial DialFunc, options ...OptionClient) *Client {
-	ctxParent, cancelParent := context.WithCancel(ctx)
-	c := &Client{
-		ctxParent:    ctxParent,
-		cancelParent: cancelParent,
-	}
+	c := newClient(ctx)
 	c.SetDialFunc(dial)
 	err := c.MustDial(ctx, func(c *Client) {
 		c.Redial(options...)
@@ -41,11 +37,7 @@ func NewDial(dial DialFunc, options ...OptionClient) (*Client, error) {
 
 // NewDialWithContext 尝试连接,返回*Client和错误,需要输入上下文
 func NewDialWithContext(ctx context.Context, dial DialFunc, options ...OptionClient) (*Client, error) {
-	ctxParent, cancelParent := context.WithCancel(ctx)
-	c := &Client{
-		ctxParent:    ctxParent,
-		cancelParent: cancelParent,
-	}
+	c := newClient(ctx)
 	c.SetDialFunc(dial)
 	err := c.Dial(options...)
 	return c, err
@@ -62,14 +54,20 @@ func NewClientWithContext(ctx context.Context, i ReadWriteCloser, options ...Opt
 	if c, ok := i.(*Client); ok && c != nil {
 		return c
 	}
-	ctxParent, cancelParent := context.WithCancel(ctx)
-	c := &Client{
-		ctxParent:    ctxParent,
-		cancelParent: cancelParent,
-		CreateTime:   time.Now(),
-	}
-	c.reset(i, c.Pointer(), options...)
+	c := newClient(ctx)
+	c.reset(i, c.ID(), options...)
 	return c
+}
+
+func newClient(ctx context.Context) *Client {
+	ctxParent, cancelParent := context.WithCancel(ctx)
+	return &Client{
+		ctxParent:     ctxParent,
+		cancelParent:  cancelParent,
+		CreateTime:    time.Now(),
+		logger:        defaultLogger(),
+		redialMaxTime: time.Second * 32,
+	}
 }
 
 /*
@@ -103,18 +101,19 @@ type Client struct {
 	cancelParent context.CancelFunc //父级上下文,主动关闭时,用于关闭redial
 
 	//runtime
-	Key                         //自定义标识
+	Key         string          //自定义标识
 	*logger                     //日志
 	pointer     string          //唯一标识,指针地址
 	i           ReadWriteCloser //接口,实例,传入的原始参数
 	buf         *bufio.Reader   //buffer
 	tag         *maps.Safe      //标签,用于记录连接的一些信息
-	CreateTime  time.Time       //创建时间
-	ReadTime    time.Time       //最后读取到数据的时间
-	ReadCount   uint64          //读取的字节数量
-	WriteTime   time.Time       //最后写入数据时间
-	WriteCount  uint64          //写入的字节数量
-	WriteNumber uint64          //写入的次数
+	CreateTime  time.Time       //创建时间,对象创建时间,重连不会改变
+	DialTime    time.Time       //连接时间,每次重连会改变
+	ReadTime    time.Time       //本次连接,最后读取到数据的时间
+	ReadCount   uint64          //本次连接,读取的字节数量
+	WriteTime   time.Time       //本次连接,最后写入数据时间
+	WriteCount  uint64          //本次连接,写入的字节数量
+	WriteNumber uint64          //本次连接,写入的次数
 
 	//连接成功事件,可以手动进行数据的读写,或者关闭,返回错误会关闭连接
 	//如果设置了重连,则会再次建立连接而触发连接事件
@@ -122,7 +121,8 @@ type Client struct {
 	connectFunc []func(c *Client) error
 
 	//连接断开事件,连接断开的时候触发,可以调用Dial方法进行重连操作
-	closeFunc []func(ctx context.Context, c *Client, err error)
+	//怕用户设置多个redial,重连之后越连越多,固只设置一个函数
+	closeFunc func(ctx context.Context, c *Client, err error)
 
 	//从流中读取数据
 	readFunc func(buf *bufio.Reader) (Acker, error)
@@ -132,6 +132,12 @@ type Client struct {
 
 	//写入数据事件,可以进行封装或者打印等操作
 	writeFunc []func(p []byte) ([]byte, error)
+
+	//当写入结束时出发
+	writeResultFunc []func(c *Client, err error)
+
+	//当key变化时触发
+	keyChangeFunc []func(c *Client, oldKey string)
 }
 
 //================================Nature================================
@@ -140,16 +146,62 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 	if v, ok := i.(*Client); ok {
 		this.reset(v.i, key, options...)
 	}
-	this.ctx, this.cancel = context.WithCancel(this.ctxParent)
+
 	this.latestChan = make(chan Message)
+	this.writeQueueOnce = sync.Once{}
+	this.writeQueue = nil
+
 	this.redialMaxTime = time.Second * 32
+	this.redialMaxNum = 0
+	this.dealFunc = nil
+
+	this.timeout = 0
 	this.timeoutReset = make(chan struct{})
-	this.logger = defaultLogger()
 	this.running = 0
 	this.closed = 0
+	//错误初始化,初始化会执行用户option,
+	//例如用户在option中设置了Close
+	//初始化之后会判断错误信息
+	//所以这里得初始化错误
+	this.closeErr = nil
+	this.ctx, this.cancel = context.WithCancel(this.ctxParent)
+	//父级上下文保留
+	//this.ctxParent = this.ctxParent
+	//this.cancelParent= this.cancelParent
+
+	this.Key = key
+	//在外部声明,连接失败的时候需要打印日志,还没到初始化这一步
+	this.logger = defaultLogger()
+	//还是原来的对象,使用的原先的指针
+	//this.pointer=this.pointer
 	this.i = i
-	this.tag = nil
-	//this.closeErr = nil
+	//buf在下面的处理
+	//this.buf
+	this.tag = nil //是否保留tag信息,重新设置就能覆盖
+	//使用的是第一次连接的时间
+	//this.CreateTime=this.CreateTime
+	//当连接成功的时候会进行重置操作
+	this.DialTime = time.Now()
+	this.ReadTime = time.Time{}
+	this.ReadCount = 0
+	this.WriteTime = time.Time{}
+	this.WriteCount = 0
+	this.WriteNumber = 0
+
+	//初始化事件函数
+	this.connectFunc = nil
+	this.closeFunc = nil
+	this.readFunc = nil
+	this.dealFunc = nil
+	this.writeFunc = nil
+	this.writeResultFunc = nil
+	this.keyChangeFunc = nil
+
+	/*
+
+
+
+	 */
 
 	defaultReadFunc := ReadFuncToAck(buf.Read1KB)
 	switch v := i.(type) {
@@ -170,19 +222,37 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 	this.buf = bufio.NewReaderSize(i, DefaultBufferSize+1)
 
 	//设置默认的Option
-	this.SetKey(key) //唯一标识
-	this.Debug()     //打印日志
+	this.SetKey(key) //设置唯一标识
+	this.Debug()     //设置打印日志
 
 	//设置默认事件
 	this.SetConnectWithNil().SetConnectWithLog()
 	this.SetReadAckFunc(defaultReadFunc)
 	this.SetDealWithNil().SetDealWithDefault()
 	this.SetWriteWithNil().SetWriteWithLog()
-	this.SetCloseWithNil().SetCloseWithLog()
+	this.SetCloseWithLog()
 
 	//设置用户的Option
 	this.SetOptions(options...)
 
+	return this
+}
+
+// GetKey 获取标识
+func (this *Client) GetKey() string {
+	return this.Key
+}
+
+// SetKey 设置标识
+func (this *Client) SetKey(key string) *Client {
+	if key == this.Key {
+		return this
+	}
+	oldKey := this.Key
+	this.Key = key
+	for _, v := range this.keyChangeFunc {
+		v(this, oldKey)
+	}
 	return this
 }
 
@@ -193,11 +263,6 @@ func (this *Client) ReadWriteCloser() io.ReadWriteCloser {
 
 // ID 获取唯一标识,不可改,溯源,不用因为改了key而出现数据错误的bug
 func (this *Client) ID() string {
-	return this.Pointer()
-}
-
-// Pointer 获取指针地址
-func (this *Client) Pointer() string {
 	if this.pointer == "" {
 		pointer := fmt.Sprintf("%p", this)
 		this.pointer = pointer

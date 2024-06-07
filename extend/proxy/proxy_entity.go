@@ -116,9 +116,9 @@ func (this *Entity) writeMessage(msg *Message) (err error) {
 			proxyClient.SetDealFunc(func(c *io.Client, m io.Message) {
 				this.AddMessage(msg.Response(m.Bytes()))
 			})
-			proxyClient.SetCloseFunc(func(ctx context.Context, c *io.Client, msg io.Message) {
+			proxyClient.SetCloseFunc(func(ctx context.Context, c *io.Client, err error) {
 				this.delIO(c.GetKey())
-				this.AddMessage(NewCloseMessage(c.GetKey(), msg.String()))
+				this.AddMessage(NewCloseMessage(c.GetKey(), err.Error()))
 			})
 			go proxyClient.Run()
 			//加入到缓存
@@ -221,7 +221,7 @@ func WithClientDebug(b ...bool) func(c *io.Client, e *Entity) {
 
 // setIO 添加记录,存在则关闭并覆盖
 func (this *Entity) setIO(key string, i *io.Client) {
-	old := this.ioMap.GetAndSet(key, i)
+	old, _ := this.ioMap.GetAndSet(key, i)
 	if val, ok := old.(*io.Client); ok {
 		val.Close()
 	}

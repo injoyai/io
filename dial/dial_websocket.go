@@ -32,12 +32,7 @@ func (this *WebsocketConfig) Dial() (io.ReadWriteCloser, string, error) {
 // Websocket 连接
 func Websocket(url string, header http.Header) (io.ReadWriteCloser, string, error) {
 	c, _, err := websocket.DefaultDialer.Dial(url, header)
-	return &WebsocketClient{Conn: c}, func() string {
-		if u, err := gourl.Parse(url); err == nil {
-			return u.Path
-		}
-		return url
-	}(), err
+	return &WebsocketClient{Conn: c}, url, err
 }
 
 func WithWebsocket(url string, header http.Header) io.DialFunc {

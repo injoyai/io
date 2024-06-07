@@ -30,7 +30,7 @@ func TestNewPeer2(t *testing.T) {
 		t.Log(err)
 		return
 	}
-	p.SetBeforeFunc(func(c *io.Client) error {
+	p.SetConnectFunc(func(c *io.Client) error {
 		logs.Debug(c.GetKey())
 		return nil
 	})

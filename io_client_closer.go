@@ -217,10 +217,8 @@ func (this *Client) closeWithErr(closeErr error, fn ...func(Closer) error) (err 
 			close(this.writeQueue)
 		}
 		//关闭实例,可自定义关闭方式,例如设置超时
-		if len(fn) == 0 {
-			if this.i != nil {
-				err = this.i.Close()
-			}
+		if len(fn) == 0 && this.i != nil {
+			err = this.i.Close()
 		} else {
 			for _, v := range fn {
 				err = v(this.i)
@@ -230,11 +228,13 @@ func (this *Client) closeWithErr(closeErr error, fn ...func(Closer) error) (err 
 		//msg := Message(this.closeErr.Error())
 		////打印错误信息
 		//this.logger.Errorf("[%s] %s\n", this.GetKey(), msg.String())
+		this.logger.Errorf("[%s] 断开连接: %v\n", this.GetKey(), this.closeErr)
 
 		//执行用户设置的错误函数,需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
-		for _, f := range this.closeFunc {
-			f(this.CtxAll(), this, this.closeErr)
+		if this.closeFunc != nil {
+			this.closeFunc(this.CtxAll(), this, this.closeErr)
 		}
+
 		////执行用户设置的错误函数
 		//if this.closeFunc != nil {
 		//	//需要最后执行,防止后续操作无法执行,如果设置了重连不会执行到下一步
@@ -276,6 +276,7 @@ func (this *Client) MustDial(ctx context.Context, options ...OptionClient) error
 			if t > this.redialMaxTime {
 				t = this.redialMaxTime
 			}
+
 			this.Logger.Errorf("[%s] %v,等待%d秒重试\n", this.GetKey(), dealErr(err), t/time.Second)
 			timer.Reset(t)
 		}
@@ -301,11 +302,21 @@ func (this *Client) Dial(options ...OptionClient) error {
 		//尝试进行连接,返回ReadWriteCloser和唯一标识key
 		i, key, err := this.dialFunc(this.ctx)
 		if err != nil {
+			if len(key) > 0 {
+				//尝试设置key,如果错误也返回key的话
+				this.SetKey(key)
+			}
 			return err
 		}
 
 		//数据初始化操作,声明内存等操作
 		this.reset(i, key, options...)
+
+		//判断初始化操作是否出现错误,出现错误则返回错误
+		//例如开始连接成功,后来失败了,或者option中关闭了连接
+		if this.Err() != nil {
+			return this.Err()
+		}
 
 		//连接成功事件
 		for _, f := range this.connectFunc {

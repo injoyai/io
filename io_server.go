@@ -183,7 +183,6 @@ func (this *Server) Run() error {
 		x.SetLogger(this.logger)
 		x.SetKey(key)
 		x.Tag().Set("address", key)
-		//this.Infof("[%s] 新的客户端连接...\n", key)
 		this.ClientManage.SetClient(x)
 
 	}

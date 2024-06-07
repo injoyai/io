@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+// OnKeyChange key变化事件
+func (this *Client) OnKeyChange(f func(c *Client, oldKey string)) *Client {
+	return this.SetKeyChangeFunc(f)
+}
+
 // OnConnect 连接成功事件
 func (this *Client) OnConnect(f func(c *Client) error) *Client {
 	return this.SetConnectFunc(f)
@@ -28,12 +33,31 @@ func (this *Client) OnReadBuffer(f func(r *bufio.Reader) ([]byte, error)) *Clien
 
 // OnReadMessage 读取到消息事件
 func (this *Client) OnReadMessage(f func(c *Client, msg Message) (ack bool)) *Client {
-	return this.SetDealWithAck(f)
+	return this.SetDealAckFunc(f)
 }
 
 // OnWriteMessage 写入消息事件
 func (this *Client) OnWriteMessage(f func(p []byte) ([]byte, error)) *Client {
 	return this.SetWriteFunc(f)
+}
+
+// OnWriteResult 写入结果事件
+func (this *Client) OnWriteResult(f func(c *Client, err error)) *Client {
+	return this.SetWriteResultFunc(f)
+}
+
+//================================KeyChangeFunc================================
+
+// SetKeyChangeFunc 设置key变化事件
+func (this *Client) SetKeyChangeFunc(f func(c *Client, oldKey string)) *Client {
+	this.keyChangeFunc = append(this.keyChangeFunc, f)
+	return this
+}
+
+// SetKeyChangeWithNil 设置key变化事件为空
+func (this *Client) SetKeyChangeWithNil() *Client {
+	this.keyChangeFunc = nil
+	return this
 }
 
 //================================ConnectFunc================================
@@ -48,13 +72,6 @@ func (this *Client) SetConnectFunc(f func(c *Client) error) *Client {
 func (this *Client) SetConnectWithLog() *Client {
 	return this.SetConnectFunc(func(c *Client) error {
 		this.Infof("[%s] 连接服务端成功...\n", this.GetKey())
-		return nil
-	})
-}
-
-func (this *Client) SetAcceptWithLog() *Client {
-	return this.SetConnectFunc(func(c *Client) error {
-		this.Infof("[%s] 新的客户端连接...\n", this.GetKey())
 		return nil
 	})
 }
@@ -222,14 +239,15 @@ func (this *Client) SwapClient(c *Client) {
 
 // SetDealFunc 设置处理数据函数,默认响应ping>pong,忽略pong
 func (this *Client) SetDealFunc(fn func(c *Client, msg Message)) *Client {
-	this.dealFunc = append(this.dealFunc, func(c *Client, msg Message) (ack bool) {
-		fn(c, msg)
+	return this.SetDealAckFunc(func(c *Client, msg Message) (ack bool) {
+		if fn != nil {
+			fn(c, msg)
+		}
 		return true
 	})
-	return this
 }
 
-func (this *Client) SetDealWithAck(fn func(c *Client, msg Message) (ack bool)) *Client {
+func (this *Client) SetDealAckFunc(fn func(c *Client, msg Message) (ack bool)) *Client {
 	this.dealFunc = append(this.dealFunc, fn)
 	return this
 }
@@ -291,6 +309,16 @@ func (this *Client) SetDealWithQueue(num int, fn func(msg Message)) *Client {
 
 //================================WriteFunc================================
 
+func (this *Client) SetWriteResultFunc(fn func(c *Client, err error)) *Client {
+	this.writeResultFunc = append(this.writeResultFunc, fn)
+	return this
+}
+
+func (this *Client) SetWriteResultWithNil() *Client {
+	this.writeResultFunc = nil
+	return this
+}
+
 // SetWriteFunc 设置写入函数,封装数据包,same SetWriteBeforeFunc
 func (this *Client) SetWriteFunc(fn func(p []byte) ([]byte, error)) *Client {
 	this.writeFunc = append(this.writeFunc, fn)
@@ -349,7 +377,7 @@ func (this *Client) SetWriteWithQueue(cap int) *Client {
 
 // SetCloseFunc 设置关闭函数
 func (this *Client) SetCloseFunc(fn func(ctx context.Context, c *Client, err error)) *Client {
-	this.closeFunc = append(this.closeFunc, fn)
+	this.closeFunc = fn
 	return this
 }
 

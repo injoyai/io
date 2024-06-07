@@ -6,7 +6,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/goburrow/serial v0.1.0
 	github.com/gorilla/websocket v1.5.0
-	github.com/injoyai/base v1.0.11
+	github.com/injoyai/base v1.0.12
 	github.com/injoyai/conv v1.1.5
 	github.com/injoyai/logs v1.0.7
 	go.bug.st/serial v1.5.0

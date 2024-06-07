@@ -64,7 +64,7 @@ func (this *Pool) Put(c *Client) {
 		atomic.AddUint64(&this.putNum, 1)
 		this.mu.Lock()
 		defer this.mu.Unlock()
-		this.pool[c.Pointer()] = c
+		this.pool[c.ID()] = c
 	}
 }
 

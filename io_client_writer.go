@@ -12,7 +12,12 @@ import (
 
 // Write 写入字节,实现io.Writer
 func (this *Client) Write(p []byte) (n int, err error) {
-	defer func() { err = dealErr(err) }()
+	defer func() {
+		err = dealErr(err)
+		for _, v := range this.writeResultFunc {
+			v(this, err)
+		}
+	}()
 
 	//执行写入函数,处理写入的数据,进行封装或者打印等操作
 	for _, f := range this.writeFunc {
