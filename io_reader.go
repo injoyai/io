@@ -5,8 +5,51 @@ import (
 	"bytes"
 )
 
+//cannot use io.ReadWriter in union (io.ReadWriter contains methods)
+
+type AllReader interface {
+	Reader | MReader | AReader
+}
+
+type AllReadWriter interface {
+	ReadWriter | MReadWriter | AReadWriter
+}
+
+type AllReadCloser interface {
+	ReadCloser | MReadCloser | AReadCloser
+}
+
+type AllReadWritCloser interface {
+	ReadWriteCloser | MReadWriteCloser | AReadWriteCloser
+}
+
+//===============================AReader===============================
+
+type (
+	AReader          = AckReader
+	AReadWriter      = AckReadWriter
+	AReadCloser      = AckReadCloser
+	AReadWriteCloser = AckReadWriterCloser
+)
+
 type AckReader interface {
 	ReadAck() (Acker, error)
+}
+
+type AckReadWriter interface {
+	AckReader
+	Writer
+}
+
+type AckReadCloser interface {
+	AckReader
+	Closer
+}
+
+type AckReadWriterCloser interface {
+	AckReader
+	Writer
+	Closer
 }
 
 type Acker interface {
@@ -14,9 +57,23 @@ type Acker interface {
 	Ack() error
 }
 
+//===============================MReader===============================
+
+type (
+	MReader          = MessageReader
+	MReadWriter      = MessageReadWriter
+	MReadCloser      = MessageReadCloser
+	MReadWriteCloser = MessageReadWriteCloser
+)
+
 // MessageReader 读取分包后的数据
 type MessageReader interface {
 	ReadMessage() ([]byte, error)
+}
+
+type MessageReadWriter interface {
+	MessageReader
+	Writer
 }
 
 type MessageReadCloser interface {
@@ -29,6 +86,12 @@ type MessageReadWriteCloser interface {
 	Writer
 	Closer
 }
+
+/*
+
+
+
+ */
 
 //=============================
 

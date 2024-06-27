@@ -10,6 +10,13 @@ import (
 
 //=============================覆盖读写=============================
 
+func NewCoverWriter(w io.Writer, handler func(p []byte) ([]byte, error)) *CoverWriter {
+	return &CoverWriter{
+		Writer:  w,
+		Handler: handler,
+	}
+}
+
 // CoverWriter 覆盖写,写入经过handler处理后的数据
 type CoverWriter struct {
 	io.Writer

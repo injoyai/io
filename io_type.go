@@ -198,3 +198,7 @@ type Plan struct {
 	Total   int64  //总数量
 	Bytes   []byte //字节内容
 }
+
+type BytesReader interface {
+	ReadBytes() ([]byte, error)
+}

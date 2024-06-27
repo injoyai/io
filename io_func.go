@@ -3,6 +3,7 @@ package io
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
 )
 
@@ -61,22 +62,12 @@ func ReadPrefix(r Reader, prefix []byte) ([]byte, error) {
 
 // ReadByte 读取一字节
 func ReadByte(r Reader) (byte, error) {
-	if i, ok := r.(interface{ ReadByte() (byte, error) }); ok {
+	if i, ok := r.(ByteReader); ok {
 		return i.ReadByte()
 	}
 	b := make([]byte, 1)
 	_, err := io.ReadAtLeast(r, b, 1)
 	return b[0], err
-}
-
-// ReadBytes 读取固定字节的数据
-func ReadBytes(r Reader, length int) ([]byte, error) {
-	if i, ok := r.(interface{ ReadBytes() ([]byte, error) }); ok {
-		return i.ReadBytes()
-	}
-	bs := make([]byte, length)
-	n, err := io.ReadAtLeast(r, bs, length)
-	return bs[:n], err
 }
 
 // CopyWith 复制数据,每次固定4KB,并提供函数监听
@@ -185,7 +176,10 @@ func ReadFuncToAck(f func(r *bufio.Reader) ([]byte, error)) func(r *bufio.Reader
 
 func NewReadWriteCloser(r io.Reader, w io.Writer, c io.Closer) io.ReadWriteCloser {
 	if c == nil {
-		c = NullCloser
+		c = Null
+	}
+	if w == nil {
+		w = Null
 	}
 	return struct {
 		io.Reader
@@ -194,14 +188,94 @@ func NewReadWriteCloser(r io.Reader, w io.Writer, c io.Closer) io.ReadWriteClose
 	}{r, w, c}
 }
 
-func NewAReadWriteCloser(r AckReader, w Writer, c io.Closer) io.ReadWriteCloser {
+func NewAReadWriteCloser(r AReader, w Writer, c io.Closer) AReadWriteCloser {
 	if c == nil {
-		c = NullCloser
+		c = Null
+	}
+	if w == nil {
+		w = Null
 	}
 	return struct {
-		Reader
-		AckReader
+		AReader
 		Writer
 		io.Closer
-	}{AReaderToReader(r), r, w, c}
+	}{r, w, c}
+}
+
+func NewMReadWriteCloser(r MReader, w Writer, c io.Closer) MReadWriteCloser {
+	if c == nil {
+		c = Null
+	}
+	if w == nil {
+		w = Null
+	}
+	return struct {
+		MReader
+		Writer
+		io.Closer
+	}{r, w, c}
+}
+
+func Swap2[T ReadWriter | MReadWriter | AReadWriter](i1, i2 T) error {
+	go Copy2(interface{}(i1).(io.Writer), i2)
+	_, err := Copy2(interface{}(i2).(io.Writer), i1)
+	return err
+}
+
+func Copy2[T Reader | MReader | AReader](w Writer, r T) (int64, error) {
+	return CopyWith2(w, r, nil)
+}
+
+func CopyWith2[T Reader | MReader | AReader](w Writer, r T, f func(p []byte) ([]byte, error)) (int64, error) {
+	return CopyNWith2(w, r, 32*1024, f)
+}
+
+func CopyNWith2[T Reader | MReader | AReader](w Writer, r T, max int64, f func(p []byte) ([]byte, error)) (int64, error) {
+
+	read := func() (Acker, error) {
+		switch v := interface{}(r).(type) {
+		case Reader:
+			buf := make([]byte, max)
+			n, err := v.Read(buf)
+			if err != nil {
+				return nil, err
+			}
+			return Ack(buf[:n]), nil
+
+		case MReader:
+			bs, err := v.ReadMessage()
+			return Ack(bs), err
+
+		case AReader:
+			return v.ReadAck()
+
+		default:
+			return nil, errors.New("unknown type")
+
+		}
+	}
+
+	for co, n := int64(0), 0; ; co += int64(n) {
+		a, err := read()
+		if err != nil {
+			if err == io.EOF {
+				return co, nil
+			}
+			return 0, err
+		}
+		bs := a.Payload()
+		if f != nil {
+			bs, err = f(bs)
+			if err != nil {
+				return 0, err
+			}
+		}
+
+		n, err = w.Write(bs)
+		if err != nil {
+			return 0, err
+		}
+		a.Ack()
+	}
+
 }
