@@ -142,6 +142,13 @@ func Swap(i1, i2 ReadWriter) error {
 	return err
 }
 
+// SwapClose 交换数据并关闭
+func SwapClose(c1, c2 io.ReadWriteCloser) error {
+	defer c1.Close()
+	defer c2.Close()
+	return Swap(c1, c2)
+}
+
 // Bridge 桥接,桥接两个ReadWriter
 // 例如,桥接串口(客户端)和网口(tcp客户端),可以实现通过串口上网
 func Bridge(i1, i2 ReadWriter) error {
@@ -177,9 +184,24 @@ func ReadFuncToAck(f func(r *bufio.Reader) ([]byte, error)) func(r *bufio.Reader
 }
 
 func NewReadWriteCloser(r io.Reader, w io.Writer, c io.Closer) io.ReadWriteCloser {
+	if c == nil {
+		c = NullCloser
+	}
 	return struct {
 		io.Reader
 		io.Writer
 		io.Closer
 	}{r, w, c}
+}
+
+func NewAReadWriteCloser(r AckReader, w Writer, c io.Closer) io.ReadWriteCloser {
+	if c == nil {
+		c = NullCloser
+	}
+	return struct {
+		Reader
+		AckReader
+		Writer
+		io.Closer
+	}{AReaderToReader(r), r, w, c}
 }

@@ -24,7 +24,7 @@ type MQTT struct {
 
 func (this *MQTT) ReadAck() (io.Acker, error) {
 	msg := <-this.ch
-	return msg, nil
+	return &Message{msg}, nil
 }
 
 func (this *MQTT) Write(p []byte) (int, error) {
@@ -53,14 +53,14 @@ func (this *MQTT) Close() error {
 	return err
 }
 
-func New(cfg *Config, topic *Topic) (io.ReadWriteCloser, string, error) {
+func New(cfg *Config, topic *Topic) (io.ReadWriteCloser, error) {
 	c := mqtt.NewClient(cfg)
 	token := c.Connect()
 	if !token.WaitTimeout(cfg.ConnectTimeout) {
-		return nil, "", io.ErrWithConnectTimeout
+		return nil, io.ErrWithConnectTimeout
 	}
 	if token.Error() != nil {
-		return nil, "", token.Error()
+		return nil, token.Error()
 	}
 	r := &MQTT{
 		Client: c,
@@ -78,10 +78,10 @@ func New(cfg *Config, topic *Topic) (io.ReadWriteCloser, string, error) {
 			err = token.Error()
 		}
 	}
-	return r, cfg.Servers[0].Host, err
+	return r, err
 }
 
-func NewEasy(cfg *EasyConfig, topic *Topic) (io.ReadWriteCloser, string, error) {
+func NewEasy(cfg *EasyConfig, topic *Topic) (io.ReadWriteCloser, error) {
 	cfg.init()
 	return New(WithMQTTBase(cfg), topic)
 }

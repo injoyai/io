@@ -9,6 +9,7 @@ require (
 	github.com/injoyai/base v1.0.12
 	github.com/injoyai/conv v1.1.5
 	github.com/injoyai/logs v1.0.7
+	github.com/rabbitmq/amqp091-go v1.10.0
 	go.bug.st/serial v1.5.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 )

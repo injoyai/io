@@ -11,7 +11,7 @@ type AckReader interface {
 
 type Acker interface {
 	Payload() []byte
-	Ack()
+	Ack() error
 }
 
 // MessageReader 读取分包后的数据
@@ -98,7 +98,7 @@ func (this *_aReaderToReader) Read(p []byte) (int, error) {
 
 type Ack []byte
 
-func (this Ack) Ack() {}
+func (this Ack) Ack() error { return nil }
 func (this Ack) Payload() []byte {
 	return this
 }

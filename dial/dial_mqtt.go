@@ -84,7 +84,7 @@ func (this *MQTTClient) Read(p []byte) (int, error) {
 
 func (this *MQTTClient) ReadAck() (io.Acker, error) {
 	msg := <-this.ch
-	return msg, nil
+	return &Message{msg}, nil
 }
 
 func (this *MQTTClient) Write(p []byte) (int, error) {
@@ -190,4 +190,13 @@ type MQTTPublish struct {
 type MQTTSubscribe struct {
 	Topic string
 	Qos   uint8
+}
+
+type Message struct {
+	mqtt.Message
+}
+
+func (this *Message) Ack() error {
+	this.Message.Ack()
+	return nil
 }
