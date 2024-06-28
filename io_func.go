@@ -3,17 +3,22 @@ package io
 import (
 	"bufio"
 	"bytes"
-	"errors"
+	"fmt"
 	"io"
 )
 
-// NewMessageReader Reader转MessageReader
-func NewMessageReader(r io.Reader, read func(buf *bufio.Reader) ([]byte, error)) MessageReader {
-	return &messageReader{bufio.NewReader(r), read}
+// NewMReader Reader转MessageReader
+func NewMReader(r io.Reader, read func(buf *bufio.Reader) ([]byte, error)) MReader {
+	return &mReader{bufio.NewReader(r), read}
 }
 
-// DealMessageReader 处理MessageReader
-func DealMessageReader(r MessageReader, fn func(msg Message) error) error {
+// NewAReader Reader转AckReader
+func NewAReader(r io.Reader, read func(buf *bufio.Reader) ([]byte, error)) AReader {
+	return &aReader{bufio.NewReader(r), read}
+}
+
+// DealMReader 处理MessageReader
+func DealMReader(r MReader, fn func(msg Message) error) error {
 	for {
 		bs, err := r.ReadMessage()
 		if err != nil {
@@ -22,6 +27,20 @@ func DealMessageReader(r MessageReader, fn func(msg Message) error) error {
 		if err = fn(bs); err != nil {
 			return err
 		}
+	}
+}
+
+// DealAReader 处理AckReader
+func DealAReader(r AReader, fn func(msg Message) error) error {
+	for {
+		a, err := r.ReadAck()
+		if err != nil {
+			return err
+		}
+		if err = fn(a.Payload()); err != nil {
+			return err
+		}
+		a.Ack()
 	}
 }
 
@@ -68,82 +87,6 @@ func ReadByte(r Reader) (byte, error) {
 	b := make([]byte, 1)
 	_, err := io.ReadAtLeast(r, b, 1)
 	return b[0], err
-}
-
-// CopyWith 复制数据,每次固定4KB,并提供函数监听
-func CopyWith(w Writer, r Reader, fn func(buf []byte)) (int64, error) {
-	return CopyNWith(w, r, DefaultBufferSize, fn)
-}
-
-// CopyWithPlan 复制数据,返回进度情况
-func CopyWithPlan(w Writer, r Reader, f func(p *Plan)) (int64, error) {
-	p := &Plan{
-		Index:   0,
-		Current: 0,
-		Total:   0,
-		Bytes:   nil,
-	}
-	return CopyWith(w, r, func(buf []byte) {
-		p.Index++
-		p.Current += int64(len(buf))
-		p.Bytes = buf
-		if f != nil {
-			f(p)
-		}
-	})
-}
-
-// CopyNWith 复制数据,每次固定大小,并提供函数监听
-func CopyNWith(w Writer, r Reader, n int64, fn func(buf []byte)) (int64, error) {
-	buff := bufio.NewReader(r)
-	length := int64(0)
-	buf := make([]byte, n)
-	for {
-		num, err := buff.Read(buf)
-		if err != nil && err != io.EOF {
-			return length, err
-		}
-		length += int64(num)
-		if fn != nil {
-			fn(buf[:num])
-		}
-		if _, err := w.Write(buf[:num]); err != nil {
-			return length, err
-		}
-		if err == io.EOF {
-			return length, nil
-		}
-	}
-}
-
-// SwapClient 数据交换
-func SwapClient(c1, c2 *Client) {
-	c1.SetReadWithWriter(c2)
-	c1.SetCloseWithCloser(c2)
-	c2.SetReadWithWriter(c1)
-	c2.SetCloseWithCloser(c1)
-	go c1.Run()
-	go c2.Run()
-}
-
-// Swap same two Copy IO数据交换
-func Swap(i1, i2 ReadWriter) error {
-	go Copy(i1, i2)
-	_, err := Copy(i2, i1)
-	return err
-}
-
-// SwapClose 交换数据并关闭
-func SwapClose(c1, c2 io.ReadWriteCloser) error {
-	defer c1.Close()
-	defer c2.Close()
-	return Swap(c1, c2)
-}
-
-// Bridge 桥接,桥接两个ReadWriter
-// 例如,桥接串口(客户端)和网口(tcp客户端),可以实现通过串口上网
-func Bridge(i1, i2 ReadWriter) error {
-	return Swap(i1, i2)
 }
 
 // SplitWithLength 按最大长度分割字节
@@ -216,21 +159,27 @@ func NewMReadWriteCloser(r MReader, w Writer, c io.Closer) MReadWriteCloser {
 	}{r, w, c}
 }
 
-func Swap2[T ReadWriter | MReadWriter | AReadWriter](i1, i2 T) error {
-	go Copy2(interface{}(i1).(io.Writer), i2)
-	_, err := Copy2(interface{}(i2).(io.Writer), i1)
-	return err
+/*
+
+
+
+
+ */
+
+// Copy 如何使用接口约束 [T Reader | MReader | AReader]
+func Copy[T any](w Writer, r T) (int64, error) {
+	return CopyWith(w, r, nil)
 }
 
-func Copy2[T Reader | MReader | AReader](w Writer, r T) (int64, error) {
-	return CopyWith2(w, r, nil)
+// CopyWith 如何使用接口约束 [T Reader | MReader | AReader]
+// 复制数据,Reader类型每次固定4KB,并提供函数监听
+func CopyWith[T any](w Writer, r T, f func(p []byte) ([]byte, error)) (int64, error) {
+	return CopyNWith(w, r, 32*1024, f)
 }
 
-func CopyWith2[T Reader | MReader | AReader](w Writer, r T, f func(p []byte) ([]byte, error)) (int64, error) {
-	return CopyNWith2(w, r, 32*1024, f)
-}
-
-func CopyNWith2[T Reader | MReader | AReader](w Writer, r T, max int64, f func(p []byte) ([]byte, error)) (int64, error) {
+// CopyNWith 复制数据,每次固定大小,并提供函数监听
+// 如何使用接口约束 [T Reader | MReader | AReader]
+func CopyNWith[T any](w Writer, r T, max int64, f func(p []byte) ([]byte, error)) (int64, error) {
 
 	read := func() (Acker, error) {
 		switch v := interface{}(r).(type) {
@@ -250,7 +199,7 @@ func CopyNWith2[T Reader | MReader | AReader](w Writer, r T, max int64, f func(p
 			return v.ReadAck()
 
 		default:
-			return nil, errors.New("unknown type")
+			return nil, fmt.Errorf("未知类型: %T, 未实现[Reader|MReader|AReader]", r)
 
 		}
 	}
@@ -278,4 +227,49 @@ func CopyNWith2[T Reader | MReader | AReader](w Writer, r T, max int64, f func(p
 		a.Ack()
 	}
 
+}
+
+// Swap 如何使用接口约束 [T ReadWriter | MReadWriter | AReadWriter]
+func Swap[T io.Writer](i1, i2 T) error {
+	go Copy(interface{}(i1).(io.Writer), i2)
+	_, err := Copy(interface{}(i2).(io.Writer), i1)
+	return err
+}
+
+// SwapClient 数据交换
+func SwapClient(c1, c2 *Client) {
+	c1.SetReadWithWriter(c2)
+	c1.SetCloseWithCloser(c2)
+	c2.SetReadWithWriter(c1)
+	c2.SetCloseWithCloser(c1)
+	go c1.Run()
+	go c2.Run()
+}
+
+// SwapClose 交换数据并关闭
+// 约束[T ReadWritCloser | MReadWritCloser | AReadWritCloser]
+func SwapClose(c1, c2 WriteCloser) error {
+	defer c1.Close()
+	defer c2.Close()
+	return Swap(c1, c2)
+}
+
+// Bridge 桥接,桥接两个ReadWriter
+// 例如,桥接串口(客户端)和网口(tcp客户端),可以实现通过串口上网
+func Bridge(i1, i2 Writer) error {
+	return Swap(i1, i2)
+}
+
+// CopyWithPlan 复制数据,返回进度情况
+func CopyWithPlan(w Writer, r Reader, f func(p *Plan)) (int64, error) {
+	p := &Plan{}
+	return CopyWith(w, r, func(buf []byte) ([]byte, error) {
+		if f != nil {
+			p.Index++
+			p.Current += int64(len(buf))
+			p.Bytes = buf
+			f(p)
+		}
+		return buf, nil
+	})
 }

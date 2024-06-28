@@ -58,7 +58,7 @@ func (this *Entity) Read(p []byte) (n int, err error) {
 	return 0, nil
 }
 
-// ReadMessage 实现接口 io.MessageReader
+// ReadMessage 实现接口 io.MReader
 func (this *Entity) ReadMessage() (bs []byte, _ error) {
 	return <-this.buff, nil
 }

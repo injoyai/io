@@ -27,7 +27,7 @@ func (this *Client) Closed() bool {
 	return this.conn.IsClosed()
 }
 
-func (this *Client) ReadWriteCloser(cfg *Config) (io.ReadWriteCloser, error) {
+func (this *Client) ReadWriteCloser(cfg *Config) (io.AReadWriteCloser, error) {
 	r, err := this.AckReader(cfg)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func (this *Client) ReadWriteCloser(cfg *Config) (io.ReadWriteCloser, error) {
 	return io.NewAReadWriteCloser(r, w, this.conn), nil
 }
 
-func (this *Client) AckReader(cfg *Config) (io.AckReader, error) {
+func (this *Client) AckReader(cfg *Config) (io.AReader, error) {
 	queue, err := this.channel.QueueDeclare(cfg.Name, cfg.Durable, cfg.AutoDelete, cfg.Exclusive, cfg.Nowait, nil)
 	if err != nil {
 		return nil, err

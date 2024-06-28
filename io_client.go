@@ -207,12 +207,12 @@ func (this *Client) reset(i ReadWriteCloser, key string, options ...OptionClient
 	switch v := i.(type) {
 	case nil:
 
-	case AckReader:
+	case AReader:
 		aReader := AReaderToReader(v)
 		defaultReadFunc = aReader.ReadAck
 		i = NewReadWriteCloser(aReader, i, i)
 
-	case MessageReader:
+	case MReader:
 		mReader := MReaderToReader(v)
 		defaultReadFunc = ReadFuncToAck(mReader.ReadFunc)
 		i = NewReadWriteCloser(mReader, i, i)

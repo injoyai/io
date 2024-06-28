@@ -6,48 +6,40 @@ import (
 )
 
 //cannot use io.ReadWriter in union (io.ReadWriter contains methods)
-
-type AllReader interface {
-	Reader | MReader | AReader
-}
-
-type AllReadWriter interface {
-	ReadWriter | MReadWriter | AReadWriter
-}
-
-type AllReadCloser interface {
-	ReadCloser | MReadCloser | AReadCloser
-}
-
-type AllReadWritCloser interface {
-	ReadWriteCloser | MReadWriteCloser | AReadWriteCloser
-}
+//type AllReader interface {
+//	Reader | MReader | AReader
+//}
+//
+//type AllReadWriter interface {
+//	ReadWriter | MReadWriter | AReadWriter
+//}
+//
+//type AllReadCloser interface {
+//	ReadCloser | MReadCloser | AReadCloser
+//}
+//
+//type AllReadWritCloser interface {
+//	ReadWriteCloser | MReadWriteCloser | AReadWriteCloser
+//}
 
 //===============================AReader===============================
 
-type (
-	AReader          = AckReader
-	AReadWriter      = AckReadWriter
-	AReadCloser      = AckReadCloser
-	AReadWriteCloser = AckReadWriterCloser
-)
-
-type AckReader interface {
+type AReader interface {
 	ReadAck() (Acker, error)
 }
 
-type AckReadWriter interface {
-	AckReader
+type AReadWriter interface {
+	AReader
 	Writer
 }
 
-type AckReadCloser interface {
-	AckReader
+type AReadCloser interface {
+	AReader
 	Closer
 }
 
-type AckReadWriterCloser interface {
-	AckReader
+type AReadWriteCloser interface {
+	AReader
 	Writer
 	Closer
 }
@@ -59,30 +51,23 @@ type Acker interface {
 
 //===============================MReader===============================
 
-type (
-	MReader          = MessageReader
-	MReadWriter      = MessageReadWriter
-	MReadCloser      = MessageReadCloser
-	MReadWriteCloser = MessageReadWriteCloser
-)
-
-// MessageReader 读取分包后的数据
-type MessageReader interface {
+// MReader 读取分包后的数据
+type MReader interface {
 	ReadMessage() ([]byte, error)
 }
 
-type MessageReadWriter interface {
-	MessageReader
+type MReadWriter interface {
+	MReader
 	Writer
 }
 
-type MessageReadCloser interface {
-	MessageReader
+type MReadCloser interface {
+	MReader
 	Closer
 }
 
-type MessageReadWriteCloser interface {
-	MessageReader
+type MReadWriteCloser interface {
+	MReader
 	Writer
 	Closer
 }
@@ -95,7 +80,7 @@ type MessageReadWriteCloser interface {
 
 //=============================
 
-func MReaderToReader(mReader MessageReader) *_mReaderToReader {
+func MReaderToReader(mReader MReader) *_mReaderToReader {
 	return &_mReaderToReader{
 		mReader: mReader,
 		buff:    bytes.NewBuffer(nil),
@@ -105,7 +90,7 @@ func MReaderToReader(mReader MessageReader) *_mReaderToReader {
 // _mReaderToReader 把MessageReader转成Reader,
 // 这样MessageReader能兼容
 type _mReaderToReader struct {
-	mReader MessageReader
+	mReader MReader
 	buff    *bytes.Buffer
 }
 
@@ -128,7 +113,7 @@ func (this *_mReaderToReader) Read(p []byte) (int, error) {
 
 //=============================
 
-func AReaderToReader(aReader AckReader) *_aReaderToReader {
+func AReaderToReader(aReader AReader) *_aReaderToReader {
 	return &_aReaderToReader{
 		mReader: aReader,
 		buff:    bytes.NewBuffer(nil),
@@ -136,7 +121,7 @@ func AReaderToReader(aReader AckReader) *_aReaderToReader {
 }
 
 type _aReaderToReader struct {
-	mReader AckReader
+	mReader AReader
 	buff    *bytes.Buffer
 }
 

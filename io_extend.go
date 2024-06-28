@@ -20,7 +20,7 @@ var (
 	LimitReader = io.LimitReader
 
 	// Copy 从reader中读取所有数据到writer
-	Copy = io.Copy
+	// Copy = io.Copy
 
 	// CopyBuffer 从reader中读取所有数据到writer,设置读取缓存大小
 	CopyBuffer = io.CopyBuffer

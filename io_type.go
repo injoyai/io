@@ -131,13 +131,23 @@ func (this *Count) Write(p []byte) (int, error) {
 
  */
 
-type messageReader struct {
+type mReader struct {
 	buf  *bufio.Reader
 	read func(buf *bufio.Reader) ([]byte, error)
 }
 
-func (this *messageReader) ReadMessage() ([]byte, error) {
+func (this *mReader) ReadMessage() ([]byte, error) {
 	return this.read(this.buf)
+}
+
+type aReader struct {
+	buf  *bufio.Reader
+	read func(buf *bufio.Reader) ([]byte, error)
+}
+
+func (this *aReader) ReadAck() (Acker, error) {
+	bs, err := this.read(this.buf)
+	return Ack(bs), err
 }
 
 //=============================
