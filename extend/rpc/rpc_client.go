@@ -2,19 +2,19 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/injoyai/base/g"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/base/maps/wait"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
+	uuid "github.com/satori/go.uuid"
 	"time"
 )
 
 type Client struct {
 	cfg  *ClientConfig
 	pool *io.Pool
-	wait *wait.Entity
-	bind *maps.Safe
+	wait *wait.Entity[any, any]
+	bind *maps.Safe[string, Handler]
 }
 
 func (this *Client) Bind(Type string, handler Handler) {
@@ -29,7 +29,7 @@ func NewClient(cfg *ClientConfig, option ...io.OptionClient) *Client {
 	cfg.init()
 	cli := &Client{
 		cfg:  cfg,
-		wait: wait.New(cfg.ResponseTimeout),
+		wait: wait.NewDefault(cfg.ResponseTimeout),
 	}
 	cli.pool = io.NewPool(dial.WithTCP(cfg.Address), func(c *io.Client) {
 		c.SetOptions(option...)
@@ -39,7 +39,7 @@ func NewClient(cfg *ClientConfig, option ...io.OptionClient) *Client {
 		})
 		c.WriteAny(&io.Model{
 			Type: io.Register,
-			UID:  g.UUID(),
+			UID:  uuid.NewV4().String(),
 			Data: cfg,
 		})
 	})

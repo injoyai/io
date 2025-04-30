@@ -2,7 +2,7 @@ package dial
 
 import (
 	"fmt"
-	"github.com/injoyai/base/g"
+	"github.com/injoyai/base/chans"
 	"github.com/injoyai/base/safe"
 	"github.com/injoyai/io"
 	"github.com/injoyai/logs"
@@ -30,7 +30,7 @@ func TestRedialWebsocket2(t *testing.T) {
 	start := time.Now()
 	count := safe.NewInt32(0)
 	go func() {
-		for range g.Interval(time.Second) {
+		for range chans.TraverseInterval(time.Second) {
 			sec := time.Now().Sub(start).Seconds()
 			t.Log(int(float64(count.Get())/sec), "帧")
 		}

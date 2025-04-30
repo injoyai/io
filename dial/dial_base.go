@@ -92,11 +92,11 @@ func RedialUDPTimeout(addr string, timeout time.Duration, options ...io.OptionCl
 	return io.Redial(WithUDPTimeout(addr, timeout), options...)
 }
 
-var udpMap *maps.Safe
+var udpMap *maps.Safe[string, any]
 
 func WriteUDP(addr string, p []byte, selfPort ...int) error {
 	if udpMap == nil {
-		udpMap = maps.NewSafe()
+		udpMap = maps.NewSafe[string, any]()
 	}
 	v := udpMap.GetInterface(addr)
 	if v == nil {
@@ -137,7 +137,7 @@ func Memory(key string) (io.ReadWriteCloser, string, error) {
 	if s == nil {
 		return nil, "", errors.New("服务不存在")
 	}
-	c, err := s.(*common.MemoryServer).Connect()
+	c, err := s.Connect()
 	return c, key, err
 }
 

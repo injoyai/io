@@ -3,7 +3,7 @@ package io
 import (
 	"bufio"
 	"fmt"
-	"github.com/injoyai/base/g"
+	"github.com/injoyai/base/types"
 	"github.com/injoyai/conv"
 	"io"
 )
@@ -75,7 +75,7 @@ func (this *Simple) Resp(data SimpleData, err ...error) *Simple {
 	return this
 }
 
-func (this *Simple) Bytes() g.Bytes {
+func (this *Simple) Bytes() types.Bytes {
 	bs := []byte{0x68}
 	data := this.Data.Bytes()
 	length := uint16(len(data) + 3)        // 1(报文头)+2(长度)
@@ -98,7 +98,7 @@ func (this *Simple) sum(bs []byte) byte {
 // SimpleData key和value的长度不能超过255
 type SimpleData map[string][]byte
 
-func (this SimpleData) Bytes() g.Bytes {
+func (this SimpleData) Bytes() types.Bytes {
 	data := []byte(nil)
 	for k, v := range this {
 		data = append(data, byte(len(k)))
@@ -129,7 +129,7 @@ func NewSimple(control SimpleControl, data SimpleData, msgID ...uint8) *Simple {
 	return &Simple{
 		Control: control,
 		Data:    data,
-		MsgID:   conv.GetDefaultUint8(0, msgID...),
+		MsgID:   conv.Default[uint8](0, msgID...),
 	}
 }
 

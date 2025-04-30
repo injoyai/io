@@ -4,16 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/injoyai/base/g"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/base/maps/wait"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
+	uuid "github.com/satori/go.uuid"
 	"net/http"
 )
 
 // dealFunc 处理远程消息
-func dealFunc(bind *maps.Safe, wait *wait.Entity, c *io.Client, msg io.Message) {
+func dealFunc(bind *maps.Safe[string, Handler], wait *wait.Entity[any, any], c *io.Client, msg io.Message) {
 	req := new(io.Model)
 	if err := json.Unmarshal(msg.Bytes(), req); err != nil {
 		c.CloseWithErr(err)
@@ -30,11 +30,11 @@ func dealFunc(bind *maps.Safe, wait *wait.Entity, c *io.Client, msg io.Message) 
 		go func(c *io.Client, h Handler, m *io.Model) {
 			data, err := h(context.Background(), c, m)
 			c.WriteAny(m.Resp(
-				conv.SelectInt(err == nil, http.StatusOK, http.StatusInternalServerError),
+				conv.Select[int](err == nil, http.StatusOK, http.StatusInternalServerError),
 				data,
 				conv.New(err).String("成功"),
 			))
-		}(c, h.(Handler), req)
+		}(c, h, req)
 		return
 	}
 	//响应数据
@@ -45,11 +45,11 @@ func dealFunc(bind *maps.Safe, wait *wait.Entity, c *io.Client, msg io.Message) 
 }
 
 // do 执行远程调用
-func do(c io.AnyWriterClosed, wait *wait.Entity, Type string, data interface{}) (interface{}, error) {
+func do(c io.AnyWriterClosed, wait *wait.Entity[any, any], Type string, data interface{}) (interface{}, error) {
 	if c == nil || c.Closed() {
 		return nil, errors.New("rpc未连接")
 	}
-	uid := g.UUID()
+	uid := uuid.NewV4().String()
 	m := &io.Model{
 		Type: Type,
 		UID:  uid,

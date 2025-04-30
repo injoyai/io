@@ -3,7 +3,7 @@ package listen
 import (
 	"context"
 	"errors"
-	"github.com/injoyai/base/g"
+	"github.com/injoyai/base/types"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/dial"
@@ -47,7 +47,7 @@ type TunnelMessage struct {
 	Data  []byte //数据
 }
 
-func (this *TunnelMessage) Bytes() g.Bytes {
+func (this *TunnelMessage) Bytes() types.Bytes {
 	data := []byte(nil)
 	data = append(data, this.Type, this.Model)
 	data = append(data, this.Data...)

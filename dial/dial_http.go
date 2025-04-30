@@ -67,7 +67,7 @@ func (this *HTTPClient) Write(p []byte) (int, error) {
 		return 0, errors.New(resp.Status)
 	}
 	select {
-	case this.ch <- conv.Bytes(resp.Body).Bytes():
+	case this.ch <- conv.Bytes(resp.Body):
 	default:
 	}
 	return len(p), nil

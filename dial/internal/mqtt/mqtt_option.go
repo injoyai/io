@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/injoyai/base/g"
+	"github.com/injoyai/base/str"
 	"github.com/injoyai/io"
 	"io/ioutil"
 	"strings"
@@ -30,7 +30,7 @@ func WithEasy(cfg *EasyConfig) *Config {
 		cfg.BrokerURL = "tcp://" + cfg.BrokerURL
 	}
 	if len(cfg.ClientID) == 0 {
-		cfg.ClientID = g.RandString(8)
+		cfg.ClientID = str.Rand(8)
 	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = io.DefaultConnectTimeout

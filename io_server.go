@@ -37,13 +37,13 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		Closer:       safe.NewCloser(),
 		ClientManage: NewClientManage(key, logger),
 		ctx:          ctx,
-		tag:          maps.NewSafe(),
+		tag:          maps.NewSafe[string, any](),
 		listener:     listener,
 	}
 	//开启基础信息打印
 	s.Debug()
 	//设置关闭函数
-	s.Closer.SetCloseFunc(func() error {
+	s.Closer.SetCloseFunc(func(err error) error {
 		//关闭listener
 		s.listener.Close()
 		//关闭已连接的客户端,关闭listener后,客户端还能正常通讯
@@ -64,11 +64,11 @@ type Server struct {
 	*logger
 	*safe.Closer
 	ctx       context.Context
-	tag       *maps.Safe //tag
-	listener  Listener   //listener
-	running   uint32     //是否在运行
-	startTime time.Time  //运行时间
-	closeTime time.Time  //关闭时间
+	tag       *maps.SafeSA //tag
+	listener  Listener     //listener
+	running   uint32       //是否在运行
+	startTime time.Time    //运行时间
+	closeTime time.Time    //关闭时间
 }
 
 //================================Nature================================
@@ -78,9 +78,9 @@ func (this *Server) SetLogger(logger Logger) *Server {
 	return this
 }
 
-func (this *Server) Tag() *maps.Safe {
+func (this *Server) Tag() *maps.SafeSA {
 	if this.tag == nil {
-		this.tag = maps.NewSafe()
+		this.tag = maps.NewSafe[string, any]()
 	}
 	return this.tag
 }

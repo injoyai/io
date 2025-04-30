@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"errors"
-	"github.com/injoyai/base/bytes"
+	"github.com/injoyai/base/types"
 	"github.com/injoyai/conv"
 	"time"
 )
@@ -154,7 +154,7 @@ func (this *LenFrame) Check(bs []byte) (bool, error) {
 	//获取数据总长度
 	lenBytes := bs[this.LenStart : this.LenEnd+1]
 	if this.LittleEndian {
-		lenBytes = bytes.Entity(lenBytes).Reverse()
+		lenBytes = types.Bytes(lenBytes).Reverse()
 	}
 	length := conv.Int(lenBytes) + this.LenFixed
 

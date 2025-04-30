@@ -231,8 +231,8 @@ func CopyNWith[T any](w Writer, r T, max int64, f func(p []byte) ([]byte, error)
 
 // Swap 如何使用接口约束 [T ReadWriter | MReadWriter | AReadWriter]
 func Swap[T io.Writer](i1, i2 T) error {
-	go Copy(interface{}(i1).(io.Writer), i2)
-	_, err := Copy(interface{}(i2).(io.Writer), i1)
+	go Copy(i1, i2)
+	_, err := Copy(i2, i1)
 	return err
 }
 

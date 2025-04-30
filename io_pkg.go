@@ -2,9 +2,10 @@ package io
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"fmt"
-	"github.com/injoyai/base/bytes"
+	"github.com/injoyai/base/types"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/logs"
 	"hash/crc32"
@@ -158,7 +159,7 @@ func (this *Pkg) decodeData() error {
 	return nil
 }
 
-func (this *Pkg) Bytes() bytes.Entity {
+func (this *Pkg) Bytes() types.Bytes {
 	data := []byte(nil)
 	data = append(data, pkgStart...)
 	dataBytes := this.encodeData()

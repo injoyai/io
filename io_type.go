@@ -3,13 +3,13 @@ package io
 import (
 	"bufio"
 	"context"
-	"github.com/injoyai/base/bytes"
+	"github.com/injoyai/base/types"
 	"io"
 	"time"
 )
 
 type Bytes = Message
-type Message = bytes.Entity
+type Message = types.Bytes
 
 type TimeoutWriter interface {
 	WriteWithTimeout(p []byte, timeout time.Duration) (int, error)

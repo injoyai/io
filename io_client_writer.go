@@ -195,7 +195,7 @@ func (this *Client) GoTimerWriteHEX(interval time.Duration, s string) {
 // TCP keepalive定义于RFC 1122，但并不是TCP规范中的一部分,默认必需是关闭,连接方不一定支持
 func (this *Client) SetKeepAlive(t time.Duration, keeps ...[]byte) {
 	this.GoTimerWriter(t, func(c *Client) (int, error) {
-		keep := conv.GetDefaultBytes([]byte(Ping), keeps...)
+		keep := conv.Default[[]byte]([]byte(Ping), keeps...)
 		return c.Write(keep)
 	})
 }

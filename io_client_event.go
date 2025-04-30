@@ -300,8 +300,8 @@ func (this *Client) SetDealWithChan(ch chan Message) *Client {
 // @num 协程数量
 // @fn 处理函数
 func (this *Client) SetDealWithQueue(num int, fn func(msg Message)) *Client {
-	queue := chans.NewEntity(num).SetHandler(func(ctx context.Context, no, count int, data interface{}) {
-		fn(data.(Message))
+	queue := chans.NewEntity[Message](num).SetHandler(func(ctx context.Context, no, count int, data Message) {
+		fn(data)
 	})
 	this.SetDealFunc(func(c *Client, msg Message) { queue.Do(msg) })
 	return this

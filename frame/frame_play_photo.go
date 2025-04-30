@@ -2,7 +2,7 @@ package frame
 
 import (
 	"errors"
-	"github.com/injoyai/base/g"
+	"github.com/injoyai/base/types"
 	"github.com/injoyai/conv"
 )
 
@@ -37,7 +37,7 @@ type PhotoStream struct {
 	Data    []byte //数据内容
 }
 
-func (this *PhotoStream) Bytes() g.Bytes {
+func (this *PhotoStream) Bytes() types.Bytes {
 	data := []byte(nil)
 	data = append(data, this.Control)
 	data = append(data, this.No)

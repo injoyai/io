@@ -3,7 +3,7 @@ package proxy
 import (
 	"errors"
 	"fmt"
-	"github.com/injoyai/base/bytes"
+	"github.com/injoyai/base/types"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
 	"strings"
@@ -141,7 +141,7 @@ func (this *Message) Digest() string {
 	}())
 }
 
-func (this *Message) Bytes() bytes.Entity {
+func (this *Message) Bytes() types.Bytes {
 	data := []byte{Check} //增加校验位,方便查找问题
 	data = append(data, this.OperateType.Uint8())
 	data = append(data, this.ConnectType.Uint8())

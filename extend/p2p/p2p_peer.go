@@ -3,12 +3,12 @@ package p2p
 import (
 	"context"
 	"encoding/json"
-	"github.com/injoyai/base/g"
 	"github.com/injoyai/base/maps"
 	"github.com/injoyai/base/maps/wait"
 	"github.com/injoyai/conv"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/listen"
+	uuid "github.com/satori/go.uuid"
 	"net"
 	"time"
 )
@@ -42,8 +42,8 @@ type Peer interface {
 func NewPeer(port int, options ...io.OptionServer) (p *peer, err error) {
 	p = &peer{
 		localAddr: &net.UDPAddr{Port: port},
-		clients:   maps.NewSafe(),
-		wait:      wait.New(time.Second * 2),
+		clients:   maps.NewSafeAny(),
+		wait:      wait.New[string, any](time.Second * 2),
 	}
 	p.Server, err = listen.NewUDPServer(port, func(s *io.Server) {
 		s.SetReadFunc(io.ReadWithPkg)
@@ -112,7 +112,7 @@ func NewPeer(port int, options ...io.OptionServer) (p *peer, err error) {
 					})
 					return
 				}
-				uuid := g.UUID()
+				uuid := uuid.NewV4().String()
 				nextPeer.WriteAny(Msg{
 					Type:  TypeConnectReq,
 					MsgID: uuid,
@@ -157,9 +157,9 @@ type peer struct {
 	*io.Server
 	NodeID    string
 	localAddr *net.UDPAddr
-	clients   *maps.Safe
-	nat       *maps.Safe
-	wait      *wait.Entity
+	clients   *maps.SafeAny
+	//nat       *maps.Safe
+	wait *wait.Entity[string, any]
 }
 
 func (this *peer) getClient(addr string) (*io.Client, error) {
@@ -192,10 +192,10 @@ func (this *peer) Register(addr string) error {
 		return err
 	}
 
-	uuid := g.UUID()
+	uid := uuid.NewV4().String()
 	_, err = c.WriteAny(Msg{
 		Type:  TypeRegisterReq,
-		MsgID: uuid,
+		MsgID: uid,
 		Data: MsgRegister{
 			NodeID:     this.NodeID,
 			Version:    Version,
@@ -205,7 +205,7 @@ func (this *peer) Register(addr string) error {
 		},
 	})
 
-	_, err = this.wait.Wait(uuid)
+	_, err = this.wait.Wait(uid)
 	return err
 }
 
@@ -215,10 +215,10 @@ func (this *peer) GetRegister(addr string, nodeID string) (*MsgRegister, error) 
 		return nil, err
 	}
 
-	uuid := g.UUID()
+	uid := uuid.NewV4().String()
 	_, err = c.WriteAny(Msg{
 		Type:  TypeGetRegisterReq,
-		MsgID: uuid,
+		MsgID: uid,
 		Data: MsgGetRegister{
 			NodeID: nodeID,
 		},
@@ -227,7 +227,7 @@ func (this *peer) GetRegister(addr string, nodeID string) (*MsgRegister, error) 
 		return nil, err
 	}
 
-	res, err := wait.Wait(uuid)
+	res, err := wait.Wait(uid)
 	if err != nil {
 		return nil, err
 	}

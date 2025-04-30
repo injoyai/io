@@ -17,7 +17,7 @@ func NewClientManage(key string, log *logger) *ClientManage {
 		Logger: log,
 		mKey:   make(map[string]*Client),
 		mu:     sync.RWMutex{},
-		Keep:   timeout.New(),
+		Keep:   timeout.New[*Client](),
 		options: []OptionClient{func(c *Client) {
 			c.SetConnectWithNil().SetConnectFunc(func(c *Client) error {
 				log.Infof("[%s] 新的客户端连接...\n", c.GetKey())
@@ -29,8 +29,8 @@ func NewClientManage(key string, log *logger) *ClientManage {
 	//超时机制
 	e.Keep.SetTimeout(DefaultTimeout)
 	e.Keep.SetInterval(DefaultTimeoutInterval)
-	e.Keep.SetDealFunc(func(key interface{}) error {
-		return key.(*Client).CloseWithErr(ErrWithTimeout)
+	e.Keep.SetDealFunc(func(key *Client) error {
+		return key.CloseWithErr(ErrWithTimeout)
 	})
 
 	return e
@@ -43,8 +43,8 @@ ClientManage
 */
 type ClientManage struct {
 	Key
-	Logger       *logger          //日志
-	Keep         *timeout.Timeout //超时机制
+	Logger       *logger                   //日志
+	Keep         *timeout.Timeout[*Client] //超时机制
 	mID          sync.Map
 	mKey         map[string]*Client
 	mu           sync.RWMutex
@@ -88,7 +88,7 @@ func (this *ClientManage) SetTimeout(t time.Duration) {
 
 // SetTimeoutInterval 设置超时检测间隔,至少需要1秒
 func (this *ClientManage) SetTimeoutInterval(ti time.Duration) {
-	this.Keep.SetInterval(conv.SelectDuration(ti > time.Second, ti, time.Second))
+	this.Keep.SetInterval(conv.Select[time.Duration](ti > time.Second, ti, time.Second))
 }
 
 // Close 关闭,实现io.Closer接口

@@ -2,7 +2,7 @@ package io
 
 import (
 	"encoding/json"
-	"github.com/injoyai/base/g"
+	"github.com/injoyai/base/types"
 	"net/http"
 )
 
@@ -18,7 +18,7 @@ func (this *Model) String() string {
 	return string(this.Bytes())
 }
 
-func (this *Model) Bytes() g.Bytes {
+func (this *Model) Bytes() types.Bytes {
 	bs, _ := json.Marshal(this)
 	return bs
 }

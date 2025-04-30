@@ -8,16 +8,16 @@ import (
 	"time"
 )
 
-var MemoryServerManage = maps.NewSafe()
+var MemoryServerManage = maps.NewSafe[string, *MemoryServer]()
 
 func NewMemoryServer(key string) *MemoryServer {
-	s, _ := MemoryServerManage.GetOrSetByHandler(key, func() (interface{}, error) {
+	s, _ := MemoryServerManage.GetOrSetByHandler(key, func() (*MemoryServer, error) {
 		return &MemoryServer{
 			Key: key,
 			Ch:  make(chan io.ReadWriteCloser, 1000),
 		}, nil
 	})
-	return s.(*MemoryServer)
+	return s
 }
 
 // MemoryServer 虚拟服务,为了实现接口
