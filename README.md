@@ -2,6 +2,7 @@
 
 
 ### 如何使用
+项目已移至 [`https://github.com/injoyai/ios`](https://github.com/injoyai/ios)
 
 #### 如何连接TCP
 
