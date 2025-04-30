@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/injoyai/io"
+	"github.com/injoyai/io/buf"
 	"github.com/injoyai/io/listen"
 	"github.com/injoyai/logs"
 	"net/http"
@@ -84,7 +85,7 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 	ser := &Server{}
 	_, err := io.NewServer(dial, func(s *io.Server) {
 		//读取全部数据
-		s.SetReadWithKB(1)
+		s.SetReadFunc(buf.Read1KB)
 		//s.SetPrintFunc(func(msg io.Message, tag ...string) {
 		//	io.PrintWithASCII(msg.Bytes(), append([]string{"PR|S"}, tag...)...)
 		//})
@@ -94,9 +95,9 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 			//s.Print([]byte("未设置处理函数"), "PR|S", io.TagErr)
 			return errors.New(m)
 		}}
-		s.SetCloseFunc(func(c *io.Client, msg io.Message) {
+		s.SetCloseFunc(func(c *io.Client, err error) {
 			//客户端关闭了连接,发送是数据到代理端关闭代理客户端
-			m := NewCMessage(c, NewCloseMessage(c.GetKey(), msg.String()))
+			m := NewCMessage(c, NewCloseMessage(c.GetKey(), err.Error()))
 			if ser.dealFunc != nil {
 				logs.PrintErr(ser.dealFunc(m))
 			}
@@ -114,7 +115,7 @@ func NewServer(dial io.ListenFunc, options ...func(s *Server)) (*Server, error) 
 				addr, err := getAddr(c, msg)
 				if err != nil {
 					logs.Err(err)
-					C.Close()
+					c.Close()
 					return
 				}
 

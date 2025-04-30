@@ -14,8 +14,8 @@ github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/gorilla/websocket v1.5.0 h1:PPwGk2jz7EePpoHN/+ClbZu8SPxiqlu12wZP/3sWmnc=
 github.com/gorilla/websocket v1.5.0/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
-github.com/injoyai/base v1.2.2 h1:ZyyvKXowHO6O7hfRQ6kAMaEDnhaHwsOmnEmz29bK/iQ=
-github.com/injoyai/base v1.2.2/go.mod h1:z0gCHrfeQAuyYYgjqmDBQmCYFyMdBUfh0lerqL+k3WU=
+github.com/injoyai/base v1.2.3 h1:lQwcAGyDBfXMIlZrtBmAhWw4ehAX+kb0OHiRySGVU9M=
+github.com/injoyai/base v1.2.3/go.mod h1:z0gCHrfeQAuyYYgjqmDBQmCYFyMdBUfh0lerqL+k3WU=
 github.com/injoyai/conv v1.2.1 h1:jArL66HE4bx1ahKdsaGo6oCA16odcMZzLln+tfk/UAk=
 github.com/injoyai/conv v1.2.1/go.mod h1:s05l3fQJQ4mT4VX+KIdbvCWQB0YzZHprmUfUu2uxd1k=
 github.com/injoyai/logs v1.0.9 h1:Wq7rCVIQKcPx+z+lzKQb2qyDK4TML/cgmaSZN9tx33c=

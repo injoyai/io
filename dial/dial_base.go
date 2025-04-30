@@ -3,7 +3,6 @@ package dial
 import (
 	"context"
 	"errors"
-	"github.com/injoyai/base/maps"
 	"github.com/injoyai/io"
 	"github.com/injoyai/io/internal/common"
 	"net"
@@ -92,25 +91,25 @@ func RedialUDPTimeout(addr string, timeout time.Duration, options ...io.OptionCl
 	return io.Redial(WithUDPTimeout(addr, timeout), options...)
 }
 
-var udpMap *maps.Safe[string, any]
-
-func WriteUDP(addr string, p []byte, selfPort ...int) error {
-	if udpMap == nil {
-		udpMap = maps.NewSafe[string, any]()
-	}
-	v := udpMap.GetInterface(addr)
-	if v == nil {
-		c, err := net.Dial(io.UDP, addr)
-		if err != nil {
-			return err
-		}
-		udpMap.Set(addr, c)
-		v = c
-	}
-	c := v.(net.Conn)
-	_, err := c.Write(p)
-	return err
-}
+//var udpMap *maps.Safe
+//
+//func WriteUDP(addr string, p []byte, selfPort ...int) error {
+//	if udpMap == nil {
+//		udpMap = maps.NewSafe[string, any]()
+//	}
+//	v := udpMap.GetInterface(addr)
+//	if v == nil {
+//		c, err := net.Dial(io.UDP, addr)
+//		if err != nil {
+//			return err
+//		}
+//		udpMap.Set(addr, c)
+//		v = c
+//	}
+//	c := v.(net.Conn)
+//	_, err := c.Write(p)
+//	return err
+//}
 
 //================================FileDial================================
 

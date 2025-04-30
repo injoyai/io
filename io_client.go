@@ -106,7 +106,7 @@ type Client struct {
 	pointer     string          //唯一标识,指针地址
 	i           ReadWriteCloser //接口,实例,传入的原始参数
 	buf         *bufio.Reader   //buffer
-	tag         *maps.SafeSA    //标签,用于记录连接的一些信息
+	tag         *maps.Safe      //标签,用于记录连接的一些信息
 	CreateTime  time.Time       //创建时间,对象创建时间,重连不会改变
 	DialTime    time.Time       //连接时间,每次重连会改变
 	ReadTime    time.Time       //本次连接,最后读取到数据的时间
@@ -275,9 +275,9 @@ func (this *Client) GetTag(key string, def ...string) string {
 }
 
 // Tag 自定义信息,方便记录连接信息 例:c.Tag().GetString("imei")
-func (this *Client) Tag() *maps.Safe[string, any] {
+func (this *Client) Tag() *maps.Safe {
 	if this.tag == nil {
-		this.tag = maps.NewSafe[string, any]()
+		this.tag = maps.NewSafe()
 	}
 	return this.tag
 }

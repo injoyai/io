@@ -17,7 +17,7 @@ func NewClientManage(key string, log *logger) *ClientManage {
 		Logger: log,
 		mKey:   make(map[string]*Client),
 		mu:     sync.RWMutex{},
-		Keep:   timeout.New[*Client](),
+		Keep:   timeout.NewGeneric[*Client](),
 		options: []OptionClient{func(c *Client) {
 			c.SetConnectWithNil().SetConnectFunc(func(c *Client) error {
 				log.Infof("[%s] 新的客户端连接...\n", c.GetKey())
@@ -44,7 +44,7 @@ ClientManage
 type ClientManage struct {
 	Key
 	Logger       *logger                   //日志
-	Keep         *timeout.Timeout[*Client] //超时机制
+	Keep         *timeout.Generic[*Client] //超时机制
 	mID          sync.Map
 	mKey         map[string]*Client
 	mu           sync.RWMutex

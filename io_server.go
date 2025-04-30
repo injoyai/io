@@ -37,7 +37,7 @@ func NewServerWithContext(ctx context.Context, newListen func() (Listener, error
 		Closer:       safe.NewCloser(),
 		ClientManage: NewClientManage(key, logger),
 		ctx:          ctx,
-		tag:          maps.NewSafe[string, any](),
+		tag:          maps.NewSafe(),
 		listener:     listener,
 	}
 	//开启基础信息打印
@@ -64,11 +64,11 @@ type Server struct {
 	*logger
 	*safe.Closer
 	ctx       context.Context
-	tag       *maps.SafeSA //tag
-	listener  Listener     //listener
-	running   uint32       //是否在运行
-	startTime time.Time    //运行时间
-	closeTime time.Time    //关闭时间
+	tag       *maps.Safe //tag
+	listener  Listener   //listener
+	running   uint32     //是否在运行
+	startTime time.Time  //运行时间
+	closeTime time.Time  //关闭时间
 }
 
 //================================Nature================================
@@ -78,9 +78,9 @@ func (this *Server) SetLogger(logger Logger) *Server {
 	return this
 }
 
-func (this *Server) Tag() *maps.SafeSA {
+func (this *Server) Tag() *maps.Safe {
 	if this.tag == nil {
-		this.tag = maps.NewSafe[string, any]()
+		this.tag = maps.NewSafe()
 	}
 	return this.tag
 }

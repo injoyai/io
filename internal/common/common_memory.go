@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var MemoryServerManage = maps.NewSafe[string, *MemoryServer]()
+var MemoryServerManage = maps.NewGeneric[string, *MemoryServer]()
 
 func NewMemoryServer(key string) *MemoryServer {
 	s, _ := MemoryServerManage.GetOrSetByHandler(key, func() (*MemoryServer, error) {
